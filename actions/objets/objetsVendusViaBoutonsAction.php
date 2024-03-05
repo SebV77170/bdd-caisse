@@ -6,7 +6,7 @@ session_start();
 
 
     
-    //Pour vérifier si le code barre est bien dans l'URL
+    //Pour vérifier si l'id du bouton est bien dans l'URL
     
     if(isset($_GET['id_bouton'])){
         
