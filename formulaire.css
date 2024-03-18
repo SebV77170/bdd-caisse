@@ -1,0 +1,89 @@
+/*formulaire reduciton **/
+.container-formulaire {
+    width: 300px;
+    margin: 50px auto;
+  }
+  
+  .container-formulaire2 {
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 20px;
+    background-color: #f9f9f9;
+  }
+  
+  .container-formulaire2 h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .boutton {
+    margin-bottom: 15px;
+  }
+  
+  .boutton label {
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .boutton input[type="text"],
+  .boutton input[type="date"] {
+    width: calc(100% - 16px);
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+  }
+  
+  .Envoyer input[type="submit"] {
+    width: 100%;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+/*tableau modification*
+  table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+table th, table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+table tr:hover {
+    background-color: #ddd;
+}
+
+table td a {
+    text-decoration: none;
+    color: blue;
+}
+
+table td a:hover {
+    color: red;
+}
+*/
+
+.retour {
+  background-color: blue;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: inline-block;
+}
+
