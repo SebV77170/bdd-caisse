@@ -33,7 +33,11 @@ require('app/bootstrap.php');
     if($_SESSION['admin'] >= 1){
     ?>
          
-         <div class="accordion d-md-none d-lg-none d-xl-none d-xxl-none">  
+        <!-- Formulaire de saisie manuelle -->
+
+        <!-- Version pour les petits écrans -->
+
+        <div class="accordion d-md-none d-lg-none d-xl-none d-xxl-none">  
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingOne">
                     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#panelsStayOpen-collapseOne" aria-expanded="true" aria-controls="collapseOne">
@@ -125,6 +129,8 @@ require('app/bootstrap.php');
                 </div>
             </div> 
         </div>  
+
+        <!-- Version pour les grands écrans -->
 
         <div class="accordion d-none d-md-block d-lg-block d-xl-block d-xxl-block">  
             <div class="accordion-item">
@@ -218,11 +224,17 @@ require('app/bootstrap.php');
                 </div>
             </div> 
         </div>  
-                
 
-            <!-- Visuel du ticket de caisse-->
+        <!-- Visuel en direct du ticket de caisse et bouton de vente -->
 
         <div class="container-fluid">
+
+            <!-- STAGIAIRES -- Intégrer un tableau ici qui récapitule les différentes réductions, il faut récupérer les données de la tables réduction avant. 
+        Afin de rester cohérent avce le framework bootstrap, vous devez du coup utiliser un div class="row" puis un tableau bootstrap. Sur chaque ligne, le caissier doit pouvoir
+        modifier ou supprimer une réduction, donc il doit pouvoir la possibilité de cliquer sur une petite croix ou un symbole pour modifier, qui 
+        fera appelle au script fait par Loic. ATTENTION, en cas de suppresion, il doit y avoir un popup pour faire confirmer.
+        En bas du tableau, Rajoutez un bouton "ajouter une réduction" -->
+
             <div class="row">
                 <div class="col">
                     <!-- entête du ticket de caisse -->
@@ -342,6 +354,10 @@ require('app/bootstrap.php');
                                         foreach($value as $value1=>$value2):
                                         ?>
                                         <!-- Les valeurs des couleurs sont définies dans styles.scss dans $custom-theme-colors -->
+                                        
+                                        <!-- STAGIAIRES -- C'est ici qu'en cliquant sur le lien, que le prix de l'objet cliqué va être récupéré par le script objetsVendusViaBoutonsAction. Du coup, il va falloir modifier ce script afin d'intégrer la réduction dans le prix
+                                        Allez voir les commentaires sur le script en question -->
+
                                         <a class="col btn btn-<?=$value2['color']?> border-dark m-1 rounded-3" role="button" href="actions/objets/objetsVendusViaBoutonsAction.php?id_bouton=<?=$value2['id_bouton']?>&id_temp_vente=<?=$_GET['id_temp_vente']?><?php if(isset($_GET['id_modif'])):?>&id_modif=<?=$_GET['id_modif']?><?php endif;?>&modif=<?=$_GET['modif']?>"><?=$value2['nom']?></a>
                                         <?php 
                                         endforeach; 
@@ -363,7 +379,9 @@ require('app/bootstrap.php');
                             <a class="btn btn-outline-primary btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=espèces" class="stdbouton">Espece</a>
                             <a class="btn btn-outline-secondary btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=carte" class="stdbouton">Carte</a>
                             <a class="btn btn-outline-warning btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=chèque" class="stdbouton">Chèque</a>
-                            <a class="btn btn-outline-success btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=mixte" class="stdbouton">Mixte</a>  
+                            <a class="btn btn-outline-success btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=mixte" class="stdbouton">Mixte</a>
+                            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php">Réduction</a>
+  
                         <?php
                         else:
                         ?>
@@ -371,6 +389,8 @@ require('app/bootstrap.php');
                             <a class="btn btn-outline-secondary btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?>&mp=carte" class="stdbouton">Carte</a>
                             <a class="btn btn-outline-warning btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?>&mp=chèque" class="stdbouton">Chèque</a>
                             <a class="btn btn-outline-success btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?>&mp=mixte" class="stdbouton">Mixte</a>
+                            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php">Réduction</a>
+
                         <?php
                         endif;
                     endif;             
@@ -390,6 +410,34 @@ require('app/bootstrap.php');
                     <?php
                     endif;
                     ?>
+                    <!-- ajout du tableau de reduction !-->
+                    <?php
+                    try {
+                        // Récupération des réductions en cours
+                        $sel = "SELECT * FROM reduction";
+                        $selectred = $db->query($sel);
+                        
+                        if ($selectred->rowCount() > 0) {
+                            // Affichage des réductions en cours avec possibilité de modification ou suppression
+                            echo "<table style='width: 100%; border-collapse: collapse;'>";
+                            echo "<tr><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>ID</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Catégorie</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Montant</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Date de fin</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Action</th></tr>";
+                            while ($row = $selectred->fetch(PDO::FETCH_ASSOC)) {
+                                echo "<tr>";
+                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["id"]."</td>";
+                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["categorie"]."</td>";
+                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["montant"]."</td>";
+                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["date_fin"]."</td>";
+                                echo "<td style='padding: 8px; border: 1px solid #ddd;'><a href='modifreduc.php?id=".$row["id"]."' style='text-decoration: none; color: blue;'>Modifier</a> | <a href='supreduc.php?id=".$row["id"]."&action=delete' style='text-decoration: none; color: blue;'>Supprimer</a> | <a href='reduction.php' style='text-decoration: none; color: blue;'>Ajouter</a></td>";
+                                echo "</tr>";
+                            }
+                            echo "</table>"; // déplacement de la fermeture de la balise table à l'extérieur de la boucle while
+                        } else {
+                            echo "Aucune réduction enregistrée.";
+                        }
+                    } catch (Exception $e) {
+                        die('Une erreur a été trouvée : ' . $e->getMessage());
+                    }
+                    ?>
                 </div>
             </div>
         </div>
@@ -398,6 +446,8 @@ require('app/bootstrap.php');
         <!-- Script Jquery pour dérouler des sous catégories à partir des catégories-->
         
         <script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
+
+        <!-- Script pour les grands écrans #type1 -->
         <script>
             $(document).ready(function() {
                 $('#type1').on('change',function(){
@@ -417,6 +467,8 @@ require('app/bootstrap.php');
             });
         </script>
 
+        <!-- Script pour les petits écrans #type2 -->
+
         <script>
             $(document).ready(function() {
                 $('#type2').on('change',function(){
@@ -435,7 +487,9 @@ require('app/bootstrap.php');
                 });
             });
         </script>
+
         <!--Le script ci-dessous permet de récupérer la valeure de la catégorie pour la passer dans la page ajoutsouscat directement, évitant à l'utilisateur de saisir de nouveau la catégorie        -->
+        
         <script>
             function getValue() {
             // Sélectionner l'élément input et récupérer sa valeur

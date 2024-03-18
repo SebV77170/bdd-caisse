@@ -40,7 +40,7 @@ try {
 </head>
 <body>
     <div class="retour">
-    <a href="reduction.php">retour</a>
+    <a href="objetsVendus.php">retour</a>
     </div>
 </body>
 </html>

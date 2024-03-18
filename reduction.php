@@ -1,3 +1,9 @@
+<?php
+require('actions/db.php');
+require('app/bootstrap.php');
+
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,8 +19,22 @@
         <h2>Reduction</h2>
         <form action="traitement.php" method="POST">
             <div class="boutton">
-                <label for="categorie">Catégorie:</label>
-                <input type="text" id="categorie" name="categorie" required>
+                <label class="champ" for="type2">Catégorie : </label>
+                <select id="type2" name="categorie">
+                    <option value="">Sélectionner une catégorie</option>
+                    
+                    <!--Va chercher les catégories dans la table categories-->
+                    
+                    <?php
+                    $result = $db->prepare('SELECT * FROM categories WHERE parent_id = "parent"');
+                    $result->execute();
+                    
+                    while($row = $result->fetch(PDO::FETCH_BOTH)){
+                        ?><option value="<?php echo $row['id'];?>"><?php echo $row['category'];?></option>
+                        <?php
+                    }
+                    ?>
+                </select>
             </div>
             <div class="boutton">
                 <label for="montant">Montant:</label>
@@ -33,7 +53,6 @@
 
 <!-- modifier ou supprimer-->
 <?php
-require('actions/db.php');
 
 try {
     // Récupération des réductions en cours
