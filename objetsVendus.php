@@ -225,6 +225,45 @@ require('app/bootstrap.php');
             </div> 
         </div>  
 
+        <!-- Liste des réductions en cours et bouton d'ajout de réduction -->
+
+        <!-- ajout du tableau de reduction !-->
+        <?php
+            try {
+                // Récupération des réductions en cours
+                $sel = "SELECT * FROM reduction";
+                $selectred = $db->query($sel);
+                
+                if ($selectred->rowCount() > 0) {
+                    // Affichage des réductions en cours avec possibilité de modification ou suppression
+                    echo "<table style='width: 100%; border-collapse: collapse;'>";
+                    echo "  <tr>
+                            <th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Catégorie</th>
+                            <th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Montant</th>
+                            <th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Date de fin</th>
+                            <th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Action</th>
+                            </tr>";
+                    while ($row = $selectred->fetch(PDO::FETCH_ASSOC)) {
+                        echo "<tr>";
+                        echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["categorie"]."</td>";
+                        echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["montant"]."</td>";
+                        echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["date_fin"]."</td>";
+                        echo "<td style='padding: 8px; border: 1px solid #ddd;'><a href='modifreduc.php?id=".$row["id"]."' style='text-decoration: none; color: blue;'>Modifier</a> | <a href='supreduc.php?id=".$row["id"]."&action=delete' style='text-decoration: none; color: blue;'>Supprimer</a> | <a href='reduction.php' style='text-decoration: none; color: blue;'>Ajouter</a></td>";
+                        echo "</tr>";
+                    }
+                    echo "</table>"; // déplacement de la fermeture de la balise table à l'extérieur de la boucle while
+                } else {
+                    echo "Aucune réduction enregistrée.";
+                }
+            } catch (Exception $e) {
+                die('Une erreur a été trouvée : ' . $e->getMessage());
+            }
+        ?>
+
+        <div class="container-fluid">
+            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php">Réduction</a>
+        </div>
+
         <!-- Visuel en direct du ticket de caisse et bouton de vente -->
 
         <div class="container-fluid">
@@ -380,7 +419,7 @@ require('app/bootstrap.php');
                             <a class="btn btn-outline-secondary btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=carte" class="stdbouton">Carte</a>
                             <a class="btn btn-outline-warning btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=chèque" class="stdbouton">Chèque</a>
                             <a class="btn btn-outline-success btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&id_modif=<?=$_GET['id_modif']?>&modif=<?=$_GET['modif']?>&mp=mixte" class="stdbouton">Mixte</a>
-                            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php">Réduction</a>
+                            
   
                         <?php
                         else:
@@ -389,7 +428,7 @@ require('app/bootstrap.php');
                             <a class="btn btn-outline-secondary btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?>&mp=carte" class="stdbouton">Carte</a>
                             <a class="btn btn-outline-warning btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?>&mp=chèque" class="stdbouton">Chèque</a>
                             <a class="btn btn-outline-success btn-lg m-3" href="verif.php?prix=<?=$getTotalEnEuros?>&nbrObjet=<?=$NbrObjetDeTC?>&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?>&mp=mixte" class="stdbouton">Mixte</a>
-                            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php">Réduction</a>
+                            
 
                         <?php
                         endif;
@@ -409,34 +448,6 @@ require('app/bootstrap.php');
                     
                     <?php
                     endif;
-                    ?>
-                    <!-- ajout du tableau de reduction !-->
-                    <?php
-                    try {
-                        // Récupération des réductions en cours
-                        $sel = "SELECT * FROM reduction";
-                        $selectred = $db->query($sel);
-                        
-                        if ($selectred->rowCount() > 0) {
-                            // Affichage des réductions en cours avec possibilité de modification ou suppression
-                            echo "<table style='width: 100%; border-collapse: collapse;'>";
-                            echo "<tr><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>ID</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Catégorie</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Montant</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Date de fin</th><th style='background-color: #f2f2f2; padding: 8px; border: 1px solid #ddd;'>Action</th></tr>";
-                            while ($row = $selectred->fetch(PDO::FETCH_ASSOC)) {
-                                echo "<tr>";
-                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["id"]."</td>";
-                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["categorie"]."</td>";
-                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["montant"]."</td>";
-                                echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["date_fin"]."</td>";
-                                echo "<td style='padding: 8px; border: 1px solid #ddd;'><a href='modifreduc.php?id=".$row["id"]."' style='text-decoration: none; color: blue;'>Modifier</a> | <a href='supreduc.php?id=".$row["id"]."&action=delete' style='text-decoration: none; color: blue;'>Supprimer</a> | <a href='reduction.php' style='text-decoration: none; color: blue;'>Ajouter</a></td>";
-                                echo "</tr>";
-                            }
-                            echo "</table>"; // déplacement de la fermeture de la balise table à l'extérieur de la boucle while
-                        } else {
-                            echo "Aucune réduction enregistrée.";
-                        }
-                    } catch (Exception $e) {
-                        die('Une erreur a été trouvée : ' . $e->getMessage());
-                    }
                     ?>
                 </div>
             </div>
