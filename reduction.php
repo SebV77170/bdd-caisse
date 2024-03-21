@@ -44,6 +44,7 @@ require('app/bootstrap.php');
                 <label for="date_fin">Date de fin:</label>
                 <input type="date" id="date_fin" name="date_fin" required>
             </div>
+            <!-- cet input pour definir si on modifie ou si on insere une réduction. -->
             <div class="boutton">
                 <input type="hidden" id="modifouinsert" name="modifouinsert" value="i">
             </div>
