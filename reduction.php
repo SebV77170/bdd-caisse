@@ -48,11 +48,11 @@ require('app/bootstrap.php');
             <div class="boutton">
                 <input type="hidden" id="modifouinsert" name="modifouinsert" value="i">
             </div>
-            <!-- voilà l'input en question en modifiant la value pour ça fonctionne
-                <div class="boutton">
-                    <input type="hidden" id="id_temp_vente" name="id_temp_vente" value="<balise php>$_GET['id_temp_vente']</balise php>">
-                </div>
-            -->
+            <!-- voilà l'input en question en modifiant la value pour ça fonctionne -->
+            <div class="boutton">
+                <input type="hidden" id="id_temp_vente" name="id_temp_vente" value="<?php $_POST['id_temp_vente']; ?>">
+            </div>
+           
             <div class="Envoyer">
                 <input type="submit" value="Envoyer">
             </div>
