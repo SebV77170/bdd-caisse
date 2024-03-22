@@ -17,6 +17,7 @@ require('app/bootstrap.php');
 <div class="container-formulaire">
     <div class="container-formulaire2">
         <h2>Reduction</h2>
+        <!-- Comme tu utilises du POST pour envoyer ton formulaire, tu vas transmettre l'id_temp_vente en POST via un input hidden -->
         <form action="traitement.php" method="POST">
             <div class="boutton">
                 <label class="champ" for="type2">Catégorie : </label>
@@ -47,6 +48,11 @@ require('app/bootstrap.php');
             <div class="boutton">
                 <input type="hidden" id="modifouinsert" name="modifouinsert" value="i">
             </div>
+            <!-- voilà l'input en question en modifiant la value pour ça fonctionne
+                <div class="boutton">
+                    <input type="hidden" id="id_temp_vente" name="id_temp_vente" value="<balise php>$_GET['id_temp_vente']</balise php>">
+                </div>
+            -->
             <div class="Envoyer">
                 <input type="submit" value="Envoyer">
             </div>

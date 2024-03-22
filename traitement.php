@@ -52,9 +52,10 @@ try {
 </head>
 <body>
 
-<!-- a revoir en detail -->
+<!-- ici, tu va utiliser du coup ton id_temp_vente que tu as transmis en POST via ton formulaire 
     <div class="retour">
-    <a href="objetsVendus.php?id_temp_vente=<?=$_GET['id_temp_vente']?>">Retour</a>
+    <a href="objetsVendus.php?id_temp_vente=<balise php>//pas $_GET['id_temp_vente'] mais $_POST['']?>">Retour</a>
     </div>
+-->
 </body>
 </html>
