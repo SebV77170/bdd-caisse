@@ -16,7 +16,6 @@ require('app/bootstrap.php');
 ?>
 
 <!DOCTYPE HTML>
-
 <html lang="fr-FR">
     <?php include("includes/head.php");?>
     <body class="corps">

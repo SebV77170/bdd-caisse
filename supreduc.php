@@ -17,6 +17,7 @@ if(isset($_GET['id']) && isset($_GET['action']) && $_GET['action'] === 'delete')
         echo "Une erreur s'est produite lors de la suppression de la réduction.";
     }
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">

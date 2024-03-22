@@ -55,8 +55,6 @@ try {
 <!-- a revoir en detail -->
     <div class="retour">
     <a href="objetsVendus.php?id_temp_vente=<?=$_GET['id_temp_vente']?>">Retour</a>
-
-
     </div>
 </body>
 </html>

@@ -14,7 +14,6 @@ if(isset($_GET['id'])) {
     $reduction = $stmt->fetch(PDO::FETCH_ASSOC);
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>

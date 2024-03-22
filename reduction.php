@@ -61,7 +61,6 @@ try {
     // Récupération des réductions en cours
     $sel = "SELECT * FROM reduction";
     $selectred = $db->query($sel);
-
     if ($selectred->rowCount() > 0) {
         // Affichage des réductions en cours avec possibilité de modification ou suppression
         echo "<table>";
