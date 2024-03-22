@@ -247,7 +247,7 @@ require('app/bootstrap.php');
                         echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["categorie"]."</td>";
                         echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["montant"]."</td>";
                         echo "<td style='padding: 8px; border: 1px solid #ddd;'>".$row["date_fin"]."</td>";
-                        echo "<td style='padding: 8px; border: 1px solid #ddd;'><a href='modifreduc.php?id_temp_vente=" . $_POST['id_temp_vente'] . "&id=" .$row["id"]."' style='text-decoration: none; color: blue;'>Modifier</a> | <a href='supreduc.php?id=".$row["id"]."&action=delete' style='text-decoration: none; color: blue;'>Supprimer</a> | <a href='reduction.php' style='text-decoration: none; color: blue;'>Ajouter</a></td>";
+                        echo "<td style='padding: 8px; border: 1px solid #ddd;'><a href='modifreduc.php?id_temp_vente=" . $_GET['id_temp_vente'] . "&id=" .$row["id"]."' style='text-decoration: none; color: blue;'>Modifier</a> | <a href='supreduc.php?id=".$row["id"]."&action=delete' style='text-decoration: none; color: blue;'>Supprimer</a>";
                         echo "</tr>";
                     }
                     echo "</table>"; // déplacement de la fermeture de la balise table à l'extérieur de la boucle while

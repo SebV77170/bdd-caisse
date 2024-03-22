@@ -52,9 +52,10 @@ try {
 </head>
 <body>
 
-<!-- ici, tu va utiliser du coup ton id_temp_vente que tu as transmis en POST via ton formulaire -->
+<!-- Je te laisse chercher, car ici, tu renvoie toujours à ton formulaire avec ton bouton retour. 
+L'idée, c'est de rediriger automatiquement avec la fonction header() de PHP -->
 <div class="retour">
-    <a href="objetsVendus.php?id_temp_vente=<?php $_POST['id_temp_vente']; ?>">Retour</a>
+    <a href="objetsVendus.php?id_temp_vente=<?php echo $_POST['id_temp_vente']; ?>">Retour</a>
 </div>
 
 

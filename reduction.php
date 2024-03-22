@@ -50,7 +50,7 @@ require('app/bootstrap.php');
             </div>
             <!-- voilà l'input en question en modifiant la value pour ça fonctionne -->
             <div class="boutton">
-                <input type="hidden" id="id_temp_vente" name="id_temp_vente" value="<?php $_POST['id_temp_vente']; ?>">
+                <input type="hidden" id="id_temp_vente" name="id_temp_vente" value="<?php echo $_GET['id_temp_vente']; ?>">
             </div>
            
             <div class="Envoyer">
