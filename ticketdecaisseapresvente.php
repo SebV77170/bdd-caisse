@@ -1,6 +1,7 @@
 <?php
 require('actions/users/securityAction.php');
 require('actions/objets/getTicket.php');
+require('actions/objets/facturation.php');
 require('actions/objets/envoieTicketAction.php');
 ?>
 
@@ -50,6 +51,37 @@ require('actions/objets/envoieTicketAction.php');
                 ?>
             
                 <input type="submit" class="input inputsubmit" name="validate" value="Envoyer">
+                
+                
+            </form>
+
+            <form method="post">
+                
+                <fieldset class="jeuchamp">
+
+                    <label class="champ" for="raison">Raison sociale : </label>
+                    <input class="input" type="text" name="raison">
+            
+                    <label class="champ" for="adresse">Adresse : </label>
+                    <input class="input" type="text" name="adresse">
+
+                    <label class="champ" for="code_postal">Code postal : </label>
+                    <input class="input" type="text" name="code_postal">
+
+                    <label class="champ" for="ville">Ville : </label>
+                    <input class="input" type="text" name="ville">
+
+            
+                </fieldset>
+
+                <?php if(isset($message1)){
+                ?>
+                <p style='text-align: center; color: red;'>ATTENTION : <?=$message1?></p>
+                <?php
+                }
+                ?>
+            
+                <input type="submit" class="input inputsubmit" name="validate_adresse" value="facture">
                 
                 
             </form>

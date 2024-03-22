@@ -44,7 +44,7 @@ require 'PHPMailer/src/SMTP.php';
                             $email->From='magasin@ressourcebrie.fr'; 
                             $email->AddAddress($mail); 
                             $email->AddReplyTo('magasin@ressourcebrie.fr');      
-                            $email->Subject='Votre ticket de caisse Ressource\'Brie'; 
+                            $email->Subject='Votre ticket ou facture Ressource\'Brie'; 
                             $email->Body='<html><body class="corps"><center><font size=8>Merci pour vos achats et à bientôt :)</font><br></body></html>'; 
                             $email->AddAttachment($lien); 
                             

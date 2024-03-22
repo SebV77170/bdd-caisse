@@ -34,6 +34,11 @@ if(isset($_GET['ra']) AND !isset($_POST['final-validation'])):
             $nom_objet = 'reduction gros panier bénévole';
             $categorie_objet = 'reduction gros panier bénévole';
             $souscat = 'reduction gros panier bénévole';
+        elseif($_GET['ra']=='trueGrosPanierSansReduc'):
+            $prixOfObjet = -$_GET['delta_prix']*100;
+            $nom_objet = 'pas de reduction gros panier';
+            $categorie_objet = 'pas de reduction gros panier';
+            $souscat = 'pas de reduction gros panier';
         endif;
         $id_temp_vente = $_GET['id_temp_vente'];
 
@@ -249,7 +254,19 @@ endif;
                             <input type="hidden"  name="id_modif" value=<?=$_GET['id_modif']?>>
                             <?php endif; ?>
                             <button type="submit" class="btn btn-warning m-2" name="ra" value="trueGrosPanierBene">valider avec réduction 'gros panier' BENEVOLE</button>
-
+                        </form>
+                        <form method='get'>
+                            <input type="hidden"  name="prix" value=<?=$_GET['prix']?>>
+                            <input type="hidden"  name="delta_prix" value="0">                            
+                            <input type="hidden"  name="nbrObjet" value=<?=$_GET['nbrObjet']?>>
+                            <input type="hidden"  name="modif" value=<?=$_GET['modif']?>>
+                            <input type="hidden"  name="id_temp_vente" value=<?=$_GET['id_temp_vente']?>>
+                            <input type="hidden"  name="mp" value=<?=$_GET['mp']?>>
+                            <input type="hidden"  name="etape_de_validation" value=2>
+                            <?php if(isset($_GET['id_modif'])):?>
+                            <input type="hidden"  name="id_modif" value=<?=$_GET['id_modif']?>>
+                            <?php endif; ?>
+                            <button type="submit" class="btn btn-warning m-2" name="ra" value="trueGrosPanierSansReduc">valider sans aucune réduction 'gros panier'</button>
                         </form>
                     </div>
                 <?php endif;?>
