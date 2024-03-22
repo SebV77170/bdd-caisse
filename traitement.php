@@ -40,8 +40,22 @@ try {
 } catch (Exception $e) {
     die('Une erreur a été trouvée : ' . $e->getMessage());
 }
-
 ?>
+
+
+<!-- Je te laisse chercher, car ici, tu renvoie toujours à ton formulaire avec ton bouton retour. 
+L'idée, c'est de rediriger automatiquement avec la fonction header() de PHP -->
+<?php
+$id_temp_vente = $_POST['id_temp_vente'];
+
+$retour = "objetsVendus.php?id_temp_vente=$id_temp_vente";
+
+header("Location: $retour");
+?>
+
+
+
+<!-- j'ai laisserm ias en commentaire 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,12 +66,14 @@ try {
 </head>
 <body>
 
-<!-- Je te laisse chercher, car ici, tu renvoie toujours à ton formulaire avec ton bouton retour. 
-L'idée, c'est de rediriger automatiquement avec la fonction header() de PHP -->
+ Je te laisse chercher, car ici, tu renvoie toujours à ton formulaire avec ton bouton retour. 
+L'idée, c'est de rediriger automatiquement avec la fonction header() de PHP
 <div class="retour">
-    <a href="objetsVendus.php?id_temp_vente=<?php echo $_POST['id_temp_vente']; ?>">Retour</a>
+  //  <?php
+   // <a href="objetsVendus.php?id_temp_vente= <?php echo $_POST['id_temp_vente']; ?>">Retour</a>
+    ?>
 </div>
 
 
 </body>
-</html>
+</html> -->
