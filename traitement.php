@@ -4,18 +4,29 @@ require('actions/db.php');
 
 try {
     // Récupération des données du formulaire
+    if(isset($_POST['id'])):
+        $id = $_POST['id'];
+    endif;
     $categorie = $_POST['categorie'];
     $montant = $_POST['montant'];
     $date_fin = $_POST['date_fin'];
+    $modifOUinsert = $_POST['modifouinsert'];
 
     // Préparation de la requête d'insertion
-    $insertreduction = $db->prepare("INSERT INTO reduction (categorie, montant, date_fin) VALUES (?, ?, ?)");
+    if($modifOUinsert == "i"):
+        $insertreduction = $db->prepare("INSERT INTO reduction (categorie, montant, date_fin) VALUES (?, ?, ?)");
+        // Liaison des paramètres
+        $insertreduction->bindParam(1, $categorie);
+        $insertreduction->bindParam(2, $montant);
+        $insertreduction->bindParam(3, $date_fin);
+    elseif($modifOUinsert == "m"):    
+        // requete update 
+        $insertreduction = $db->prepare("UPDATE reduction   SET   montant = ?, date_fin = ? WHERE id = ? ");
+         $insertreduction->execute(array($montant,$date_fin,$id));
+    endif;
 
-    // Liaison des paramètres
-    $insertreduction->bindParam(1, $categorie);
-    $insertreduction->bindParam(2, $montant);
-    $insertreduction->bindParam(3, $date_fin);
 
+    
     // Exécution de la requête
     if ($insertreduction->execute()) {
         echo "Réduction ajoutée avec succès !";
@@ -29,6 +40,7 @@ try {
 } catch (Exception $e) {
     die('Une erreur a été trouvée : ' . $e->getMessage());
 }
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -39,8 +51,12 @@ try {
     <title>Document</title>
 </head>
 <body>
+
+<!-- a revoir en detail -->
     <div class="retour">
-    <a href="objetsVendus.php">retour</a>
+    <a href="objetsVendus.php?id_temp_vente=<?=$_GET['id_temp_vente']?>">Retour</a>
+
+
     </div>
 </body>
 </html>

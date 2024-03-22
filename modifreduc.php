@@ -30,8 +30,22 @@ if(isset($_GET['id'])) {
         <form action="traitement.php" method="post">
             <input type="hidden" name="id" value="<?php echo $reduction['id']; ?>">
             <div class="boutton">
-                <label for="categorie">Catégorie:</label>
-                <input type="text" id="categorie" name="categorie" value="<?php echo $reduction['categorie']; ?>" required>
+                <label class="champ" for="type2">Catégorie : </label>
+                <select id="type2" name="categorie">
+                    <option value="">Sélectionner une catégorie</option>
+                    
+                    <!--Va chercher les catégories dans la table categories-->
+                    
+                    <?php
+                    $result = $db->prepare('SELECT * FROM categories WHERE parent_id = "parent"');
+                    $result->execute();
+                    
+                    while($row = $result->fetch(PDO::FETCH_BOTH)){
+                        ?><option value="<?php echo $row['id'];?>"><?php echo $row['category'];?></option>
+                        <?php
+                    }
+                    ?>
+                </select>
             </div>
             <div class="boutton">
                 <label for="montant">Montant:</label>
@@ -40,6 +54,9 @@ if(isset($_GET['id'])) {
             <div class="boutton">
                 <label for="date_fin">Date de fin:</label>
                 <input type="date" id="date_fin" name="date_fin" value="<?php echo $reduction['date_fin']; ?>" required>
+            </div>
+            <div class="boutton">
+                <input type="hidden" id="modifouinsert" name="modifouinsert" value="m">
             </div>
             <div class="Envoyer">
                 <input type="submit" value="Modifier">
