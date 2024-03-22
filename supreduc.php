@@ -28,8 +28,8 @@ if(isset($_GET['id']) && isset($_GET['action']) && $_GET['action'] === 'delete')
     <title>Supprimer une reduction</title>
 </head>
 <body>
-    <div class="retour">
-    <a href="reduction.php">retour</a>
-    </div>
+<div class="retour">
+    <a href="objetsVendus.php?id_temp_vente=<?php $_POST['id_temp_vente']; ?>">Retour</a>
+</div>
 </body>
 </html>

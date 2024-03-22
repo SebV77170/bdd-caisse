@@ -64,7 +64,7 @@ if(isset($_GET['id'])) {
     </div>
 </div>
 <div class="retour">
-    <a href="reduction.php">retour</a>
+    <a href="objetsVendus.php?id_temp_vente=<?php $_POST['id_temp_vente']; ?>">Retour</a>
     </div>
 </body>
 </html>

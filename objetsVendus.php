@@ -261,7 +261,7 @@ require('app/bootstrap.php');
 
         <div class="container-fluid">
             <!-- le lien ci dessous doit être de la forme reduction.php?id_temp_vente=<balise php>$_GET['id_temp_vente']</balise php> -->
-            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php">Réduction</a>
+            <a class="btn btn-outline-primary btn-lg m-3" href="reduction.php?id_temp_vente=<?php $_GET['id_temp_vente']; ?>">Réduction</a>
         </div>
 
         <!-- Visuel en direct du ticket de caisse et bouton de vente -->

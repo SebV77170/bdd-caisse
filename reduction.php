@@ -89,6 +89,11 @@ try {
 }
 ?>
 </body>
+
+<div class="retour">
+    <a href="objetsVendus.php?id_temp_vente=<?php $_POST['id_temp_vente']; ?>">Retour</a>
+</div>
+
 </html>
 
 
