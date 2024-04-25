@@ -38,24 +38,41 @@ require('actions/objets/miseAJourDb.php');
         $poids_total_obj_collecte_kg = $poids_total_obj_collecte['poids_total']/1000;
         echo $poids_total_obj_collecte_kg.' Kg';
         ?> </p>
-        
-        <form method="get">
-                
-                <fieldset class="jeuchamp">
-            
-                    <label class="champ" for="tri">Trier par : </label>
-                    <select id="tri" name="tri">
-                        <option value="nom">Nom</option>
-                        <option value="categorie">Catégorie</option>
-                        <option value="poids">Poids</option>
-                        <option value="timestamp">Date d'ajout</option>
-                    </select>
-                
-                </fieldset>
-            
-                <input type="submit" class="input inputsubmit" name="validate" value="Trier">
-        </form>
-        
+
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <!-- formulaire affichage d'année -->
+                <form method="get">
+                    <fieldset class="jeuchamp">
+                        <label class="champ" for="annee">Afficher l'année : </label>
+                        <select id="annee" name="annee">
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                        </select>               
+                    </fieldset>          
+                    <input type="submit" class="input inputsubmit" name="affichage-annee" value="Afficher">
+                </form>
+                <!-- fin formulaire affichage d'année -->
+            </div>
+            <div class="col">
+                <!-- formulaire de tri -->
+                <form method="get">
+                    <fieldset class="jeuchamp">
+                        <label class="champ" for="tri">Trier par : </label>
+                        <select id="tri" name="tri">
+                            <option value="nom">Nom</option>
+                            <option value="categorie">Catégorie</option>
+                            <option value="poids">Poids</option>
+                            <option value="timestamp">Date d'ajout</option>
+                        </select>               
+                    </fieldset>          
+                    <input type="submit" class="input inputsubmit" name="validate" value="Trier">
+                </form>
+                <!-- fin de formulaire de tri -->
+            </div>
+        </div>
+    </div>
         <table class="tableau">
             <tr class="ligne">
                 <th class="cellule_tete">Categories</th>
