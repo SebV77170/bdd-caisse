@@ -266,7 +266,13 @@ require('app/bootstrap.php');
                         
                         <?php foreach($getObjets as list($id, $nom, $categorie, $souscat, $prix, $nombre, $prix_t)){
                             
-                            $prixeuro = $prix/100;
+                            if($prix>0):
+                                $prixeuro = $prix/100;
+                            else:
+                                $prixeuro = "";
+                                $nombre = "";
+                            endif;
+
                             if(isset($_GET['id_modif'])):
                                 echo '<tr class="ligne">
                                 
