@@ -225,7 +225,7 @@ require('app/bootstrap.php');
 
         <div class="container-fluid">
             <div class="row">
-                <div class="col-5">
+                <div class="col-6">
                     <!-- entête du ticket de caisse -->
                     <div class="container-fluid">
                         <div class="row m-2">
@@ -253,49 +253,52 @@ require('app/bootstrap.php');
                     </div>                    
 
                     <!--Affichage en directe du future ticket de caisse-->
-                    <div class="visu-tc">
-                        <table class="tableau">
-                            <tr class="ligne">
-                                <th class="cellule_tete">Nom</th>
-                                <th class="cellule_tete">Catégorie</th>
-                                <th class="cellule_tete">Sous-Catégorie</th>
-                                <th class="cellule_tete">Prix unit</th>
-                                <th class="cellule_tete">Nbr</th>
-                                <th class="cellule_tete">Prix</th>
-                            </tr>
-                        
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Catégorie</th>
+                                    <th>Sous-Catégorie</th>
+                                    <th>Prix unit</th>
+                                    <th>Nbr</th>
+                                    <th>Prix</th>
+                                </tr>
+                            </thead>
+                            <tbody>
                         <?php foreach($getObjets as list($id, $nom, $categorie, $souscat, $prix, $nombre, $prix_t)){
                             
                             $prixeuro = $prix/100;
                             if(isset($_GET['id_modif'])):
-                                echo '<tr class="ligne">
+                                echo '<tr>
                                 
-                                    <td class="colonne"><form method="post"><input type="text" style="width:auto" value="'.$nom.'" name="nom"><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnom">modif</button></form></td>
-                                    <td class="colonne">'.$categorie.'</td>
-                                    <td class="colonne">'.$souscat.'</td>
-                                    <td class="colonne"><form method="post"><input type="text" style="width:40px" value="'.$prixeuro.'" name="prix">€<input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifprix">modif</button></form></td>
-                                    <td class="colonne"><form method="post"><input type="text" style="width:40px" value="'.$nombre.'" name="nbr"><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnbr">modif</button></form></td>
-                                    <td class="colonne">'.($prix_t/100).'€</td>
-                                    <td class="colonne"><a href="actions/objets/supprObjetDeTC.php?id='.$id.'&id_temp_vente='.$_GET['id_temp_vente'].'&id_modif='.$_GET['id_modif'].'&modif='.$_GET['modif'].'">X</a></td>
+                                    <td><form id="monFormulaire" method="post"><textarea id="monTextarea" style="width: 100%; height:auto; resize:none; overflow-wrap:break-word" placeholder="'.$nom.'" name="nom"></textarea><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnom">modif</button></form></td>
+                                    <td>'.$categorie.'</td>
+                                    <td>'.$souscat.'</td>
+                                    <td><form id="monFormulaire" method="post"><textarea id="monTextarea" style="width: 50%; height:auto; resize:none; overflow-wrap:break-word" placeholder="'.$prixeuro.'" name="prix"></textarea>€<input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifprix">modif</button></form></td>
+                                    <td><form id="monFormulaire" method="post"><textarea id="monTextarea" style="width: 50%; height:auto; resize:none; overflow-wrap:break-word" placeholder="'.$nombre.'" name="nbr"></textarea><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnbr">modif</button></form></td>
+                                    <td>'.($prix_t/100).'€</td>
+                                    <td><a href="actions/objets/supprObjetDeTC.php?id='.$id.'&id_temp_vente='.$_GET['id_temp_vente'].'&id_modif='.$_GET['id_modif'].'&modif='.$_GET['modif'].'">X</a></td>
                                     
                                     
                                     </tr>'  ;
                             else:
-                                echo '<tr class="ligne">
+                                echo '<tr>
 
-                                    <td class="colonne"><form method="post"><input type="text" style="width:auto" value="'.$nom.'" name="nom"><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnom">modif</button></form></td>
-                                    <td class="colonne">'.$categorie.'</td>
-                                    <td class="colonne">'.$souscat.'</td>
-                                    <td class="colonne"><form method="post"><input type="text" style="width:40px" value="'.$prixeuro.'" name="prix">€<input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifprix">modif</button></form></td>
-                                    <td class="colonne"><form method="post"><input type="text" style="width:40px" value="'.$nombre.'" name="nbr"><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnbr">modif</button></form></td>
-                                    <td class="colonne">'.($prix_t/100).'€</td>
-                                    <td class="colonne"><a href="actions/objets/supprObjetDeTC.php?id='.$id.'&id_temp_vente='.$_GET['id_temp_vente'].'&modif='.$_GET['modif'].'">X</a></td>
+                                    <td><form id="monFormulaire" method="post"><textarea id="monTextarea" style="width: 100%; height:auto; resize:none; overflow-wrap:break-word" placeholder="'.$nom.'" name="nom"></textarea><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnom">modif</button></form></td>
+                                    <td>'.$categorie.'</td>
+                                    <td>'.$souscat.'</td>
+                                    <td><form id="monFormulaire" method="post"><textarea id="monTextarea" style="width: 50%; height:auto; resize:none; overflow-wrap:break-word" placeholder="'.$prixeuro.'" name="prix"></textarea>€<input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifprix">modif</button></form></td>
+                                    <td><form id="monFormulaire" method="post"><textarea id="monTextarea" style="width: 50%; height:auto; resize:none; overflow-wrap:break-word" placeholder="'.$nombre.'" name="nbr"></textarea><input type="hidden" value="'.$id.'" name="idobjet"><button type="submit" class="btn btn-primary btn-sm mt-1" name="modifnbr">modif</button></form></td>
+                                    <td>'.($prix_t/100).'€</td>
+                                    <td><a href="actions/objets/supprObjetDeTC.php?id='.$id.'&id_temp_vente='.$_GET['id_temp_vente'].'&modif='.$_GET['modif'].'">X</a></td>
                                     
                                     
                                     </tr>'  ;
                             endif;
                         }
                         ?>
+                            </tbody>
                         </table>
                     </div>
 
@@ -304,7 +307,7 @@ require('app/bootstrap.php');
                     
                 </div>
                 <!-- Affichage des boutons de vente -->
-                <div class="col-7">
+                <div class="col-6">
                     <nav id="navbar-category" class="navbar bg-body-tertiary navbar-light bg-light px-3 d-none d-md-block d-lg-block d-xl-block d-xxl-block">
                         <ul class="nav nav-pills">    
                         <?php foreach($category as $k=>$v):?>
@@ -341,7 +344,7 @@ require('app/bootstrap.php');
                                         foreach($value as $value1=>$value2):
                                         ?>
                                         <!-- Les valeurs des couleurs sont définies dans styles.scss dans $custom-theme-colors -->
-                                        <a class="col btn btn-<?=$value2['color']?> border-dark m-1 rounded-3" role="button" href="actions/objets/objetsVendusViaBoutonsAction.php?id_bouton=<?=$value2['id_bouton']?>&id_temp_vente=<?=$_GET['id_temp_vente']?><?php if(isset($_GET['id_modif'])):?>&id_modif=<?=$_GET['id_modif']?><?php endif;?>&modif=<?=$_GET['modif']?>"><?=$value2['nom']?></a>
+                                        <a class="col btn btn-<?=$value2['color']?> border-dark m-1 rounded-3" role="button" href="actions/objets/objetsVendusViaBoutonsAction.php?id_bouton=<?=$value2['id_bouton']?>&id_temp_vente=<?=$_GET['id_temp_vente']?><?php if(isset($_GET['id_modif'])):?>&id_modif=<?=$_GET['id_modif']?><?php endif;?>&modif=<?=$_GET['modif']?>"><?=($value2['prix']/100).'€'?>-<?=$value2['nom']?></a>
                                         <?php 
                                         endforeach; 
                                         ?>
@@ -442,6 +445,16 @@ require('app/bootstrap.php');
             // Afficher la valeur
             document.location.href='ajoutsouscat.php?from=vente&id_temp_vente=<?=$_GET['id_temp_vente']?>&modif=<?=$_GET['modif']?><?php if(isset($_GET['id_modif'])): echo '&id_modif='.$_GET['id_modif'].''; endif;?>&cat='+input;
             }    
+        </script>
+
+        <!-- Script pour pouvoir valider le formulaire par la touche entrée lorsqu'on est dans un textarea -->
+        <script>
+        document.getElementById('monTextarea').addEventListener('keypress', function(event) {
+            if (event.keyCode === 13 && !event.shiftKey) {
+            event.preventDefault(); // Empêche le retour à la ligne
+            document.getElementById('monFormulaire').submit(); // Soumet le formulaire
+            }
+        });
         </script>
        
 
