@@ -344,7 +344,7 @@ require('app/bootstrap.php');
                                         foreach($value as $value1=>$value2):
                                         ?>
                                         <!-- Les valeurs des couleurs sont définies dans styles.scss dans $custom-theme-colors -->
-                                        <a class="col btn btn-<?=$value2['color']?> border-dark m-1 rounded-3" role="button" href="actions/objets/objetsVendusViaBoutonsAction.php?id_bouton=<?=$value2['id_bouton']?>&id_temp_vente=<?=$_GET['id_temp_vente']?><?php if(isset($_GET['id_modif'])):?>&id_modif=<?=$_GET['id_modif']?><?php endif;?>&modif=<?=$_GET['modif']?>"><?=($value2['prix']/100).'€'?>-<?=$value2['nom']?></a>
+                                        <a class="col btn btn-<?=$value2['color']?> border-dark m-1 rounded-3" role="button" href="actions/objets/objetsVendusViaBoutonsAction.php?id_bouton=<?=$value2['id_bouton']?>&id_temp_vente=<?=$_GET['id_temp_vente']?><?php if(isset($_GET['id_modif'])):?>&id_modif=<?=$_GET['id_modif']?><?php endif;?>&modif=<?=$_GET['modif']?>"><?=$value2['nom']?></a>
                                         <?php 
                                         endforeach; 
                                         ?>
