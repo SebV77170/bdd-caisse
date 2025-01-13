@@ -11,6 +11,11 @@ if(!isset($where2)){
     $where2='';
 }
 
+if (isset($_GET['year']) && $_GET['year'] != 'all') {
+    $year = (int)$_GET['year'];
+    $where2 = 'WHERE YEAR(date) = '.$year;
+}
+
 $sommeTotale = $db -> prepare('SELECT SUM(poids) AS poids_total FROM objets_collectes '.$where2.'');
 $sommeTotale->execute();
 
