@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import CompteEspeces from '../components/compteEspeces';
+import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+
 
 
 
@@ -12,6 +14,7 @@ function OuvertureCaisse() {
   const [motDePasse, setMotDePasse] = useState('');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
+  const { refreshSessionCaisse } = useSessionCaisse();
   
 
   const handleSubmit = async (e) => {
@@ -31,6 +34,8 @@ function OuvertureCaisse() {
           mot_de_passe: motDePasse
         })
       });
+      refreshSessionCaisse(); // pour recharger l’uuid de la session caisse dans le contexte
+
 
       const data = await res.json();
 

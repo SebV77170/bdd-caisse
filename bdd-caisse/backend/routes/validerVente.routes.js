@@ -73,17 +73,18 @@ router.post('/', (req, res) => {
     }
 
     const moyenGlobal = paiements.length > 1 ? 'mixte' : paiements[0].moyen;
+    const uuid_session_caisse = req.body.uuid_session_caisse;
 
     const result = sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt,
         nbr_objet, moyen_paiement, prix_total, lien,
-        reducbene, reducclient, reducgrospanierclient, reducgrospanierbene
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       uuid_ticket, vendeur, id_vendeur, date_achat,
       articles.length, moyenGlobal, prixTotal, '',
-      reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene
+      reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, uuid_session_caisse
     );
 
     const id_ticket = result.lastInsertRowid;

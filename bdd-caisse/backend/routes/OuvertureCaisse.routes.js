@@ -7,6 +7,8 @@ const session = require('../session');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 
+
+
 router.post('/ouverture', (req, res) => {
   const { fond_initial, responsable_pseudo, mot_de_passe } = req.body;
   const utilisateur = session.getUser();
@@ -69,8 +71,10 @@ if (!motDePasseValide) {
     caissiers
   );
 
+
   const io = req.app.get('socketio');
   if (io) io.emit('etatCaisseUpdated', { ouverte: true });
+
 
    res.json({ success: true, id_session });
 });

@@ -184,8 +184,8 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<RequireSession><Caisse /></RequireSession>} />
             <Route path="/bilan" element={<RequireSession><BilanTickets /></RequireSession>} />
-            <Route path="/ouverture-caisse" element={<OuvertureCaisse />} />
-            <Route path="/fermeture-caisse" element={<FermetureCaisse />} />
+            <Route path="/ouverture-caisse" element={<RequireSession><OuvertureCaisse /></RequireSession>} />
+            <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
 
           </Routes>
         </div>

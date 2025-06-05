@@ -1,9 +1,10 @@
 // ✅ Mise à jour de bilan.routes.js pour inclure les détails des paiements mixtes
 const express = require('express');
 const router = express.Router();
-const { sqlite } = require('../db');;
+const { sqlite } = require('../db');
+const getBilanSession = require('../utils/bilanSession');
 
-// Tous les tickets (liste)
+// Route GET : liste de tous les tickets avec indication de correction
 router.get('/', (req, res) => {
   try {
     const tickets = sqlite.prepare(`
@@ -18,7 +19,7 @@ router.get('/', (req, res) => {
       FROM ticketdecaisse t
       ORDER BY t.id_ticket DESC
     `).all();
-    
+
     res.json(tickets);
   } catch (err) {
     console.error('Erreur lecture tickets :', err);
@@ -26,7 +27,7 @@ router.get('/', (req, res) => {
   }
 });
 
-// Détail des objets d'un ticket
+// Route GET : détail des objets d'un ticket
 router.get('/:id/objets', (req, res) => {
   const id = req.params.id;
   try {
@@ -38,7 +39,7 @@ router.get('/:id/objets', (req, res) => {
   }
 });
 
-// Détail complet du ticket, avec paiements mixtes si présent
+// Route GET : détail complet d'un ticket, y compris paiements mixtes
 router.get('/:id/details', (req, res) => {
   const id = req.params.id;
   try {
@@ -56,6 +57,7 @@ router.get('/:id/details', (req, res) => {
   }
 });
 
+// Route GET : bilan du jour (ventes et montants)
 router.get('/jour', (req, res) => {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const bilan = sqlite.prepare('SELECT nombre_vente, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement FROM bilan WHERE date = ?').get(today);
@@ -63,7 +65,17 @@ router.get('/jour', (req, res) => {
   res.json(bilan);
 });
 
+// Route GET : bilan d'une session caisse spécifique
+router.get('/bilan_session_caisse', (req, res) => {
+  const uuid_session_caisse = req.query.uuid_session_caisse;
 
+  if (!uuid_session_caisse) {
+    return res.status(400).json({ error: 'uuid_session_caisse manquant' });
+  }
 
+  const bilan_session_caisse = getBilanSession(uuid_session_caisse);
+
+  res.json(bilan_session_caisse);
+});
 
 module.exports = router;

@@ -28,7 +28,7 @@ router.delete('/', (req, res) => {
 router.get('/etat-caisse', (req, res) => {
   const session = sqlite.prepare(`SELECT * FROM session_caisse WHERE date_fermeture IS NULL`).get();
   if (session) {
-    res.json({ ouverte: true });
+    res.json({ ouverte: true, id_session: session.id_session, date_ouverture: session.date_ouverture });
   } else {
     res.json({ ouverte: false });
   }

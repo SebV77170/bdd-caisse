@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
+// Composant de validation de la vente, gestion des paiements et réductions
 function ValidationVente({ total, id_temp_vente, onValide }) {
   const [reduction, setReduction] = useState('');
   const [reductionsDisponibles, setReductionsDisponibles] = useState([]);
   const [paiements, setPaiements] = useState([{ moyen: 'carte', montant: (total / 100).toFixed(2).replace('.', ',') }]);
   const [codePostal, setCodePostal] = useState('');
   const [email, setEmail] = useState('');
+  const { uuidSessionCaisse, sessionCaisseOuverte } = useSessionCaisse();
+
+  console.log("UUID session caisse en contexte :", uuidSessionCaisse);
+
 
   const totalAvecReduction = React.useMemo(() => {
     let t = total;
@@ -102,25 +108,37 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     setPaiements(corrigé);
   };
 
+  // Fonction appelée lors de la validation de la vente
   const validerVente = () => {
+    // Vérifie qu'une session caisse est ouverte
+    if (!sessionCaisseOuverte || !uuidSessionCaisse) {
+      alert("Aucune session caisse ouverte !");
+      return;
+    }
+
+    // Vérifie que le total des paiements correspond au total attendu
     if (totalPaiements !== totalAvecReduction) {
       alert('Le total des paiements ne correspond pas au montant à payer.');
       return;
     }
 
+    // Prépare les paiements en centimes pour l'envoi au backend
     const paiementsCentimes = paiements.map(p => ({
       moyen: p.moyen,
       montant: parseMontant(p.montant)
     }));
 
+    // Prépare les données à envoyer au backend
     const data = {
       id_temp_vente,
+      uuid_session_caisse: uuidSessionCaisse,
       reductionType: reduction || null,
       paiements: paiementsCentimes,
       code_postal: codePostal || null,
       email: email || null
     };
 
+    // Envoie la requête de validation de la vente au backend
     fetch('http://localhost:3001/api/valider', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

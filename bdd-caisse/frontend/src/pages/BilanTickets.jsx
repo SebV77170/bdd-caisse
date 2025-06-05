@@ -86,6 +86,7 @@ const [emailDestinataire, setEmailDestinataire] = useState('');
   };
 
   return (
+    
     <div className="bilan-scroll-container">
       <div className="container">
         <h2>Bilan des tickets de caisse</h2>
@@ -141,12 +142,14 @@ const [emailDestinataire, setEmailDestinataire] = useState('');
                         <span className="badge bg-warning text-dark">Correctif</span>
                       ) : ticket.corrige_le_ticket ? (
                         <span className="badge bg-info text-dark">Correction</span>
+                      ) : ticket.cloture === 1 ? (
+                        <span className="badge bg-info text-dark">Cloture Caisse</span>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
                     </td>
                     <td>
-                      {!ticket.flag_correction && !ticket.ticket_corrige &&  (
+                      {!ticket.flag_correction && !ticket.ticket_corrige && !ticket.cloture &&  (
                         <Button
                           variant="outline-danger"
                           size="sm"
