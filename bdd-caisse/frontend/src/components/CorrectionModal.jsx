@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import CategorieSelector from './CategorieSelector';
 import BoutonsCaisse from './BoutonsCaisse';
+import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+
 
 function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
+  const { uuidSessionCaisse, sessionCaisseOuverte } = useSessionCaisse();
+
   const [corrections, setCorrections] = useState(
     (ticketOriginal.objets || []).map(obj => ({ ...obj }))
   );
@@ -12,7 +16,23 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
 
   const [motif, setMotif] = useState('');
   const [loading, setLoading] = useState(false);
-  const [moyenPaiement, setMoyenPaiement] = useState(ticketOriginal.ticket.moyen_paiement || '');
+  // Change moyenPaiement to an array of payment objects, similar to ValidationVente
+  const [paiements, setPaiements] = useState(() => {
+    // Initialize payments from ticketOriginal if available, otherwise default to a single payment
+    if (ticketOriginal.ticket.moyen_paiement && ticketOriginal.ticket.montant_paiements) {
+      // Assuming montant_paiements is an array of objects { moyen: string, montant: number (in cents) }
+      return ticketOriginal.ticket.montant_paiements.map(p => ({
+        moyen: p.moyen,
+        montant: (p.montant / 100).toFixed(2).replace('.', ',')
+      }));
+    } else {
+      // Default to one payment, e.g., 'carte' with the initial total
+      const initialTotal = (ticketOriginal.objets || []).reduce((sum, a) => sum + a.prix * a.nbr, 0);
+      return [{ moyen: 'carte', montant: (initialTotal / 100).toFixed(2).replace('.', ',') }];
+    }
+  });
+
+
   const totalAvant = correctionsInitiales.reduce((sum, a) => sum + a.prix * a.nbr, 0);
 
   const [reductionOriginale] = useState(() => {
@@ -33,12 +53,14 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     if (reductionOriginale) setReductionType(reductionOriginale);
   }, [reductionOriginale]);
 
-  const [paiements, setPaiements] = useState({
-    "espèces": 0,
-    "carte": 0,
-    "chèque": 0,
-    "virement": 0
-  });
+  // Helper function to parse amount string to cents
+  const parseMontant = (str) => {
+    if (!str) return 0;
+    const normalise = str.replace(',', '.');
+    const nombre = parseFloat(normalise);
+    return isNaN(nombre) ? 0 : Math.round(nombre * 100);
+  };
+
 
   const handleChange = (index, field, value) => {
     const updated = [...corrections];
@@ -52,6 +74,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     setCorrections(updated);
   };
 
+  // Supprime un article de la liste des corrections et l'ajoute à la liste des articles supprimés
   const supprimerArticle = (index) => {
     const updated = [...corrections];
     const removed = updated.splice(index, 1);
@@ -59,6 +82,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     setArticlesSupprimes([...articlesSupprimes, removed[0]]);
   };
 
+  // Restaure le dernier article supprimé
   const restaurerDernierArticle = () => {
     if (articlesSupprimes.length === 0) return;
     const last = articlesSupprimes[articlesSupprimes.length - 1];
@@ -66,6 +90,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     setArticlesSupprimes(articlesSupprimes.slice(0, -1));
   };
 
+  // Calcule le total avant réduction initiale (pour affichage) - Keep as is
   const totalAvantReductionInitiale = () => {
     if (!reductionOriginale) return totalAvant;
     if (reductionOriginale === 'trueClient') return totalAvant + 500;
@@ -75,6 +100,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     return totalAvant;
   };
 
+  // Calcule le total après application de la réduction sélectionnée
   const totalApresReduction = () => {
     const totalSansReduction = corrections
       .filter(c => !c.nom.toLowerCase().includes('réduction'))
@@ -88,19 +114,71 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     return total < 0 ? 0 : total;
   };
 
-  const envoyerCorrection = async () => {
-    if (!motif.trim()) return alert('Merci de préciser un motif.');
-    if (!moyenPaiement) return alert('Merci de choisir un mode de paiement.');
+  const totalCorrige = totalApresReduction(); // Calculate once
 
-    const totalCorrige = totalApresReduction();
+  // New functions for managing payments (copied and adapted from ValidationVente)
+  const totalPaiements = paiements.reduce((s, p) => s + parseMontant(p.montant), 0);
 
-    if (moyenPaiement === 'mixte') {
-      const totalMixte = Object.values(paiements).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-      if (totalMixte !== totalCorrige) {
-        return alert(
-          `Le total mixte (${(totalMixte / 100).toFixed(2)} €) ne correspond pas au total corrigé du ticket (${(totalCorrige / 100).toFixed(2)} €).`
-        );
+  const corrigerTotalPaiementsExact = (paiementsModifiés) => {
+    const copie = [...paiementsModifiés];
+    const totalCents = copie.reduce((s, p) => s + parseMontant(p.montant), 0);
+    const delta = totalCorrige - totalCents; // Use totalCorrige here
+
+    if (copie.length === 0) return copie;
+
+    const dernierIndex = copie.length - 1;
+    const montantDernier = parseMontant(copie[dernierIndex].montant);
+    const nouveauMontant = Math.max(montantDernier + delta, 0);
+
+    copie[dernierIndex].montant = (nouveauMontant / 100).toFixed(2).replace('.', ',');
+    return copie;
+  };
+
+  const ajouterPaiement = () => {
+    setPaiements([...paiements, { moyen: '', montant: '' }]);
+  };
+
+  const supprimerPaiement = (index) => {
+    const copie = [...paiements];
+    copie.splice(index, 1);
+    setPaiements(corrigerTotalPaiementsExact(copie));
+  };
+
+  const modifierPaiement = (index, champ, valeur) => {
+    const copie = [...paiements];
+    copie[index][champ] = valeur;
+    const corrigé = corrigerTotalPaiementsExact(copie);
+    setPaiements(corrigé);
+  };
+
+  useEffect(() => {
+    // Adjust payments automatically when totalCorrige changes and only one payment method is present
+    if (paiements.length === 1) {
+      const montantActuel = parseMontant(paiements[0].montant);
+      if (montantActuel !== totalCorrige) {
+        setPaiements([{
+          ...paiements[0],
+          montant: (totalCorrige / 100).toFixed(2).replace('.', ',')
+        }]);
       }
+    }
+  }, [totalCorrige, paiements.length]); // Added paiements.length as a dependency
+
+
+  // Envoie la correction au backend après vérifications
+  const envoyerCorrection = async () => {
+    // Vérifie que le motif est renseigné
+    if (!motif.trim()) return alert('Merci de préciser un motif.');
+
+    // Check if at least one payment method is selected and amounts match
+    if (paiements.length === 0) {
+      return alert('Merci de spécifier au moins un mode de paiement.');
+    }
+
+    if (totalPaiements !== totalCorrige) {
+      return alert(
+        `Le total des paiements (${(totalPaiements / 100).toFixed(2)} €) ne correspond pas au total corrigé du ticket (${(totalCorrige / 100).toFixed(2)} €).`
+      );
     }
 
     const body = {
@@ -108,15 +186,18 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
       articles_origine: ticketOriginal.objets,
       articles_correction: corrections,
       motif,
-      moyen_paiement: moyenPaiement,
+      uuid_session_caisse: uuidSessionCaisse,
+      // Pass the array of payments
+      paiements: paiements.map(p => ({
+        moyen: p.moyen,
+        montant: parseMontant(p.montant)
+      })),
       reductionType
     };
 
-    if (moyenPaiement === 'mixte') {
-      body.paiements = Object.entries(paiements).map(([moyen, montant]) => ({
-        moyen,
-        montant: parseInt(montant) || 0
-      }));
+    if (!sessionCaisseOuverte || !uuidSessionCaisse) {
+      alert("Aucune session caisse ouverte !");
+      return;
     }
 
     setLoading(true);
@@ -210,43 +291,47 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
 
           <div className="mt-3">
             <strong>Total avant correction :</strong> {(totalAvant / 100).toFixed(2)} €<br />
-            <strong>Total après correction :</strong> {(totalApresReduction() / 100).toFixed(2)} €
+            <strong>Total après correction :</strong> {(totalCorrige / 100).toFixed(2)} €
           </div>
 
-          <Form.Group className="mt-3">
-            <Form.Label>Mode de paiement</Form.Label>
-            <Form.Select value={moyenPaiement} onChange={(e) => setMoyenPaiement(e.target.value)}>
-              <option value="">-- Choisir --</option>
-              <option value="espèces">Espèces</option>
-              <option value="carte">Carte</option>
-              <option value="chèque">Chèque</option>
-              <option value="virement">Virement</option>
-              <option value="mixte">Mixte</option>
-            </Form.Select>
-          </Form.Group>
-
-          {moyenPaiement === 'mixte' && (
-            <div className="mt-3">
-              <Form.Label>Détail des montants par mode :</Form.Label>
-              <div className="d-flex flex-wrap gap-2">
-                {['espèces', 'carte', 'chèque', 'virement'].map((moyen) => (
-                  <Form.Control
-                    key={moyen}
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={(paiements[moyen] / 100).toFixed(2)}
-                    onChange={(e) =>
-                      setPaiements({
-                        ...paiements,
-                        [moyen]: Math.round(parseFloat(e.target.value.replace(',', '.')) * 100) || 0
-                      })
-                    }
-                  />
-                ))}
+          {/* Payment selection logic */}
+          <div className="mb-2 mt-3">
+            <Form.Label>Modes de paiement :</Form.Label>
+            {paiements.map((p, index) => (
+              <div className="d-flex mb-1" key={index}>
+                <Form.Select
+                  className="me-2"
+                  value={p.moyen}
+                  onChange={e => modifierPaiement(index, 'moyen', e.target.value)}
+                >
+                  <option value="">Mode...</option>
+                  <option value="espèces">Espèces</option>
+                  <option value="carte">Carte</option>
+                  <option value="chèque">Chèque</option>
+                  <option value="virement">Virement</option>
+                </Form.Select>
+                <Form.Control
+                  type="text"
+                  placeholder="Montant en euros"
+                  value={p.montant}
+                  onChange={e => modifierPaiement(index, 'montant', e.target.value)}
+                />
+                {paiements.length > 1 && (
+                  <Button
+                    variant="outline-danger"
+                    onClick={() => supprimerPaiement(index)}
+                    title="Supprimer ce paiement"
+                    className="ms-2"
+                  >
+                    ❌
+                  </Button>
+                )}
               </div>
-            </div>
-          )}
+            ))}
+            <Button size="sm" variant="secondary" className="w-100 mt-2" onClick={ajouterPaiement}>+ Ajouter un paiement</Button>
+          </div>
+          <div>Total saisi pour les paiements : {(totalPaiements / 100).toFixed(2)} €</div>
+
 
           <Form.Group className="mt-3">
             <Form.Label>Type de réduction</Form.Label>
