@@ -61,11 +61,12 @@ function FermetureCaisse() {
 
       // Affiche un toast selon le résultat
       if (data.success) {
-        toast.success('✅ Caisse fermée avec succès');
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
-      } else {
+        console.log(data.success);
+    // On redirige et on transmet un message dans l’état de navigation
+    navigate('/Bilan', {
+      state: { toastMessage: 'Caisse fermée avec succès !' }
+    });
+  } else {
         toast.error(data.error || 'Erreur lors de la fermeture');
       }
     } catch (err) {

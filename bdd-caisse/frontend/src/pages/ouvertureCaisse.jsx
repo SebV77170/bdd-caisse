@@ -40,14 +40,9 @@ function OuvertureCaisse() {
       const data = await res.json();
 
       if (data.success) {
-       toast.success('✅ Caisse ouverte !');
-
-        // ⏳ attendre un peu avant de rediriger pour voir le message
-        setTimeout(() => {
-            navigate('/');
-        }, 1000); // délai 1s
-      } else {
-        setMessage(data.error || 'Erreur lors de l’ouverture de la caisse.');
+        navigate('/', {
+        state: { toastMessage: 'Caisse ouverte avec succès !' }
+    });
       }
     } catch (err) {
       console.error(err);

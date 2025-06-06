@@ -8,7 +8,7 @@ import OuvertureCaisse from './pages/ouvertureCaisse';
 import FermetureCaisse from './pages/FermetureCaisse';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const socket = io('http://localhost:3001');
@@ -42,6 +42,7 @@ function App() {
     });
     return () => socket.off('bilanUpdated');
   }, []);
+
 
   useEffect(() => {
     const fetchEtat = () => {
@@ -189,7 +190,7 @@ function App() {
 
           </Routes>
         </div>
-        <ToastContainer position="top-center" autoClose={3000} /> {/* ✅ Ici */}
+        
 
       </div>
     </ModeTactileContext.Provider>

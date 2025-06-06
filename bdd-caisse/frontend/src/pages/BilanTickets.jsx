@@ -7,6 +7,8 @@ import './BilanTickets.css';
 import TicketDetail from '../components/TicketDetail';
 import CorrectionModal from '../components/CorrectionModal';
 import { Button } from 'react-bootstrap';
+import { useLocation } from 'react-router-dom';
+import { toast, ToastContainer } from 'react-toastify';
 
 
 const socket = io('http://localhost:3001');
@@ -22,6 +24,7 @@ const BilanTickets = () => {
   const [showEmailModal, setShowEmailModal] = useState(false);
 const [ticketPourEmail, setTicketPourEmail] = useState(null);
 const [emailDestinataire, setEmailDestinataire] = useState('');
+const location = useLocation();
 
 
   useEffect(() => {
@@ -39,9 +42,17 @@ const [emailDestinataire, setEmailDestinataire] = useState('');
     };
     fetchBilan();
 
+
     socket.on('ticketsmisajour', fetchBilan);
     return () => socket.off('ticketsmisajour');
   }, []);
+
+  useEffect(() => {
+    if (location.state?.toastMessage) {
+      toast.success(location.state.toastMessage);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const aReduction = (ticket) => {
     return ticket.reducbene || ticket.reduclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene;
@@ -232,35 +243,46 @@ const [emailDestinataire, setEmailDestinataire] = useState('');
           />
         </div>
         <div className="modal-footer">
+          {/* Bouton pour annuler l'envoi de l'email */}
           <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
             Annuler
           </Button>
-          <Button variant="primary" onClick={async () => {
-            try {
-              const res = await fetch(`http://localhost:3001/api/ticket/${ticketPourEmail.id_ticket}/envoyer`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: emailDestinataire })
-              });
-              const result = await res.json();
-              if (result.success) {
-                alert('Ticket envoyé !');
-                setShowEmailModal(false);
-              } else {
-                alert('Échec de l\'envoi');
+          {/* Bouton pour envoyer le ticket par email */}
+          <Button
+            variant="primary"
+            onClick={async () => {
+              try {
+                // Appel API pour envoyer le ticket par email
+                const res = await fetch(
+                  `http://localhost:3001/api/ticket/${ticketPourEmail.id_ticket}/envoyer`,
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: emailDestinataire })
+                  }
+                );
+                const result = await res.json();
+                if (result.success) {
+                  alert('Ticket envoyé !');
+                  setShowEmailModal(false);
+                } else {
+                  alert('Échec de l\'envoi');
+                }
+              } catch (err) {
+                alert('Erreur de communication');
+                console.error(err);
               }
-            } catch (err) {
-              alert('Erreur de communication');
-              console.error(err);
-            }
-          }}>
+            }}
+          >
             Envoyer
           </Button>
         </div>
       </div>
     </div>
   </div>
+  // Fin de la modale d'envoi d'email
 )}
+<ToastContainer position="top-center" autoClose={3000} />
     </div>
   );
 };

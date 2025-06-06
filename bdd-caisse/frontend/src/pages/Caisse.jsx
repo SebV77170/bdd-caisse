@@ -6,7 +6,8 @@ import CategorieSelector from '../components/CategorieSelector';
 import BoutonsCaisse from '../components/BoutonsCaisse';
 import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
-
+import { toast, ToastContainer } from 'react-toastify';
+import { useLocation } from 'react-router-dom';
 
 function Caisse() {
   const [boutons, setBoutons] = useState({});
@@ -57,6 +58,14 @@ function Caisse() {
   useEffect(() => {
     chargerTicket();
   }, [chargerTicket]);
+
+  const location = useLocation();
+      useEffect(() => {
+        if (location.state?.toastMessage) {
+          toast.success(location.state.toastMessage);
+          window.history.replaceState({}, document.title);
+        }
+      }, [location.state]);
 
   const nouvelleVente = () => {
     fetch('http://localhost:3001/api/ventes', { method: 'POST' })
@@ -213,6 +222,7 @@ function Caisse() {
           </div>
         </div>
       </div>
+      <ToastContainer position="top-center" autoClose={3000} /> {/* ✅ Ici */}
     </div>
   );
 }
