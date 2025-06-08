@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TactileInput from './TactileInput';
 
 const valeurs = [
   { label: '1 cts', value: 0.01, colonne: 'centimes' },
@@ -91,12 +92,13 @@ function CompteEspeces({ onChangeTotal }) {
               <td style={{ width: '70px' }}>{centimes[i]?.label || ''}</td>
               <td>
                 {centimes[i] &&
-                  <input
+                  <TactileInput
                     type="number"
                     min="0"
+                    className="form-control"
+                    style={{ width: '50px' }}
                     value={quantites[centimes[i].value]}
                     onChange={(e) => handleChange(centimes[i].value, e.target.value)}
-                    style={{ width: '50px' }}
                   />}
               </td>
 
@@ -104,12 +106,13 @@ function CompteEspeces({ onChangeTotal }) {
               <td style={{ width: '70px', borderLeft: '1px solid #ccc' }}>{billets[i]?.label || ''}</td>
               <td>
                 {billets[i] &&
-                  <input
+                  <TactileInput
                     type="number"
                     min="0"
+                    className="form-control"
+                    style={{ width: '50px' }}
                     value={quantites[billets[i].value]}
                     onChange={(e) => handleChange(billets[i].value, e.target.value)}
-                    style={{ width: '50px' }}
                   />}
               </td>
 
@@ -117,12 +120,13 @@ function CompteEspeces({ onChangeTotal }) {
               <td style={{ width: '70px', borderLeft: '1px solid #ccc' }}>{gros[i]?.label || ''}</td>
               <td>
                 {gros[i] &&
-                  <input
+                  <TactileInput
                     type="number"
                     min="0"
+                    className="form-control"
+                    style={{ width: '50px' }}
                     value={quantites[gros[i].value]}
                     onChange={(e) => handleChange(gros[i].value, e.target.value)}
-                    style={{ width: '50px' }}
                   />}
               </td>
             </tr>

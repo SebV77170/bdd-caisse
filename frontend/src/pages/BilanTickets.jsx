@@ -6,6 +6,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import './BilanTickets.css';
 import TicketDetail from '../components/TicketDetail';
 import CorrectionModal from '../components/CorrectionModal';
+import TactileInput from '../components/TactileInput';
 import { Button } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
@@ -234,7 +235,7 @@ const location = useLocation();
         </div>
         <div className="modal-body">
           <label className="form-label">Adresse e-mail :</label>
-          <input
+          <TactileInput
             type="email"
             className="form-control"
             value={emailDestinataire}

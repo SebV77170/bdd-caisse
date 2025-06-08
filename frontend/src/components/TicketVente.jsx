@@ -1,13 +1,7 @@
-import React, { useRef, useState, useContext } from 'react';
-import ClavierNumeriqueModal from './clavierNumeriqueModal';
-import { ModeTactileContext } from '../App'; // adapte le chemin si besoin
+import React from 'react';
+import TactileInput from './TactileInput';
 
 function TicketVente({ ticket, onChange, onDelete, onSave }) {
-  const total = ticket.reduce((sum, item) => sum + (item.prixt || 0), 0);
-  const prixRef = useRef({});
-  const nbrRef = useRef({});
-  const [modal, setModal] = useState({ show: false, id: null, type: null });
-  const { modeTactile } = useContext(ModeTactileContext);
 
   const handleSavePrix = async (id, rawValue) => {
     console.log("✅ Prix utilisé :", rawValue);
@@ -73,71 +67,24 @@ function TicketVente({ ticket, onChange, onDelete, onSave }) {
                 </div>
                 <div className="d-flex align-items-center">
                   {/* Champ quantité */}
-                  {modeTactile ? (
-                    <input
-                      type="text"
-                      readOnly
-                      value={item.nbr}
-                      ref={el => nbrRef.current[item.id] = el}
-                      onClick={() => setModal({ show: true, id: item.id, type: 'nbr' })}
-                      className="form-control form-control-sm mx-1"
-                      style={{ width: "50px", cursor: 'pointer' }}
-                    />
-                  ) : (
-                    <input
-                      type="number"
-                      defaultValue={item.nbr}
-                      ref={el => nbrRef.current[item.id] = el}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const raw = nbrRef.current[item.id]?.value;
-                          handleSaveQuantite(item.id, raw);
-                        }
-                      }}
-                      className="form-control form-control-sm mx-1"
-                      style={{ width: "50px" }}
-                    />
-                  )}
+                  <TactileInput
+                    type="number"
+                    className="form-control form-control-sm mx-1"
+                    style={{ width: "50px" }}
+                    value={item.nbr}
+                    onChange={(e) => handleSaveQuantite(item.id, e.target.value)}
+                  />
 
                   {/* Champ prix */}
-                  {modeTactile ? (
-                    <input
-                      type="text"
-                      readOnly
-                      value={prixAffiché}
-                      ref={el => prixRef.current[item.id] = el}
-                      onClick={() => setModal({ show: true, id: item.id, type: 'prix' })}
-                      className="form-control form-control-sm"
-                      style={{ width: "70px", cursor: 'pointer' }}
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      defaultValue={prixAffiché}
-                      ref={el => prixRef.current[item.id] = el}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          const raw = prixRef.current[item.id]?.value;
-                          handleSavePrix(item.id, raw);
-                        }
-                      }}
-                      className="form-control form-control-sm"
-                      style={{ width: "70px" }}
-                    />
-                  )}
+                  <TactileInput
+                    type="number"
+                    className="form-control form-control-sm"
+                    style={{ width: "70px" }}
+                    value={prixAffiché}
+                    onChange={(e) => handleSavePrix(item.id, e.target.value)}
+                  />
 
-                  <button
-                    className="btn btn-sm btn-success ms-1"
-                    onClick={() => {
-                      const raw = prixRef.current[item.id]?.value;
-                      handleSavePrix(item.id, raw);
-                    }}
-                    title="Sauvegarder prix"
-                  >
-                    💾
-                  </button>
+                  
                   <span className="ms-2">{(item.prixt / 100).toFixed(2)} €</span>
                 </div>
               </div>
@@ -146,23 +93,7 @@ function TicketVente({ ticket, onChange, onDelete, onSave }) {
         })}
       </ul>
 
-      <div className="mt-2">
-        <ClavierNumeriqueModal
-          show={modal.show}
-          onClose={() => setModal({ show: false, id: null, type: null })}
-          isDecimal={modal.type === 'prix'}
-          initial=""
-          onValider={async (val) => {
-            const id = modal.id;
-            if (modal.type === 'prix') {
-              await handleSavePrix(id, val);
-            } else if (modal.type === 'nbr') {
-              await handleSaveQuantite(id, val);
-            }
-            setModal({ show: false, id: null, type: null });
-          }}
-        />
-      </div>
+      
     </>
   );
 }

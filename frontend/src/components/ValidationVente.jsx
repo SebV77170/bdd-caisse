@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import TactileInput from './TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
 function ValidationVente({ total, id_temp_vente, onValide }) {
@@ -160,15 +161,15 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       <div className="d-flex justify-content-between align-items-start mb-2">
         <h5 className="me-3">Finaliser la vente</h5>
         <div className="d-flex gap-2">
-          <input
-            type="text"
+          <TactileInput
+            type="number"
             className="form-control form-control-sm"
             style={{ maxWidth: '100px' }}
             placeholder="Code postal"
             value={codePostal}
             onChange={e => setCodePostal(e.target.value)}
           />
-          <input
+          <TactileInput
             type="email"
             className="form-control form-control-sm"
             style={{ maxWidth: '180px' }}
@@ -206,8 +207,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
               <option value="chèque">Chèque</option>
               <option value="virement">Virement</option>
             </select>
-            <input
-              type="text"
+            <TactileInput
+              type="number"
               className="form-control me-2"
               placeholder="Montant en euros"
               value={p.montant}
