@@ -3,6 +3,7 @@ import { Modal, Button, Form } from 'react-bootstrap';
 import CategorieSelector from './CategorieSelector';
 import BoutonsCaisse from './BoutonsCaisse';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+import TactileInput from './TactileInput';
 
 
 function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
@@ -258,14 +259,16 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
             return (
               <div className="d-flex gap-2 mb-2" key={i}>
                 <Form.Control value={art.nom} disabled />
-                <Form.Control
+                <TactileInput
                   type="number"
+                  className="form-control"
                   value={art.nbr}
                   onChange={(e) => handleChange(i, 'nbr', e.target.value)}
                   disabled={isReduction}
                 />
-                <Form.Control
+                <TactileInput
                   type="number"
+                  className="form-control"
                   step="0.01"
                   value={(art.prix / 100).toFixed(2)}
                   onChange={(e) => handleChange(i, 'prix', e.target.value)}
@@ -310,8 +313,9 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
                   <option value="chèque">Chèque</option>
                   <option value="virement">Virement</option>
                 </Form.Select>
-                <Form.Control
-                  type="text"
+                <TactileInput
+                  type="number"
+                  className="form-control"
                   placeholder="Montant en euros"
                   value={p.montant}
                   onChange={e => modifierPaiement(index, 'montant', e.target.value)}

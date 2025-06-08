@@ -4,6 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import CompteEspeces from '../components/compteEspeces';
 import AffichageEcarts from '../components/AffichageEcarts';
 import BilanSessionCaisse from '../components/BilanSessionCaisse';
+import TactileInput from '../components/TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
 // Composant principal pour la fermeture de caisse
@@ -147,7 +148,7 @@ function FermetureCaisse() {
           <div></div>
           <div>
             <label>Montant réel dans la caisse (€) :</label><br />
-            <input
+            <TactileInput
               type="number"
               value={montantReel}
               onChange={(e) => setMontantReel(e.target.value)}
@@ -156,7 +157,7 @@ function FermetureCaisse() {
           </div>
           <div>
             <label>Montant réel des transactions Sumup (€) :</label><br />
-            <input
+            <TactileInput
               type="number"
               value={montantReelCarte}
               onChange={(e) => setMontantReelCarte(e.target.value)}
@@ -165,7 +166,7 @@ function FermetureCaisse() {
           </div>
           <div>
             <label>Montant réel des chèques (€) :</label><br />
-            <input
+            <TactileInput
               type="number"
               value={montantReelCheque}
               onChange={(e) => setMontantReelCheque(e.target.value)}
@@ -174,7 +175,7 @@ function FermetureCaisse() {
           </div>
           <div>
             <label>Montant réel des virement (€) :</label><br />
-            <input
+            <TactileInput
               type="number"
               value={montantReelVirement}
               onChange={(e) => setMontantReelVirement(e.target.value)}
@@ -206,7 +207,7 @@ function FermetureCaisse() {
           </div>
           <div>
             <label>Pseudo du responsable :</label><br />
-            <input
+            <TactileInput
               type="text"
               value={responsablePseudo}
               onChange={(e) => setResponsablePseudo(e.target.value)}
@@ -215,7 +216,7 @@ function FermetureCaisse() {
           </div>
           <div>
             <label>Mot de passe du responsable :</label><br />
-            <input
+            <TactileInput
               type="password"
               value={motDePasse}
               onChange={(e) => setMotDePasse(e.target.value)}

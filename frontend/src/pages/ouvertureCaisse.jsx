@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import CompteEspeces from '../components/compteEspeces';
+import TactileInput from '../components/TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
 
@@ -59,7 +60,7 @@ function OuvertureCaisse() {
         <CompteEspeces onChangeTotal={(total) => setFondInitial(total)} />
         <div>
           <label>Fond de caisse initial (€) :</label><br />
-          <input
+          <TactileInput
             type="number"
             value={fondInitial}
             onChange={(e) => setFondInitial(e.target.value)}
@@ -68,7 +69,7 @@ function OuvertureCaisse() {
         </div>
         <div>
           <label>Pseudo du responsable :</label><br />
-          <input
+          <TactileInput
             type="text"
             value={responsablePseudo}
             onChange={(e) => setResponsablePseudo(e.target.value)}
@@ -77,7 +78,7 @@ function OuvertureCaisse() {
         </div>
         <div>
           <label>Mot de passe du responsable :</label><br />
-          <input
+          <TactileInput
             type="password"
             value={motDePasse}
             onChange={(e) => setMotDePasse(e.target.value)}
