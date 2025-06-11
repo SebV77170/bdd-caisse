@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
+
+
+
 import SessionDetails from '../components/SessionDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './BilanTickets.css';
+
 
 function formatEuros(val) {
   return val != null ? `${(val / 100).toFixed(2)} €` : '—';
@@ -12,12 +16,17 @@ const JournalCaisse = () => {
   const [details, setDetails] = useState({});
   const [active, setActive] = useState(null);
 
+  const [details, setDetails] = useState({});
+  const [active, setActive] = useState(null);
+
+
   useEffect(() => {
     fetch('http://localhost:3001/api/caisse/journal')
       .then(res => res.json())
       .then(setSessions)
       .catch(err => console.error('Erreur chargement journal caisse:', err));
   }, []);
+
 
   const chargerDetails = (session) => {
     const id = session.id_session;
@@ -74,6 +83,7 @@ const JournalCaisse = () => {
           </tbody>
         </table>
       </div>
+
     </div>
   );
 };
