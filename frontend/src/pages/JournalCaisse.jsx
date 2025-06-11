@@ -16,8 +16,7 @@ const JournalCaisse = () => {
   const [details, setDetails] = useState({});
   const [active, setActive] = useState(null);
 
-  const [details, setDetails] = useState({});
-  const [active, setActive] = useState(null);
+
 
 
   useEffect(() => {

@@ -10,7 +10,6 @@ import FermetureCaisse from './pages/FermetureCaisse';
 import JournalCaisse from './pages/JournalCaisse';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
-import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const socket = io('http://localhost:3001');
