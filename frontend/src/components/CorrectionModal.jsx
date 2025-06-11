@@ -12,7 +12,9 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
   const [corrections, setCorrections] = useState(
     (ticketOriginal.objets || []).map(obj => ({ ...obj }))
   );
-  const [correctionsInitiales] = useState((ticketOriginal.objets || []).map(obj => ({ ...obj })));
+  const [correctionsInitiales, setCorrectionsInitiales] = useState(() =>
+    (ticketOriginal.objets || []).map(obj => ({ ...obj }))
+  );
   const [articlesSupprimes, setArticlesSupprimes] = useState([]);
 
   const [motif, setMotif] = useState('');
@@ -36,7 +38,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
 
   const totalAvant = correctionsInitiales.reduce((sum, a) => sum + a.prix * a.nbr, 0);
 
-  const [reductionOriginale] = useState(() => {
+  const [reductionOriginale, setReductionOriginale] = useState(() => {
     const reducs = ticketOriginal.objets?.filter(o => o.nom.toLowerCase().includes('réduction'));
     if (reducs && reducs.length === 1) {
       const nom = reducs[0].nom.toLowerCase();
@@ -53,6 +55,39 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
   useEffect(() => {
     if (reductionOriginale) setReductionType(reductionOriginale);
   }, [reductionOriginale]);
+
+  // Reset state whenever a new ticket is loaded
+  useEffect(() => {
+    setCorrections((ticketOriginal.objets || []).map(obj => ({ ...obj })));
+    setCorrectionsInitiales((ticketOriginal.objets || []).map(obj => ({ ...obj })));
+    setArticlesSupprimes([]);
+    setMotif('');
+    setLoading(false);
+
+    if (ticketOriginal.ticket.moyen_paiement && ticketOriginal.ticket.montant_paiements) {
+      setPaiements(
+        ticketOriginal.ticket.montant_paiements.map(p => ({
+          moyen: p.moyen,
+          montant: (p.montant / 100).toFixed(2).replace('.', ',')
+        }))
+      );
+    } else {
+      const initialTotal = (ticketOriginal.objets || []).reduce((sum, a) => sum + a.prix * a.nbr, 0);
+      setPaiements([{ moyen: 'carte', montant: (initialTotal / 100).toFixed(2).replace('.', ',') }]);
+    }
+
+    const reducs = ticketOriginal.objets?.filter(o => o.nom.toLowerCase().includes('réduction'));
+    let red = '';
+    if (reducs && reducs.length === 1) {
+      const nom = reducs[0].nom.toLowerCase();
+      if (nom.includes('gros panier bénévole')) red = 'trueGrosPanierBene';
+      else if (nom.includes('gros panier client')) red = 'trueGrosPanierClient';
+      else if (nom.includes('fidélité bénévole')) red = 'trueBene';
+      else if (nom.includes('fidélité client')) red = 'trueClient';
+    }
+    setReductionOriginale(red);
+    setReductionType(red || '');
+  }, [ticketOriginal]);
 
   // Helper function to parse amount string to cents
   const parseMontant = (str) => {
