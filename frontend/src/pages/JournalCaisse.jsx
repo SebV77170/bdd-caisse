@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 
 
 import SessionDetails from '../components/SessionDetails';
+import ModificationDetails from '../components/ModificationDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './BilanTickets.css';
 
@@ -14,6 +15,7 @@ function formatEuros(val) {
 const JournalCaisse = () => {
   const [sessions, setSessions] = useState([]);
   const [details, setDetails] = useState({});
+  const [modifs, setModifs] = useState({});
   const [active, setActive] = useState(null);
 
 
@@ -33,13 +35,18 @@ const JournalCaisse = () => {
       setActive(active === id ? null : id);
       return;
     }
-    fetch(`http://localhost:3001/api/bilan/bilan_session_caisse?uuid_session_caisse=${id}`)
-      .then(res => res.json())
-      .then(bilan => {
+    Promise.all([
+      fetch(`http://localhost:3001/api/bilan/bilan_session_caisse?uuid_session_caisse=${id}`)
+        .then(res => res.json()),
+      fetch(`http://localhost:3001/api/caisse/modifications?uuid_session_caisse=${id}`)
+        .then(res => res.json())
+    ])
+      .then(([bilan, mods]) => {
         setDetails(prev => ({ ...prev, [id]: bilan }));
+        setModifs(prev => ({ ...prev, [id]: mods }));
         setActive(id);
       })
-      .catch(err => console.error('Erreur chargement bilan session:', err));
+      .catch(err => console.error('Erreur chargement bilan/modifs session:', err));
   };
 
   return (
@@ -74,6 +81,7 @@ const JournalCaisse = () => {
                   <tr>
                     <td colSpan="5">
                       <SessionDetails session={s} bilan={details[s.id_session]} />
+                      <ModificationDetails modifications={modifs[s.id_session]} />
                     </td>
                   </tr>
                 )}

@@ -92,4 +92,34 @@ router.get('/journal', (req, res) => {
   }
 });
 
+// Nouveau endpoint pour récupérer les modifications de tickets liées à une session caisse
+router.get('/modifications', (req, res) => {
+  const sessionId = req.query.uuid_session_caisse;
+  if (!sessionId) {
+    return res.status(400).json({ error: 'uuid_session_caisse manquant' });
+  }
+
+  try {
+    const modifs = sqlite.prepare(
+      `SELECT jc.*, 
+              orig.uuid_ticket  AS uuid_ticket_original,
+              annul.uuid_ticket AS uuid_ticket_annulation,
+              corr.uuid_ticket  AS uuid_ticket_correction
+         FROM journal_corrections jc
+    LEFT JOIN ticketdecaisse orig  ON orig.id_ticket  = jc.id_ticket_original
+    LEFT JOIN ticketdecaisse annul ON annul.id_ticket = jc.id_ticket_annulation
+    LEFT JOIN ticketdecaisse corr  ON corr.id_ticket  = jc.id_ticket_correction
+        WHERE orig.uuid_session_caisse  = ?
+           OR annul.uuid_session_caisse = ?
+           OR corr.uuid_session_caisse  = ?
+        ORDER BY jc.date_correction DESC`
+    ).all(sessionId, sessionId, sessionId);
+
+    res.json(modifs);
+  } catch (err) {
+    console.error('Erreur récupération modifications:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
