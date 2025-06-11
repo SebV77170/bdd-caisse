@@ -34,5 +34,37 @@ router.get('/etat-caisse', (req, res) => {
   }
 });
 
+// Ajoute un caissier à la session caisse ouverte
+router.post('/ajouter-caissier', (req, res) => {
+  const { nom } = req.body;
+  if (!nom) {
+    return res.status(400).json({ error: 'Nom manquant' });
+  }
+
+  const sessionCaisse = sqlite
+    .prepare('SELECT id_session, caissiers FROM session_caisse WHERE date_fermeture IS NULL')
+    .get();
+
+  if (!sessionCaisse) {
+    return res.status(400).json({ error: 'Aucune session caisse ouverte' });
+  }
+
+  let caissiers = [];
+  try {
+    caissiers = sessionCaisse.caissiers ? JSON.parse(sessionCaisse.caissiers) : [];
+  } catch (err) {
+    caissiers = [];
+  }
+
+  if (!caissiers.includes(nom)) {
+    caissiers.push(nom);
+    sqlite
+      .prepare('UPDATE session_caisse SET caissiers = ? WHERE id_session = ?')
+      .run(JSON.stringify(caissiers), sessionCaisse.id_session);
+  }
+
+  res.json({ success: true, caissiers });
+});
+
 
 module.exports = router;
