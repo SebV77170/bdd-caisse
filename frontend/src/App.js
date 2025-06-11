@@ -115,7 +115,7 @@ function App() {
                         const res = await fetch('http://localhost:3001/api/reset', { method: 'POST' });
                         const result = await res.json();
                         if (result.success) {
-                          alert('Base réinitialisée avec succès.');
+                          alert(result.message);
                           window.location.reload();
                         } else {
                           alert('Erreur : ' + result.error);

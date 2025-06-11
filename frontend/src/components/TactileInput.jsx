@@ -3,7 +3,14 @@ import ClavierNumeriqueModal from './clavierNumeriqueModal';
 import ClavierTexteModal from './ClavierTexteModal';
 import { ModeTactileContext } from '../App';
 
-function TactileInput({ value, onChange, type = 'text', isDecimal = false, ...props }) {
+function TactileInput({
+  value,
+  onChange,
+  type = 'text',
+  isDecimal = false,
+  as = 'input', // 'input' ou 'textarea'
+  ...props
+}) {
   const { modeTactile } = useContext(ModeTactileContext);
   const [show, setShow] = useState(false);
 
@@ -12,19 +19,25 @@ function TactileInput({ value, onChange, type = 'text', isDecimal = false, ...pr
   };
 
   const isNumeric = type === 'number' || isDecimal;
+  const displayValue = value === undefined || value === null ? '' : value;
 
   if (modeTactile) {
-    const displayValue = value === undefined || value === null ? '' : value;
+    const commonProps = {
+      readOnly: true,
+      value: displayValue,
+      onClick: () => setShow(true),
+      style: { cursor: 'pointer', ...(props.style || {}) },
+      ...props,
+    };
+
     return (
       <>
-        <input
-          {...props}
-          type={type === 'password' ? 'password' : 'text'}
-          readOnly
-          value={displayValue}
-          onClick={() => setShow(true)}
-          style={{ cursor: 'pointer', ...(props.style || {}) }}
-        />
+        {as === 'textarea' ? (
+          <textarea {...commonProps} />
+        ) : (
+          <input {...commonProps} type={type === 'password' ? 'password' : 'text'} />
+        )}
+
         {isNumeric ? (
           <ClavierNumeriqueModal
             show={show}
@@ -45,7 +58,11 @@ function TactileInput({ value, onChange, type = 'text', isDecimal = false, ...pr
     );
   }
 
-  return <input {...props} type={type} value={value} onChange={onChange} />;
+  return as === 'textarea' ? (
+    <textarea {...props} value={value} onChange={onChange} />
+  ) : (
+    <input {...props} type={type} value={value} onChange={onChange} />
+  );
 }
 
 export default TactileInput;
