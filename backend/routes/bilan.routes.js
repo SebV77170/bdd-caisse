@@ -8,8 +8,10 @@ const getBilanSession = require('../utils/bilanSession');
 router.get('/', (req, res) => {
   try {
     const tickets = sqlite.prepare(`
-      SELECT 
-        t.*, 
+      SELECT
+        t.*,
+        jc_annul.id_ticket_original AS annulation_de,
+        jc_corr.id_ticket_original  AS correction_de,
         EXISTS (
           SELECT 1 FROM journal_corrections jc WHERE jc.id_ticket_original = t.id_ticket
         ) AS ticket_corrige,
@@ -17,6 +19,8 @@ router.get('/', (req, res) => {
           SELECT 1 FROM journal_corrections jc WHERE jc.id_ticket_correction = t.id_ticket
         ) AS est_correction
       FROM ticketdecaisse t
+      LEFT JOIN journal_corrections jc_annul ON jc_annul.id_ticket_annulation = t.id_ticket
+      LEFT JOIN journal_corrections jc_corr  ON jc_corr.id_ticket_correction  = t.id_ticket
       ORDER BY t.id_ticket DESC
     `).all();
 

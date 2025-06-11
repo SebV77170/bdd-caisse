@@ -149,11 +149,11 @@ const location = useLocation();
                     <td>{aReduction(ticket) ? '✅' : '—'}</td>
                     <td>
                       {ticket.flag_correction ? (
-                        <span className="badge bg-danger">Annulation</span>
+                        <span className="badge bg-danger">Annulation de #{ticket.annulation_de}</span>
+                      ) : ticket.corrige_le_ticket ? (
+                        <span className="badge bg-info text-dark">Correction de #{ticket.correction_de}</span>
                       ) : ticket.correction_de ? (
                         <span className="badge bg-warning text-dark">Correctif</span>
-                      ) : ticket.corrige_le_ticket ? (
-                        <span className="badge bg-info text-dark">Correction</span>
                       ) : ticket.cloture === 1 ? (
                         <span className="badge bg-success text-white">Cloture Caisse</span>
                       ) : (
