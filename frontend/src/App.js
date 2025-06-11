@@ -1,11 +1,13 @@
 import { io } from 'socket.io-client';
 import React, { useEffect, useState, createContext } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom'; // ✅ ajout de useNavigate
+import { Navbar, Nav } from 'react-bootstrap';
 import Caisse from './pages/Caisse';
 import BilanTickets from './pages/BilanTickets';
 import LoginPage from './pages/LoginPage';
 import OuvertureCaisse from './pages/ouvertureCaisse';
 import FermetureCaisse from './pages/FermetureCaisse';
+import JournalCaisse from './pages/JournalCaisse';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import { ToastContainer, toast } from 'react-toastify';
@@ -65,14 +67,21 @@ function App() {
   return (
     <ModeTactileContext.Provider value={{ modeTactile, setModeTactile }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <nav className="navbar navbar-expand navbar-dark bg-dark px-3">
-          <Link className="navbar-brand" to="/">Caisse</Link>
-          <Link className="nav-link text-white" to="/bilan">Bilan tickets</Link>
-          {caisseOuverte ? (
-            <Link className="nav-link text-white" to="/fermeture-caisse">Fermeture Caisse</Link>
-          ) : (
-            <Link className="nav-link text-white" to="/ouverture-caisse">Ouverture Caisse</Link>
-          )}
+        <Navbar bg="dark" variant="dark" expand={false} className="px-3">
+          <Navbar.Brand as={Link} to="/">Caisse</Navbar.Brand>
+          <Navbar.Toggle aria-controls="main-nav" />
+          <Navbar.Collapse id="main-nav">
+            <Nav className="flex-column">
+              <Nav.Link as={Link} to="/">Caisse</Nav.Link>
+              <Nav.Link as={Link} to="/bilan">Bilan tickets</Nav.Link>
+              {caisseOuverte ? (
+                <Nav.Link as={Link} to="/fermeture-caisse">Fermeture Caisse</Nav.Link>
+              ) : (
+                <Nav.Link as={Link} to="/ouverture-caisse">Ouverture Caisse</Nav.Link>
+              )}
+              <Nav.Link as={Link} to="/journal-caisse">Journal caisse</Nav.Link>
+            </Nav>
+          </Navbar.Collapse>
 
 
           {bilanJour && (
@@ -178,7 +187,7 @@ function App() {
               </label>
             </div>
           </div>
-        </nav>
+        </Navbar>
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <Routes>
@@ -187,6 +196,7 @@ function App() {
             <Route path="/bilan" element={<RequireSession><BilanTickets /></RequireSession>} />
             <Route path="/ouverture-caisse" element={<RequireSession><OuvertureCaisse /></RequireSession>} />
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
+            <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
 
           </Routes>
         </div>
