@@ -79,4 +79,17 @@ if (!motDePasseValide) {
    res.json({ success: true, id_session });
 });
 
+router.get('/journal', (req, res) => {
+  try {
+    const sessions = sqlite.prepare(`
+      SELECT * FROM session_caisse
+      ORDER BY date_ouverture DESC, heure_ouverture DESC
+    `).all();
+    res.json(sessions);
+  } catch (err) {
+    console.error('Erreur récupération journal caisse:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 module.exports = router;
