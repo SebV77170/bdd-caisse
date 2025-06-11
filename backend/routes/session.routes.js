@@ -10,8 +10,8 @@ router.post('/', (req, res) => {
   const user = sqlite.prepare('SELECT * FROM users WHERE pseudo = ?').get(pseudo);
   if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
 
-  session.setUser({ id: user.id, nom: user.nom });
-  res.json({ success: true, user: { id: user.id, nom: user.nom } });
+  session.setUser({ id: user.id, nom: user.nom, prenom: user.prenom, pseudo: user.pseudo });
+  res.json({ success: true, user: { id: user.id, nom: user.nom, prenom: user.prenom, pseudo: user.pseudo} });
 });
 
 router.get('/', (req, res) => {

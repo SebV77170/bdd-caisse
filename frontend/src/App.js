@@ -93,35 +93,39 @@ function App() {
             </Offcanvas.Body>
           </Navbar.Offcanvas>
 
-          <div className="d-flex align-items-center text-white ms-auto">
+          <div className="d-flex align-items-center justify-content-center flex-grow-1 text-white">
             {vendeur.nom && (
-              <>
-                <span className="me-2">👤 <strong>{vendeur.nom}</strong></span>
-                <button
-                  className="btn btn-sm btn-outline-warning me-2"
-                  onClick={async () => {
-                    const confirmReset = window.confirm('⚠️ Cette action va supprimer tous les tickets, paiements et bilans. Continuer ?');
-                    if (confirmReset) {
-                      try {
-                        const res = await fetch('http://localhost:3001/api/reset', { method: 'POST' });
-                        const result = await res.json();
-                        if (result.success) {
-                          alert(result.message);
-                          window.location.reload();
-                        } else {
-                          alert('Erreur : ' + result.error);
-                        }
-                      } catch (err) {
-                        console.error(err);
-                        alert('Erreur lors de la réinitialisation.');
-                      }
-                    }
-                  }}
-                >
-                  Reset
-                </button>
-              </>
+              <span className="text-center">
+                👤 <strong>Bonjour {vendeur.prenom} {vendeur.nom}</strong>
+              </span>
             )}
+          </div>
+
+          <div className="d-flex align-items-center ms-auto">
+            <button
+              className="btn btn-sm btn-outline-warning me-2"
+              onClick={async () => {
+                const confirmReset = window.confirm('⚠️ Cette action va supprimer tous les tickets, paiements et bilans. Continuer ?');
+                if (confirmReset) {
+                  try {
+                    const res = await fetch('http://localhost:3001/api/reset', { method: 'POST' });
+                    const result = await res.json();
+                    if (result.success) {
+                      alert(result.message);
+                      window.location.reload();
+                    } else {
+                      alert('Erreur : ' + result.error);
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert('Erreur lors de la réinitialisation.');
+                  }
+                }
+              }}
+            >
+              Reset
+            </button>
+
             <button
               className="btn btn-sm btn-outline-success me-2"
               onClick={async () => {
@@ -150,7 +154,7 @@ function App() {
                 navigate('/login');
               }}
             >
-              🚪
+              Changer d'utilisateur 👤
             </button>
 
             <div className="form-check form-switch ms-2">
