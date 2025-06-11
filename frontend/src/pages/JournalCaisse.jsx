@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
+
+
 import SessionDetails from '../components/SessionDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './BilanTickets.css';
@@ -11,6 +13,8 @@ function formatEuros(val) {
 
 const JournalCaisse = () => {
   const [sessions, setSessions] = useState([]);
+  const [details, setDetails] = useState({});
+  const [active, setActive] = useState(null);
 
   const [details, setDetails] = useState({});
   const [active, setActive] = useState(null);
