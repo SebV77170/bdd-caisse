@@ -155,7 +155,7 @@ const location = useLocation();
                       ) : ticket.corrige_le_ticket ? (
                         <span className="badge bg-info text-dark">Correction</span>
                       ) : ticket.cloture === 1 ? (
-                        <span className="badge bg-info text-dark">Cloture Caisse</span>
+                        <span className="badge bg-success text-white">Cloture Caisse</span>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
