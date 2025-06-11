@@ -200,9 +200,11 @@ function FermetureCaisse() {
           />
           <div>
             <label>Commentaire (facultatif) :</label><br />
-            <textarea
+            <TactileInput
+              as="textarea"
               value={commentaire}
               onChange={(e) => setCommentaire(e.target.value)}
+              placeholder="Votre message"
             />
           </div>
           <div>

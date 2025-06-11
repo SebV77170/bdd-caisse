@@ -34,10 +34,17 @@ router.post('/', async (req, res) => {
       }
     })();
 
-    // ⚙️ Suppression des données MySQL + reset auto-incrément
-    for (const table of tablesMysql) {
-      await mysql.query(`DELETE FROM ${table}`);
-      await mysql.query(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
+    let mysqlOk = false;
+    try {
+      await mysql.query('SELECT 1');
+      // ⚙️ Suppression des données MySQL + reset auto-incrément
+      for (const table of tablesMysql) {
+        await mysql.query(`DELETE FROM ${table}`);
+        await mysql.query(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
+      }
+      mysqlOk = true;
+    } catch (errMysql) {
+      console.error('Connexion MySQL échouée :', errMysql);
     }
 
     // 🧹 Suppression des fichiers de tickets
@@ -51,7 +58,10 @@ router.post('/', async (req, res) => {
       });
     }
 
-    res.json({ success: true, message: 'Base locale et distante + fichiers tickets réinitialisés.' });
+    const message = mysqlOk
+      ? 'Base locale et distante + fichiers tickets réinitialisés.'
+      : "Base locale réinitialisée et fichiers tickets supprimés. La base MySQL n'a pas été réinitialisée.";
+    res.json({ success: true, message });
   } catch (err) {
     console.error('Erreur reset :', err);
     res.status(500).json({ error: 'Erreur lors de la réinitialisation.' });
