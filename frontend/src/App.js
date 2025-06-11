@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import React, { useEffect, useState, createContext } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom'; // ✅ ajout de useNavigate
-import { Navbar, Nav } from 'react-bootstrap';
+import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Navbar, Nav, Offcanvas } from 'react-bootstrap';
 import Caisse from './pages/Caisse';
 import BilanTickets from './pages/BilanTickets';
 import LoginPage from './pages/LoginPage';
@@ -17,7 +17,7 @@ const socket = io('http://localhost:3001');
 export const ModeTactileContext = createContext();
 
 function App() {
-  const navigate = useNavigate(); // ✅ pour gérer les redirections
+  const navigate = useNavigate();
   const vendeur = JSON.parse(localStorage.getItem('vendeur') || '{}');
   const [bilanJour, setBilanJour] = useState(null);
   const [modeTactile, setModeTactile] = useState(() => {
@@ -25,6 +25,7 @@ function App() {
     return saved ? JSON.parse(saved) : false;
   });
   const [caisseOuverte, setCaisseOuverte] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('modeTactile', JSON.stringify(modeTactile));
@@ -45,7 +46,6 @@ function App() {
     return () => socket.off('bilanUpdated');
   }, []);
 
-
   useEffect(() => {
     const fetchEtat = () => {
       fetch('http://localhost:3001/api/session/etat-caisse')
@@ -54,67 +54,50 @@ function App() {
         .catch(() => setCaisseOuverte(false));
     };
 
-    fetchEtat(); // premier chargement
-
-    socket.on('etatCaisseUpdated', fetchEtat); // écoute socket
-
-    return () => {
-      socket.off('etatCaisseUpdated', fetchEtat); // nettoyage à la sortie
-    };
+    fetchEtat();
+    socket.on('etatCaisseUpdated', fetchEtat);
+    return () => socket.off('etatCaisseUpdated', fetchEtat);
   }, []);
-
 
   return (
     <ModeTactileContext.Provider value={{ modeTactile, setModeTactile }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        <Navbar bg="dark" variant="dark" expand={false} className="px-3">
-          <Navbar.Brand as={Link} to="/">Caisse</Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" />
-          <Navbar.Collapse id="main-nav">
-            <Nav className="flex-column">
-              <Nav.Link as={Link} to="/">Caisse</Nav.Link>
-              <Nav.Link as={Link} to="/bilan">Bilan tickets</Nav.Link>
-              {caisseOuverte ? (
-                <Nav.Link as={Link} to="/fermeture-caisse">Fermeture Caisse</Nav.Link>
-              ) : (
-                <Nav.Link as={Link} to="/ouverture-caisse">Ouverture Caisse</Nav.Link>
-              )}
-              <Nav.Link as={Link} to="/journal-caisse">Journal caisse</Nav.Link>
-            </Nav>
-          </Navbar.Collapse>
+        <Navbar bg="dark" variant="dark" expand={false} className="px-3 py-1">
+          <Navbar.Toggle
+            aria-controls="main-nav"
+            className="me-auto border-0 text-white"
+            onClick={() => setShowMenu(true)}
+          >
+            <span style={{ fontSize: '1.5rem' }}>☰</span>
+          </Navbar.Toggle>
 
+          <Navbar.Offcanvas
+            id="main-nav"
+            placement="start"
+            show={showMenu}
+            onHide={() => setShowMenu(false)}
+          >
+            <Offcanvas.Header closeButton closeVariant="white" className="bg-dark text-white">
+              <Offcanvas.Title>Menu principal</Offcanvas.Title>
+            </Offcanvas.Header>
+            <Offcanvas.Body className="bg-dark text-white">
+              <Nav className="flex-column">
+                <Nav.Link as={Link} to="/" onClick={() => setShowMenu(false)}>🧾 Caisse</Nav.Link>
+                <Nav.Link as={Link} to="/bilan" onClick={() => setShowMenu(false)}>📊 Bilan tickets</Nav.Link>
+                {caisseOuverte ? (
+                  <Nav.Link as={Link} to="/fermeture-caisse" onClick={() => setShowMenu(false)}>🔒 Fermeture Caisse</Nav.Link>
+                ) : (
+                  <Nav.Link as={Link} to="/ouverture-caisse" onClick={() => setShowMenu(false)}>🔓 Ouverture Caisse</Nav.Link>
+                )}
+                <Nav.Link as={Link} to="/journal-caisse" onClick={() => setShowMenu(false)}>📖 Journal caisse</Nav.Link>
+              </Nav>
+            </Offcanvas.Body>
+          </Navbar.Offcanvas>
 
-          {bilanJour && (
-            <div className="container-fluid d-flex justify-content-center mt-2">
-              <table className="table table-borderless table-sm text-white text-center mb-0" style={{ fontSize: '0.75rem', width: 'auto' }}>
-                <thead>
-                  <tr>
-                    <th>Ventes</th>
-                    <th>Total</th>
-                    <th>Espèces</th>
-                    <th>Carte</th>
-                    <th>Chèque</th>
-                    <th>Virement</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>{bilanJour.nombre_vente ?? 0}</td>
-                    <td>{((bilanJour.prix_total ?? 0) / 100).toFixed(2)} €</td>
-                    <td>{((bilanJour.prix_total_espece ?? 0) / 100).toFixed(2)} €</td>
-                    <td>{((bilanJour.prix_total_carte ?? 0) / 100).toFixed(2)} €</td>
-                    <td>{((bilanJour.prix_total_cheque ?? 0) / 100).toFixed(2)} €</td>
-                    <td>{((bilanJour.prix_total_virement ?? 0) / 100).toFixed(2)} €</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="ms-auto d-flex align-items-center text-white">
+          <div className="d-flex align-items-center text-white ms-auto">
             {vendeur.nom && (
               <>
-                <span className="me-3">Bienvenue, <strong>{vendeur.nom}</strong></span>
+                <span className="me-2">👤 <strong>{vendeur.nom}</strong></span>
                 <button
                   className="btn btn-sm btn-outline-warning me-2"
                   onClick={async () => {
@@ -136,7 +119,7 @@ function App() {
                     }
                   }}
                 >
-                  Reset base
+                  Reset
                 </button>
               </>
             )}
@@ -144,36 +127,34 @@ function App() {
               className="btn btn-sm btn-outline-success me-2"
               onClick={async () => {
                 try {
-                  const res = await fetch('http://localhost:3001/api/sync/', {
-                    method: 'POST'
-                  });
+                  const res = await fetch('http://localhost:3001/api/sync/', { method: 'POST' });
                   const result = await res.json();
                   if (result.success) {
                     alert('✅ Synchronisation réussie !');
                   } else {
-                    alert('❌ Échec de la synchronisation : ' + (result.message || result.error));
+                    alert('❌ Échec : ' + (result.message || result.error));
                   }
                 } catch (err) {
                   console.error(err);
-                  alert('❌ Erreur lors de la synchronisation.');
+                  alert('❌ Erreur de synchronisation.');
                 }
               }}
             >
-              🔄 Synchroniser
+              🔄
             </button>
 
             <button
-              className="btn btn-sm btn-outline-light"
+              className="btn btn-sm btn-outline-light me-2"
               onClick={() => {
                 localStorage.removeItem('vendeur');
                 fetch('http://localhost:3001/api/session', { method: 'DELETE' });
-                navigate('/login'); // ✅ redirection propre
+                navigate('/login');
               }}
             >
-              Déconnexion
+              🚪
             </button>
 
-            <div className="form-check form-switch ms-3">
+            <div className="form-check form-switch ms-2">
               <input
                 className="form-check-input"
                 type="checkbox"
@@ -182,12 +163,25 @@ function App() {
                 checked={modeTactile}
                 onChange={() => setModeTactile(prev => !prev)}
               />
-              <label className="form-check-label" htmlFor="modeTactileSwitch">
-                Mode tactile
+              <label className="form-check-label text-white" htmlFor="modeTactileSwitch">
+                🖐️
               </label>
             </div>
           </div>
         </Navbar>
+
+        {bilanJour && (
+          <div className="bg-dark text-white px-2 py-1" style={{ fontSize: '0.75rem' }}>
+            <div className="d-flex flex-wrap justify-content-center text-center gap-3">
+              <div>🧾 Ventes : <strong>{bilanJour.nombre_vente ?? 0}</strong></div>
+              <div>💰 Total : <strong>{((bilanJour.prix_total ?? 0) / 100).toFixed(2)} €</strong></div>
+              <div>💶 Espèces : {((bilanJour.prix_total_espece ?? 0) / 100).toFixed(2)} €</div>
+              <div>💳 Carte : {((bilanJour.prix_total_carte ?? 0) / 100).toFixed(2)} €</div>
+              <div>🧾 Chèque : {((bilanJour.prix_total_cheque ?? 0) / 100).toFixed(2)} €</div>
+              <div>🏦 Virement : {((bilanJour.prix_total_virement ?? 0) / 100).toFixed(2)} €</div>
+            </div>
+          </div>
+        )}
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <Routes>
@@ -197,11 +191,8 @@ function App() {
             <Route path="/ouverture-caisse" element={<RequireSession><OuvertureCaisse /></RequireSession>} />
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
             <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
-
           </Routes>
         </div>
-        
-
       </div>
     </ModeTactileContext.Provider>
   );
