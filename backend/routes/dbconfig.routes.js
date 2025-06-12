@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { updateMysqlConfig, getMysqlPresets } = require('../db');
+const { updateMysqlConfig, getMysqlPresets, getMysqlPool } = require('../db');
 const fs = require('fs');
 const path = require('path');
+
 
 const configPath = path.join(__dirname, '../dbConfig.json');
 
@@ -66,5 +67,20 @@ router.post('/preset', (req, res) => {
   });
   res.json({ success: true });
 });
+
+router.get('/test', async (req, res) => {
+  try {
+    const pool = getMysqlPool(); // toujours dynamique
+    const connection = await pool.getConnection();
+    await connection.query('SELECT 1'); // ✅ test de vie
+    connection.release();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erreur de connexion MySQL :', err);
+    res.status(500).json({ success: false, error: 'Connexion échouée' });
+  }
+});
+
+
 
 module.exports = router;
