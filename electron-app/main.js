@@ -12,6 +12,8 @@ function createWindow() {
   });
 
   const indexPath = path.resolve(__dirname, 'build', 'index.html');
+  const devURL = 'http://localhost:3000';
+
 
 
 
@@ -21,8 +23,8 @@ function createWindow() {
     win.loadURL(`file://${indexPath.replace(/\\/g, '/')}`);
 
   } else {
-    console.error("❌ Le fichier index.html est introuvable !");
-    win.loadURL("data:text/html,<h1>Erreur : index.html introuvable</h1>");
+    
+    win.loadURL(devURL);
   }
 
   win.webContents.openDevTools();
