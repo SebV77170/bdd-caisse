@@ -1,8 +1,7 @@
 const request = require('supertest');
 const app = require('../app');
-const { sqlite } = require('../db');;
-const path = require('path');
-const fs = require('fs');
+const { sqlite } = require('../db');
+const { initTables } = require('./testUtils');
 
 // Mock explicite du module session
 jest.mock('../session', () => ({
@@ -11,11 +10,6 @@ jest.mock('../session', () => ({
 }));
 const { getUser } = require('../session');
 
-function initTables() {
-  const schemaPath = path.join(__dirname, '../schema.sql');
-  const schema = fs.readFileSync(schemaPath, 'utf8');
-  sqlite.exec(schema);
-}
 
 beforeEach(() => {
   initTables();

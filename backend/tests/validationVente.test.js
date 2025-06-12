@@ -5,15 +5,8 @@ jest.mock('../session', () => ({
   
   const request = require('supertest');
   const app = require('../app');
-  const { sqlite } = require('../db');;
-  const fs = require('fs');
-  const path = require('path');
-  
-  function initTables() {
-    const schemaPath = path.join(__dirname, '../schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-    sqlite.exec(schema);
-  }
+  const { sqlite } = require('../db');
+  const { initTables } = require('./testUtils');
   
   describe('Tests de la validation de vente', () => {
     const vendeur = { id: 1, nom: 'Testeur' };
@@ -124,4 +117,3 @@ jest.mock('../session', () => ({
       expect(res.body.error).toMatch(/aucun utilisateur/i);
     });
   });
-  

@@ -1,15 +1,8 @@
 jest.mock('../session');
 const request = require('supertest');
 const app = require('../app');
-const { sqlite } = require('../db');;
-const path = require('path');
-const fs = require('fs');
-
-function initTables() {
-    const schemaPath = path.join(__dirname, '../schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-    sqlite.exec(schema);
-  }
+const { sqlite } = require('../db');
+const { initTables } = require('./testUtils');
   
 
 describe('Test modification prix article et mise à jour bilan', () => {
@@ -22,7 +15,7 @@ describe('Test modification prix article et mise à jour bilan', () => {
   let idTicket = null;
   let idCorrection = null;
 
-  beforeAll(() => {
+  beforeEach(() => {
     initTables();
     const now = new Date().toISOString();
     const timestamp = Math.floor(Date.now() / 1000);
