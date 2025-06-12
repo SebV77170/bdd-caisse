@@ -96,16 +96,17 @@ console.log(req.body);
     }
 
 
+    let id_annul, id_corrige;
     const uuid_ticket_annul = uuidv4();
+    const uuid_ticket_corrige = uuidv4();
+    const dbTransaction = sqlite.transaction(() => {
     const annul = sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, correction_de, flag_correction, nom_vendeur, id_vendeur,
         nbr_objet, prix_total, moyen_paiement, uuid_ticket, uuid_session_caisse
       ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?,?)
     `).run(now, id_ticket_original, utilisateur, id_vendeur, articles_sans_reduction.length, totalAnnulation, ticketOriginalData.moyen_paiement || 'mixte', uuid_ticket_annul, uuid_session_caisse);
-    const id_annul = annul.lastInsertRowid;
-
-    genererTicketPdf(uuid_ticket_annul);
+    id_annul = annul.lastInsertRowid;
 
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_annul,
@@ -181,9 +182,7 @@ console.log(req.body);
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
     `).run(now, utilisateur, id_vendeur, articles_correction_sans_reduction.length, prixTotal, 'mixte', // Toujours 'mixte' si la correction utilise plusieurs paiements
       reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, uuid_ticket_corrige, uuid_session_caisse);
-    const id_corrige = correc.lastInsertRowid;
-
-    genererTicketPdf(uuid_ticket_corrige);
+    id_corrige = correc.lastInsertRowid;
 
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_corrige,
@@ -321,8 +320,6 @@ console.log(req.body);
       });
     }
 
-    res.json({ success: true, id_ticket_annulation: id_annul, id_ticket_correction: id_corrige });
-
     sqlite.prepare(`
     INSERT INTO journal_corrections (date_correction, id_ticket_original,id_ticket_annulation, id_ticket_correction, utilisateur , motif)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -337,6 +334,11 @@ console.log(req.body);
       utilisateur,
       motif
     });
+  });
+  dbTransaction();
+  genererTicketPdf(uuid_ticket_annul);
+  genererTicketPdf(uuid_ticket_corrige);
+  res.json({ success: true, id_ticket_annulation: id_annul, id_ticket_correction: id_corrige });
 
   }
   catch (err) {
@@ -370,7 +372,9 @@ router.post('/:id/supprimer', (req, res) => {
 
     // Calcule le montant d'annulation (toujours négatif)
     const totalAnnulation = -Math.abs(ticket.prix_total);
+    let id_annul;
     const uuid_ticket_annul = require('uuid').v4();
+    const dbTransaction = sqlite.transaction(() => {
 
     // Récupérer les paiements mixtes du ticket original à supprimer
     const paiementsOriginalMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE id_ticket = ?').get(id);
@@ -403,10 +407,7 @@ router.post('/:id/supprimer', (req, res) => {
       now, ticket.id_ticket, ticket.nom_vendeur, ticket.id_vendeur,
       objets.length, totalAnnulation, ticket.moyen_paiement || 'mixte', uuid_ticket_annul, ticket.uuid_session_caisse // Utilise le uuid_session_caisse du ticket original
     );
-    const id_annul = annul.lastInsertRowid;
-
-    // Génère le PDF du ticket d'annulation
-    genererTicketPdf(uuid_ticket_annul);
+    id_annul = annul.lastInsertRowid;
 
     // LogSync pour le ticket d'annulation
     logSync('ticketdecaisse', 'INSERT', {
@@ -535,6 +536,9 @@ router.post('/:id/supprimer', (req, res) => {
       motif: 'Suppression demandée'
     });
 
+  });
+    dbTransaction();
+    genererTicketPdf(uuid_ticket_annul);
     const io = req.app.get('socketio');
     if (io) {
       io.emit('bilanUpdated');

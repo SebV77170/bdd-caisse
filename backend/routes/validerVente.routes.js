@@ -75,19 +75,22 @@ router.post('/', (req, res) => {
     const moyenGlobal = paiements.length > 1 ? 'mixte' : paiements[0].moyen;
     const uuid_session_caisse = req.body.uuid_session_caisse;
 
-    const result = sqlite.prepare(`
-      INSERT INTO ticketdecaisse (
-        uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt,
-        nbr_objet, moyen_paiement, prix_total, lien,
-        reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      uuid_ticket, vendeur, id_vendeur, date_achat,
-      articles.length, moyenGlobal, prixTotal, '',
-      reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, uuid_session_caisse
-    );
+    let id_ticket;
 
-    const id_ticket = result.lastInsertRowid;
+    const dbTransaction = sqlite.transaction(() => {
+      const result = sqlite.prepare(`
+        INSERT INTO ticketdecaisse (
+          uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt,
+          nbr_objet, moyen_paiement, prix_total, lien,
+          reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        uuid_ticket, vendeur, id_vendeur, date_achat,
+        articles.length, moyenGlobal, prixTotal, '',
+        reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, uuid_session_caisse
+      );
+
+      id_ticket = result.lastInsertRowid;
 
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket,
@@ -183,8 +186,78 @@ router.post('/', (req, res) => {
         virement: pm.virement
       });
     }
-    const lignesTicket = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(id_ticket);
 
+
+
+    sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE id_ticket = ?').run(`tickets/Ticket-${uuid_ticket}.txt`, id_ticket);
+    sqlite.prepare('DELETE FROM vente WHERE id_temp_vente = ?').run(id_temp_vente);
+    sqlite.prepare('DELETE FROM ticketdecaissetemp WHERE id_temp_vente = ?').run(id_temp_vente);
+
+    const today = date_achat.slice(0, 10);
+    const poids = articles.reduce((s, a) => s + (a.poids || 0), 0);
+    const bilanExistant = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
+
+    if (req.body.code_postal && /^\d{4,5}$/.test(req.body.code_postal)) {
+      sqlite.prepare(`
+        INSERT INTO code_postal (code, date)
+        VALUES (?, ?)
+      `).run(req.body.code_postal, today);
+
+      logSync('code_postal', 'INSERT', {
+        code: req.body.code_postal,
+        date: today,
+        id_ticket
+      });
+    }
+
+    const totalPaiement = pm.espece + pm.carte + pm.cheque + pm.virement;
+
+    if (bilanExistant) {
+      sqlite.prepare(`
+        UPDATE bilan SET nombre_vente = nombre_vente + 1,
+        poids = poids + ?, prix_total = prix_total + ?,
+        prix_total_espece = prix_total_espece + ?,
+        prix_total_cheque = prix_total_cheque + ?,
+        prix_total_carte = prix_total_carte + ?,
+        prix_total_virement = prix_total_virement + ? WHERE date = ?
+      `).run(poids, prixTotal, prixTotal === 0 ? 0 : pm.espece, prixTotal === 0 ? 0 : pm.cheque, prixTotal === 0 ? 0 : pm.carte, prixTotal === 0 ? 0 : pm.virement, today);
+
+      logSync('bilan', 'UPDATE', {
+        date: today,
+        timestamp: Math.floor(Date.now() / 1000),
+        nombre_vente: 1,
+        poids,
+        prix_total: prixTotal,
+        prix_total_espece: prixTotal === 0 ? 0 : pm.espece,
+        prix_total_cheque: prixTotal === 0 ? 0 : pm.cheque,
+        prix_total_carte: prixTotal === 0 ? 0 : pm.carte,
+        prix_total_virement: prixTotal === 0 ? 0 : pm.virement
+      });
+
+    } else {
+      sqlite.prepare(`
+        INSERT INTO bilan (
+          date, timestamp, nombre_vente, poids, prix_total,
+          prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(today, Math.floor(Date.now() / 1000), 1, poids, prixTotal, prixTotal === 0 ? 0 : pm.espece, prixTotal === 0 ? 0 : pm.cheque, prixTotal === 0 ? 0 : pm.carte, prixTotal === 0 ? 0 : pm.virement);
+
+      logSync('bilan', 'INSERT', {
+        date: today,
+        timestamp: Math.floor(Date.now() / 1000),
+        nombre_vente: 1,
+        poids,
+        prix_total: prixTotal,
+        prix_total_espece: prixTotal === 0 ? 0 : pm.espece,
+        prix_total_cheque: prixTotal === 0 ? 0 : pm.cheque,
+        prix_total_carte: prixTotal === 0 ? 0 : pm.carte,
+        prix_total_virement: prixTotal === 0 ? 0 : pm.virement
+      });
+    }
+  });
+    dbTransaction();
+
+    const lignesTicket = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(id_ticket);
     const pdfPath = path.join(__dirname, `../../tickets/Ticket-${uuid_ticket}.pdf`);
     const doc = new PDFDocument();
     doc.pipe(fs.createWriteStream(pdfPath));
@@ -238,72 +311,6 @@ router.post('/', (req, res) => {
         } else {
           console.log(`Ticket PDF envoyé à ${req.body.email}`);
         }
-      });
-    }
-
-
-
-    sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE id_ticket = ?').run(`tickets/Ticket-${uuid_ticket}.txt`, id_ticket);
-    sqlite.prepare('DELETE FROM vente WHERE id_temp_vente = ?').run(id_temp_vente);
-    sqlite.prepare('DELETE FROM ticketdecaissetemp WHERE id_temp_vente = ?').run(id_temp_vente);
-
-    const today = date_achat.slice(0, 10);
-    const poids = articles.reduce((s, a) => s + (a.poids || 0), 0);
-    const bilanExistant = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
-
-    if (req.body.code_postal && /^\d{4,5}$/.test(req.body.code_postal)) {
-      sqlite.prepare(`
-        INSERT INTO code_postal (code, date)
-        VALUES (?, ?)
-      `).run(req.body.code_postal, today);
-
-      logSync('code_postal', 'INSERT', {
-        code: req.body.code_postal,
-        date: today,
-        id_ticket
-      });
-    }
-
-    const totalPaiement = pm.espece + pm.carte + pm.cheque + pm.virement;
-
-    if (bilanExistant) {
-      sqlite.prepare(`
-        UPDATE bilan SET nombre_vente = nombre_vente + 1,
-        poids = poids + ?, prix_total = prix_total + ?,
-        prix_total_espece = prix_total_espece + ?,
-        prix_total_cheque = prix_total_cheque + ?,
-        prix_total_carte = prix_total_carte + ?,
-        prix_total_virement = prix_total_virement + ? WHERE date = ?
-      `).run(poids, prixTotal, prixTotal === 0 ? 0 : pm.espece, prixTotal === 0 ? 0 : pm.cheque, prixTotal === 0 ? 0 : pm.carte, prixTotal === 0 ? 0 : pm.virement, today);
-
-      logSync('bilan', 'UPDATE', {
-        date: today,
-        timestamp: Math.floor(Date.now() / 1000),
-        nombre_vente: 1,
-        poids,
-        prix_total: prixTotal,
-        prix_total_espece: prixTotal === 0 ? 0 : pm.espece,
-        prix_total_cheque: prixTotal === 0 ? 0 : pm.cheque,
-        prix_total_carte: prixTotal === 0 ? 0 : pm.carte,
-        prix_total_virement: prixTotal === 0 ? 0 : pm.virement
-      });
-
-    } else {
-      sqlite.prepare(`
-        INSERT INTO bilan (date, timestamp, nombre_vente, poids, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(today, Math.floor(Date.now() / 1000), 1, poids, prixTotal, prixTotal === 0 ? 0 : pm.espece, prixTotal === 0 ? 0 : pm.cheque, prixTotal === 0 ? 0 : pm.carte, prixTotal === 0 ? 0 : pm.virement);
-
-      logSync('bilan', 'INSERT', {
-        date: today,
-        timestamp: Math.floor(Date.now() / 1000),
-        nombre_vente: 1,
-        poids,
-        prix_total: prixTotal,
-        prix_total_espece: prixTotal === 0 ? 0 : pm.espece,
-        prix_total_cheque: prixTotal === 0 ? 0 : pm.cheque,
-        prix_total_carte: prixTotal === 0 ? 0 : pm.carte,
-        prix_total_virement: prixTotal === 0 ? 0 : pm.virement
       });
     }
 
