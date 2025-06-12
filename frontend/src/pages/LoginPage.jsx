@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 function LoginPage() {
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState('');
+  const [password, setPassword] = useState('');
   const [sessionOuverte, setSessionOuverte] = useState(false);
   const navigate = useNavigate();
 
@@ -20,12 +21,12 @@ function LoginPage() {
   }, []);
 
   const handleLogin = async () => {
-    if (!selected) return;
+    if (!selected || !password) return;
     try {
       const res = await fetch('http://localhost:3001/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pseudo: selected })
+        body: JSON.stringify({ pseudo: selected, mot_de_passe: password })
       });
       const data = await res.json();
       if (data.success) {
@@ -46,6 +47,8 @@ function LoginPage() {
         }
 
         navigate('/'); // ✅ navigation propre pour Electron
+      } else if (data.error) {
+        alert(data.error);
       }
     } catch (err) {
       alert('Erreur de connexion');
@@ -61,6 +64,13 @@ function LoginPage() {
           <option key={u.id} value={u.pseudo}>{u.pseudo}</option>
         ))}
       </select>
+      <input
+        type="password"
+        className="form-control mb-3"
+        placeholder="Mot de passe"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+      />
       <button className="btn btn-primary" onClick={handleLogin}>Se connecter</button>
     </div>
   );

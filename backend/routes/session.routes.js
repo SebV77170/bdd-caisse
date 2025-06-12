@@ -1,14 +1,29 @@
 const express = require('express');
 const router = express.Router();
-const { sqlite } = require('../db');;
+const { sqlite } = require('../db');
+const bcrypt = require('bcrypt');
 const session = require('../session');
 
 
-// Connexion par pseudo simple
+// Connexion avec vérification du mot de passe
 router.post('/', (req, res) => {
-  const { pseudo } = req.body;
+  const { pseudo, mot_de_passe } = req.body;
+
+  if (!pseudo || !mot_de_passe) {
+    return res.status(400).json({ error: 'Pseudo et mot de passe requis' });
+  }
+
   const user = sqlite.prepare('SELECT * FROM users WHERE pseudo = ?').get(pseudo);
-  if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  if (!user) {
+    return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  }
+
+  const hashCorrige = user.password.replace(/^\$2y\$/, '$2b$');
+  const motDePasseValide = bcrypt.compareSync(mot_de_passe.trim(), hashCorrige);
+
+  if (!motDePasseValide) {
+    return res.status(403).json({ error: 'Mot de passe invalide' });
+  }
 
   session.setUser({ id: user.id, nom: user.nom, prenom: user.prenom, pseudo: user.pseudo });
   res.json({ success: true, user: { id: user.id, nom: user.nom, prenom: user.prenom, pseudo: user.pseudo} });
