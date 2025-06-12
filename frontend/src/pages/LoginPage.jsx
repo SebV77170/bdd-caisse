@@ -5,6 +5,7 @@ function LoginPage() {
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState('');
   const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
   const [sessionOuverte, setSessionOuverte] = useState(false);
   const navigate = useNavigate();
 
@@ -21,7 +22,11 @@ function LoginPage() {
   }, []);
 
   const handleLogin = async () => {
-    if (!selected || !password) return;
+    setMessage('');
+    if (!selected || !password) {
+      setMessage('Tous les champs doivent être remplis');
+      return;
+    }
     try {
       const res = await fetch('http://localhost:3001/api/session', {
         method: 'POST',
@@ -72,6 +77,7 @@ function LoginPage() {
         onChange={e => setPassword(e.target.value)}
       />
       <button className="btn btn-primary" onClick={handleLogin}>Se connecter</button>
+      {message && <p className="text-danger mt-2">{message}</p>}
     </div>
   );
 }
