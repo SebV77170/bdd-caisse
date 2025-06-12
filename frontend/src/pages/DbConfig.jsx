@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
+const preset = {
+  host: process.env.REACT_APP_DEFAULT_HOST || 'localhost',
+  user: process.env.REACT_APP_DEFAULT_USER || 'root',
+  password: process.env.REACT_APP_DEFAULT_PASS || '',
+  database: process.env.REACT_APP_DEFAULT_DB || 'objets'
+};
+
 const DbConfig = () => {
   const [config, setConfig] = useState({ host: '', user: '', password: '', database: '' });
   const [loading, setLoading] = useState(true);
@@ -54,7 +61,12 @@ const DbConfig = () => {
           <Form.Label>Base</Form.Label>
           <Form.Control value={config.database} onChange={e => setConfig({ ...config, database: e.target.value })} />
         </Form.Group>
-        <Button onClick={save}>Sauvegarder</Button>
+        <div className="d-flex gap-2">
+          <Button onClick={save}>Sauvegarder</Button>
+          <Button variant="secondary" onClick={() => setConfig(preset)}>
+            Utiliser valeurs .env
+          </Button>
+        </div>
       </Form>
       {message && <div className="mt-2">{message}</div>}
     </div>
