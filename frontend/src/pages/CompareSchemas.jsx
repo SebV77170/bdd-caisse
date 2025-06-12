@@ -70,8 +70,11 @@ const CompareSchemas = () => {
     setApplying(false);
   };
 
+  const hasChanges = mysqlChanges.length > 0 || sqliteChanges.length > 0;
+
   return (
-      <div className="d-flex gap-2 mt-2">
+    <div className="mt-3">
+      <div className="d-flex gap-2 mb-3">
         <Button onClick={runCompare} disabled={loading || applying}>
           {loading ? (
             <>
@@ -82,64 +85,56 @@ const CompareSchemas = () => {
             'Comparer'
           )}
         </Button>
-        <Button onClick={selectAll} disabled={loading || applying}>Sélectionner tout</Button>
-        <Button onClick={applySelected} disabled={loading || applying}>Appliquer</Button>
+        <Button onClick={selectAll} disabled={!hasChanges || loading || applying}>Sélectionner tout</Button>
+        <Button onClick={applySelected} disabled={!hasChanges || loading || applying}>Appliquer</Button>
       </div>
-              {Array.from({ length: Math.max(mysqlChanges.length, sqliteChanges.length) }).map((_, idx) => {
-                const mysqlChange = mysqlChanges[idx];
-                const sqliteChange = sqliteChanges[idx];
-                return (
-                  <tr key={idx}>
-                    <td>
-                      {mysqlChange ? (
-                        <Form.Check
-                          type="checkbox"
-                          className="me-2"
-                          checked={selMysql[idx] || false}
-                          onChange={e =>
-                            setSelMysql(prev => prev.map((v, i) => (i === idx ? e.target.checked : v)))
-                          }
-                          label={describe(mysqlChange)}
-                        />
-                      ) : null}
-                    </td>
-                    <td>
-                      {sqliteChange ? (
-                        <Form.Check
-                          type="checkbox"
-                          className="me-2"
-                          checked={selSqlite[idx] || false}
-                          onChange={e =>
-                            setSelSqlite(prev => prev.map((v, i) => (i === idx ? e.target.checked : v)))
-                          }
-                          label={describe(sqliteChange)}
-                        />
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            <div className="alert alert-success mt-3">Aucune différence détectée.</div>
-          ) : (
-            <table className="table table-bordered mt-3">
-              <thead>
-                <tr>
-                  <th>À modifier dans MySQL</th>
-                  <th>À modifier dans SQLite</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: Math.max(mysqlChanges.length, sqliteChanges.length) }).map((_, idx) => (
-                  <tr key={idx}>
-                    <td>{mysqlChanges[idx] || ''}</td>
-                    <td>{sqliteChanges[idx] || ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )
-        )}
-      </div>
+
+      {error && <div className="alert alert-danger">{error}</div>}
+
+      {!hasChanges && !loading && (
+        <div className="alert alert-success">Aucune différence détectée.</div>
+      )}
+
+      {hasChanges && (
+        <table className="table table-bordered">
+          <thead>
+            <tr>
+              <th>À modifier dans MySQL</th>
+              <th>À modifier dans SQLite</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: Math.max(mysqlChanges.length, sqliteChanges.length) }).map((_, idx) => (
+              <tr key={idx}>
+                <td>
+                  {mysqlChanges[idx] && (
+                    <Form.Check
+                      type="checkbox"
+                      checked={selMysql[idx] || false}
+                      onChange={e =>
+                        setSelMysql(prev => prev.map((v, i) => (i === idx ? e.target.checked : v)))
+                      }
+                      label={describe(mysqlChanges[idx])}
+                    />
+                  )}
+                </td>
+                <td>
+                  {sqliteChanges[idx] && (
+                    <Form.Check
+                      type="checkbox"
+                      checked={selSqlite[idx] || false}
+                      onChange={e =>
+                        setSelSqlite(prev => prev.map((v, i) => (i === idx ? e.target.checked : v)))
+                      }
+                      label={describe(sqliteChanges[idx])}
+                    />
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };
