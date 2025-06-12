@@ -76,6 +76,7 @@ router.post('/', (req, res) => {
     const uuid_session_caisse = req.body.uuid_session_caisse;
 
     let id_ticket;
+    const simulateError = req.body.simulateError;
 
     const dbTransaction = sqlite.transaction(() => {
       const result = sqlite.prepare(`
@@ -91,6 +92,8 @@ router.post('/', (req, res) => {
       );
 
       id_ticket = result.lastInsertRowid;
+
+      if (simulateError) throw new Error('Simulated error');
 
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket,

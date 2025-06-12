@@ -99,6 +99,7 @@ console.log(req.body);
     let id_annul, id_corrige;
     const uuid_ticket_annul = uuidv4();
     const uuid_ticket_corrige = uuidv4();
+    const simulateError = req.body.simulateError;
     const dbTransaction = sqlite.transaction(() => {
     const annul = sqlite.prepare(`
       INSERT INTO ticketdecaisse (
@@ -107,6 +108,8 @@ console.log(req.body);
       ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?,?)
     `).run(now, id_ticket_original, utilisateur, id_vendeur, articles_sans_reduction.length, totalAnnulation, ticketOriginalData.moyen_paiement || 'mixte', uuid_ticket_annul, uuid_session_caisse);
     id_annul = annul.lastInsertRowid;
+
+    if (simulateError) throw new Error('Simulated error');
 
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_annul,
