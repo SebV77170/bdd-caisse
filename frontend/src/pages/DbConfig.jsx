@@ -5,12 +5,18 @@ const DbConfig = () => {
   const [config, setConfig] = useState({ host: '', user: '', password: '', database: '' });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [presets, setPresets] = useState([]);
+  const [selectedPreset, setSelectedPreset] = useState('');
 
   useEffect(() => {
     fetch('http://localhost:3001/api/dbconfig')
       .then(res => res.json())
       .then(data => { setConfig(data); setLoading(false); })
       .catch(() => setLoading(false));
+    fetch('http://localhost:3001/api/dbconfig/presets')
+      .then(res => res.json())
+      .then(data => setPresets(data))
+      .catch(() => {});
   }, []);
 
   const save = async () => {
@@ -32,12 +38,48 @@ const DbConfig = () => {
     }
   };
 
+  const applyPreset = async () => {
+    if (!selectedPreset) return;
+    setMessage('');
+    try {
+      const res = await fetch('http://localhost:3001/api/dbconfig/preset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: selectedPreset })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const conf = await fetch('http://localhost:3001/api/dbconfig').then(r => r.json());
+        setConfig(conf);
+        setMessage('Preset appliqu\u00e9');
+      } else {
+        setMessage(data.error || 'Erreur');
+      }
+    } catch {
+      setMessage('Erreur');
+    }
+  };
+
   if (loading) return <div>Chargement...</div>;
 
   return (
     <div className="container mt-3">
       <h3>Configuration MySQL</h3>
       <Form>
+        {presets.length > 0 && (
+          <Form.Group className="mb-2">
+            <Form.Label>Présélection</Form.Label>
+            <div className="d-flex gap-2">
+              <Form.Select value={selectedPreset} onChange={e => setSelectedPreset(e.target.value)}>
+                <option value="">-- Sélectionner --</option>
+                {presets.map(p => (
+                  <option key={p.name} value={p.name}>{p.name}</option>
+                ))}
+              </Form.Select>
+              <Button variant="secondary" disabled={!selectedPreset} onClick={applyPreset}>Appliquer</Button>
+            </div>
+          </Form.Group>
+        )}
         <Form.Group className="mb-2">
           <Form.Label>Hôte</Form.Label>
           <Form.Control value={config.host} onChange={e => setConfig({ ...config, host: e.target.value })} />
@@ -56,20 +98,6 @@ const DbConfig = () => {
         </Form.Group>
         <div className="d-flex gap-2">
           <Button onClick={save}>Sauvegarder</Button>
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              try {
-                const res = await fetch('http://localhost:3001/api/dbconfig/preset');
-                const data = await res.json();
-                setConfig(prev => ({ ...prev, ...data }));
-              } catch {
-                setMessage('Erreur chargement preset');
-              }
-            }}
-          >
-            Utiliser valeurs .env
-          </Button>
         </div>
       </Form>
       {message && <div className="mt-2">{message}</div>}

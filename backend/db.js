@@ -5,6 +5,19 @@ const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const dbConfigPath = path.join(__dirname, 'dbConfig.json');
 
+function getMysqlPresets() {
+  const presets = [];
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith('MYSQL_PRESET_')) {
+      const name = key.substring('MYSQL_PRESET_'.length).toLowerCase();
+      const [host = '', user = '', password = '', database = ''] =
+        process.env[key].split('|');
+      presets.push({ name, host, user, password, database });
+    }
+  }
+  return presets;
+}
+
 let mysqlConfig = {
   host: process.env.MYSQL_HOST || 'localhost',
   user: process.env.MYSQL_USER || 'root',
@@ -55,5 +68,6 @@ function updateMysqlConfig(newConfig) {
 module.exports = {
   sqlite: db,
   mysql: pool,
-  updateMysqlConfig
+  updateMysqlConfig,
+  getMysqlPresets
 };
