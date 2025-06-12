@@ -65,10 +65,10 @@ async function compareSchemas() {
     for (const col of sqliteColumns) {
       const match = mysqlColumns.find(c => c.name === col.name);
       if (!match) {
-      result.mysqlChanges.push(`Ajouter la colonne '${col.name}' dans '${table}'`);
+        result.mysqlChanges.push(`Ajouter la colonne '${col.name}' dans '${table}'`);
       } else if (match.normType !== col.normType) {
-        result.mysqlChanges.push(`Modifier le type de '${col.name}' dans '${table}'`);
-        result.sqliteChanges.push(`Modifier le type de '${col.name}' dans '${table}'`);
+        result.mysqlChanges.push(`Mettre à jour la colonne '${col.name}' dans '${table}'`);
+        result.sqliteChanges.push(`Mettre à jour la colonne '${col.name}' dans '${table}'`);
       }
     }
 
