@@ -36,7 +36,7 @@ const CompareSchemas = () => {
       } else {
         setError('Erreur : ' + (data.error || 'inconnue'));
       }
-    } catch (err) {
+    } catch {
       setError('Erreur lors de la requête.');
     }
     setLoading(false);
@@ -64,7 +64,7 @@ const CompareSchemas = () => {
       } else {
         setError('Erreur : ' + (data.error || 'inconnue'));
       }
-    } catch (err) {
+    } catch {
       setError('Erreur lors de la requête.');
     }
     setApplying(false);
@@ -73,7 +73,14 @@ const CompareSchemas = () => {
   return (
       <div className="d-flex gap-2 mt-2">
         <Button onClick={runCompare} disabled={loading || applying}>
-          {loading ? (<><Spinner as="span" animation="border" size="sm" role="status" className="me-2"/>Comparaison...</>) : 'Comparer'}
+          {loading ? (
+            <>
+              <Spinner as="span" animation="border" size="sm" role="status" className="me-2" />
+              Comparaison...
+            </>
+          ) : (
+            'Comparer'
+          )}
         </Button>
         <Button onClick={selectAll} disabled={loading || applying}>Sélectionner tout</Button>
         <Button onClick={applySelected} disabled={loading || applying}>Appliquer</Button>
@@ -84,7 +91,7 @@ const CompareSchemas = () => {
                         type="checkbox"
                         className="me-2"
                         checked={selMysql[idx] || false}
-                        onChange={e => setSelMysql(prev => prev.map((v,i) => i===idx ? e.target.checked : v))}
+                        onChange={e => setSelMysql(prev => prev.map((v, i) => i === idx ? e.target.checked : v))}
                         label={describe(mysqlChanges[idx])}
                       />
                     )}
@@ -95,7 +102,7 @@ const CompareSchemas = () => {
                         type="checkbox"
                         className="me-2"
                         checked={selSqlite[idx] || false}
-                        onChange={e => setSelSqlite(prev => prev.map((v,i) => i===idx ? e.target.checked : v))}
+                        onChange={e => setSelSqlite(prev => prev.map((v, i) => i === idx ? e.target.checked : v))}
                         label={describe(sqliteChanges[idx])}
                       />
                     )}
