@@ -65,17 +65,17 @@ async function compareSchemas() {
     for (const col of sqliteColumns) {
       const match = mysqlColumns.find(c => c.name === col.name);
       if (!match) {
-        result.mysqlChanges.push(`Ajouter la colonne '${col.name}' dans '${table}' (${col.type})`);
+      result.mysqlChanges.push(`Ajouter la colonne '${col.name}' dans '${table}'`);
       } else if (match.normType !== col.normType) {
-        result.mysqlChanges.push(`Modifier le type de '${col.name}' dans '${table}' en ${col.type} (actuel ${match.type})`);
-        result.sqliteChanges.push(`Modifier le type de '${col.name}' dans '${table}' en ${match.type} (actuel ${col.type})`);
+        result.mysqlChanges.push(`Modifier le type de '${col.name}' dans '${table}'`);
+        result.sqliteChanges.push(`Modifier le type de '${col.name}' dans '${table}'`);
       }
     }
 
     for (const col of mysqlColumns) {
       const match = sqliteColumns.find(c => c.name === col.name);
       if (!match) {
-        result.sqliteChanges.push(`Ajouter la colonne '${col.name}' dans '${table}' (${col.type})`);
+        result.sqliteChanges.push(`Ajouter la colonne '${col.name}' dans '${table}'`);
       }
     }
   }
