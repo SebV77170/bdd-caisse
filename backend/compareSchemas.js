@@ -1,4 +1,10 @@
 const { sqlite, mysql } = require('./db');
+const {
+  mapSqliteTypeToMysql,
+  mapMysqlTypeToSqlite,
+  sqliteCreateToMysql,
+  mysqlCreateToSqlite,
+} = require('./sqlTranslators');
 
 function normalizeType(type) {
   if (!type) return '';
@@ -82,9 +88,11 @@ async function compareSchemas() {
 async function applySchemaChanges(mysqlChanges = [], sqliteChanges = []) {
   for (const change of mysqlChanges) {
     if (change.action === 'createTable' && change.createSQL) {
-      await mysql.query(change.createSQL);
+      const sql = sqliteCreateToMysql(change.createSQL);
+      await mysql.query(sql);
     } else if (change.action === 'addColumn') {
-      await mysql.query(`ALTER TABLE \`${change.table}\` ADD COLUMN \`${change.column}\` ${change.type}`);
+      const type = mapSqliteTypeToMysql(change.type);
+      await mysql.query(`ALTER TABLE \`${change.table}\` ADD COLUMN \`${change.column}\` ${type}`);
     } else if (change.action === 'dropColumn') {
       await mysql.query(`ALTER TABLE \`${change.table}\` DROP COLUMN \`${change.column}\``);
     }
@@ -92,9 +100,11 @@ async function applySchemaChanges(mysqlChanges = [], sqliteChanges = []) {
 
   for (const change of sqliteChanges) {
     if (change.action === 'createTable' && change.createSQL) {
-      sqlite.prepare(change.createSQL).run();
+      const sql = mysqlCreateToSqlite(change.createSQL);
+      sqlite.prepare(sql).run();
     } else if (change.action === 'addColumn') {
-      sqlite.prepare(`ALTER TABLE ${change.table} ADD COLUMN ${change.column} ${change.type}`).run();
+      const type = mapMysqlTypeToSqlite(change.type);
+      sqlite.prepare(`ALTER TABLE ${change.table} ADD COLUMN ${change.column} ${type}`).run();
     } else if (change.action === 'dropColumn') {
       sqlite.prepare(`ALTER TABLE ${change.table} DROP COLUMN ${change.column}`).run();
     }
