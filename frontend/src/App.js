@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import OuvertureCaisse from './pages/ouvertureCaisse';
 import FermetureCaisse from './pages/FermetureCaisse';
 import JournalCaisse from './pages/JournalCaisse';
+import CompareSchemas from './pages/CompareSchemas';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import 'react-toastify/dist/ReactToastify.css';
@@ -89,6 +90,7 @@ function App() {
                   <Nav.Link as={Link} to="/ouverture-caisse" onClick={() => setShowMenu(false)}>🔓 Ouverture Caisse</Nav.Link>
                 )}
                 <Nav.Link as={Link} to="/journal-caisse" onClick={() => setShowMenu(false)}>📖 Journal caisse</Nav.Link>
+                <Nav.Link as={Link} to="/compare-schemas" onClick={() => setShowMenu(false)}>🗄️ Schémas</Nav.Link>
               </Nav>
             </Offcanvas.Body>
           </Navbar.Offcanvas>
@@ -194,6 +196,7 @@ function App() {
             <Route path="/ouverture-caisse" element={<RequireSession><OuvertureCaisse /></RequireSession>} />
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
             <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
+            <Route path="/compare-schemas" element={<RequireSession><CompareSchemas /></RequireSession>} />
           </Routes>
         </div>
       </div>

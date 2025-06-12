@@ -19,6 +19,7 @@ const usersRoutes = require('./routes/users.routes');
 const resetRoutes = require('./routes/reset.routes');
 const syncRoutes = require('./routes/sync.routes');
 const envoiTicket = require('./routes/envoiTicket.routes');
+const compareSchemasRoutes = require('./routes/compareSchemas.routes');
 
 
 
@@ -40,6 +41,7 @@ app.use('/api/sync', syncRoutes);
 app.use('/api/ticket', envoiTicket);
 app.use('/api/caisse', require('./routes/ouvertureCaisse.routes'));
 app.use('/api/caisse/fermeture', require('./routes/FermetureCaisse.routes'));
+app.use('/api/compare-schemas', compareSchemasRoutes);
 
 
 
