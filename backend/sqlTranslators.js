@@ -36,6 +36,8 @@ function sqliteCreateToMysql(sql) {
 function mysqlCreateToSqlite(sql) {
   if (!sql) return sql;
   let res = sql;
+  // convert AUTO_INCREMENT columns to SQLite AUTOINCREMENT primary key
+  res = res.replace(/`?(\w+)`?\s+int\(\d+\)\s+(?:NOT\s+NULL\s+)?AUTO_INCREMENT/gi, '$1 INTEGER PRIMARY KEY AUTOINCREMENT');
   res = res.replace(/AUTO_INCREMENT/gi, 'AUTOINCREMENT');
   res = res.replace(/`/g, '');
   res = res.replace(/int\(\d+\)/gi, 'INTEGER');
@@ -46,6 +48,10 @@ function mysqlCreateToSqlite(sql) {
   res = res.replace(/ENGINE=[^;]+/i, '');
   res = res.replace(/DEFAULT CHARSET=[^;]+/i, '');
   res = res.replace(/COLLATE [^ ]+/gi, '');
+  // remove table-level primary key when AUTOINCREMENT already applied
+  if (/AUTOINCREMENT/i.test(res)) {
+    res = res.replace(/,?\s*PRIMARY KEY \([^)]+\)/i, '');
+  }
   res = res.replace(/\s+/g, ' ').trim();
   return res;
 }
