@@ -1,7 +1,6 @@
 const { sqlite, mysql } = require('./db');
 
 async function compareSchemas() {
-
   const sqliteTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
     .all()
@@ -12,16 +11,21 @@ async function compareSchemas() {
   );
   const mysqlTables = mysqlTableRows.map(r => r.TABLE_NAME);
 
-  const changes = [];
+  const result = {
+    mysqlChanges: [],
+    sqliteChanges: []
+  };
 
-  const missingInMysql = sqliteTables.filter(t => !mysqlTables.includes(t));
-  const missingInSqlite = mysqlTables.filter(t => !sqliteTables.includes(t));
-
-  if (missingInMysql.length) {
-    changes.push(`Tables missing in MySQL: ${missingInMysql.join(', ')}`);
+  for (const table of sqliteTables) {
+    if (!mysqlTables.includes(table)) {
+      result.mysqlChanges.push(`Créer la table '${table}'`);
+    }
   }
-  if (missingInSqlite.length) {
-    changes.push(`Tables missing in SQLite: ${missingInSqlite.join(', ')}`);
+
+  for (const table of mysqlTables) {
+    if (!sqliteTables.includes(table)) {
+      result.sqliteChanges.push(`Créer la table '${table}'`);
+    }
   }
 
   for (const table of sqliteTables) {
@@ -41,28 +45,22 @@ async function compareSchemas() {
     for (const col of sqliteColumns) {
       const match = mysqlColumns.find(c => c.name === col.name);
       if (!match) {
-        changes.push(`Column '${col.name}' missing in MySQL table '${table}'`);
-      } else if (!match.type.includes(col.type)) {
-        changes.push(`Column '${col.name}' type mismatch in table '${table}': SQLite ${col.type} vs MySQL ${match.type}`);
+        result.mysqlChanges.push(`Ajouter la colonne '${col.name}' dans '${table}' (${col.type})`);
+      } else if (match.type !== col.type) {
+        result.mysqlChanges.push(`Modifier le type de '${col.name}' dans '${table}' en ${col.type} (actuel ${match.type})`);
+        result.sqliteChanges.push(`Modifier le type de '${col.name}' dans '${table}' en ${match.type} (actuel ${col.type})`);
       }
     }
 
     for (const col of mysqlColumns) {
       const match = sqliteColumns.find(c => c.name === col.name);
       if (!match) {
-        changes.push(`Column '${col.name}' missing in SQLite table '${table}'`);
+        result.sqliteChanges.push(`Ajouter la colonne '${col.name}' dans '${table}' (${col.type})`);
       }
     }
   }
 
-  let output = [];
-  if (changes.length === 0) {
-    output.push('✅ The schemas appear identical.');
-  } else {
-    output.push('❌ Differences found:');
-    output.push(...changes.map(ch => `- ${ch}`));
-  }
-  return output;
+  return result;
 }
 
 module.exports = compareSchemas;

@@ -2,22 +2,27 @@ import React, { useState } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 
 const CompareSchemas = () => {
-  const [lines, setLines] = useState([]);
+  const [mysqlChanges, setMysqlChanges] = useState([]);
+  const [sqliteChanges, setSqliteChanges] = useState([]);
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const runCompare = async () => {
     setLoading(true);
-    setLines([]);
+    setMysqlChanges([]);
+    setSqliteChanges([]);
+    setError(null);
     try {
       const res = await fetch('http://localhost:3001/api/compare-schemas');
       const data = await res.json();
       if (data.success) {
-        setLines(data.lines);
+        setMysqlChanges(data.mysqlChanges || []);
+        setSqliteChanges(data.sqliteChanges || []);
       } else {
-        setLines(['Erreur : ' + (data.error || 'inconnue')]);
+        setError('Erreur : ' + (data.error || 'inconnue'));
       }
     } catch (err) {
-      setLines(['Erreur lors de la requête.']);
+      setError('Erreur lors de la requête.');
     }
     setLoading(false);
   };
@@ -28,9 +33,29 @@ const CompareSchemas = () => {
       <Button onClick={runCompare} disabled={loading} className="mt-2">
         {loading ? (<><Spinner as="span" animation="border" size="sm" role="status" className="me-2"/>Comparaison...</>) : 'Comparer'}
       </Button>
-      <pre className="mt-3" style={{ whiteSpace: 'pre-wrap' }}>
-        {lines.map((l, idx) => (<div key={idx}>{l}</div>))}
-      </pre>
+      {error && <div className="alert alert-danger mt-3">{error}</div>}
+      {!error && (
+        mysqlChanges.length === 0 && sqliteChanges.length === 0 ? (
+          <div className="alert alert-success mt-3">Aucune différence détectée.</div>
+        ) : (
+          <table className="table table-bordered mt-3">
+            <thead>
+              <tr>
+                <th>À modifier dans MySQL</th>
+                <th>À modifier dans SQLite</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: Math.max(mysqlChanges.length, sqliteChanges.length) }).map((_, idx) => (
+                <tr key={idx}>
+                  <td>{mysqlChanges[idx] || ''}</td>
+                  <td>{sqliteChanges[idx] || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
     </div>
   );
 };
