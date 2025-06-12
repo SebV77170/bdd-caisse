@@ -1,17 +1,5 @@
 const { sqlite, mysql } = require('./db');
 
-function normalizeType(type) {
-  if (!type) return '';
-  type = type.toUpperCase();
-  // Remove length/precision details like VARCHAR(255) -> VARCHAR
-  type = type.replace(/\(.+\)/, '');
-  if (type.startsWith('INTEGER')) return 'INT';
-  if (type.startsWith('INT')) return 'INT';
-  if (type.startsWith('VAR')) return 'VARCHAR';
-  if (type.startsWith('VARCHAR')) return 'VARCHAR';
-  return type;
-}
-
 async function compareSchemas() {
   const sqliteTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
@@ -46,36 +34,25 @@ async function compareSchemas() {
     const sqliteColumns = sqlite
       .prepare(`PRAGMA table_info(${table})`)
       .all()
-      .map(c => ({
-        name: c.name,
-        type: c.type.toUpperCase(),
-        normType: normalizeType(c.type)
-      }));
+      .map(c => c.name);
 
     const [mysqlColumnRows] = await mysql.query(
-      `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?`,
+      `SELECT COLUMN_NAME AS name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?`,
       [table]
     );
-    const mysqlColumns = mysqlColumnRows.map(c => ({
-      name: c.name,
-      type: c.type.toUpperCase(),
-      normType: normalizeType(c.type)
-    }));
+    const mysqlColumns = mysqlColumnRows.map(c => c.name);
 
     for (const col of sqliteColumns) {
-      const match = mysqlColumns.find(c => c.name === col.name);
-      if (!match) {
-        result.mysqlChanges.push(`Ajouter la colonne '${col.name}' dans '${table}'`);
-      } else if (match.normType !== col.normType) {
-        result.mysqlChanges.push(`Mettre à jour la colonne '${col.name}' dans '${table}'`);
-        result.sqliteChanges.push(`Mettre à jour la colonne '${col.name}' dans '${table}'`);
+      if (!mysqlColumns.includes(col)) {
+        result.mysqlChanges.push(`Ajouter la colonne '${col}' dans '${table}'`);
+        result.sqliteChanges.push(`Supprimer la colonne '${col}' de '${table}'`);
       }
     }
 
     for (const col of mysqlColumns) {
-      const match = sqliteColumns.find(c => c.name === col.name);
-      if (!match) {
-        result.sqliteChanges.push(`Ajouter la colonne '${col.name}' dans '${table}'`);
+      if (!sqliteColumns.includes(col)) {
+        result.sqliteChanges.push(`Ajouter la colonne '${col}' dans '${table}'`);
+        result.mysqlChanges.push(`Supprimer la colonne '${col}' de '${table}'`);
       }
     }
   }
