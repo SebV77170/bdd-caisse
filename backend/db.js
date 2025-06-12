@@ -2,12 +2,14 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 const mysql = require('mysql2/promise');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const dbConfigPath = path.join(__dirname, 'dbConfig.json');
+
 let mysqlConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'objets'
+  host: process.env.MYSQL_HOST || 'localhost',
+  user: process.env.MYSQL_USER || 'root',
+  password: process.env.MYSQL_PASS || '',
+  database: process.env.MYSQL_DB || 'objets'
 };
 
 if (fs.existsSync(dbConfigPath)) {

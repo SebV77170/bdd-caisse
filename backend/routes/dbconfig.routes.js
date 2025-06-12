@@ -7,12 +7,31 @@ const path = require('path');
 const configPath = path.join(__dirname, '../dbConfig.json');
 
 router.get('/', (req, res) => {
+  let conf;
   if (fs.existsSync(configPath)) {
-    const conf = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    res.json(conf);
+    try {
+      conf = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    } catch {
+      conf = {};
+    }
   } else {
-    res.json({ host: 'localhost', user: 'root', password: '', database: 'objets' });
+    conf = {};
   }
+  res.json({
+    host: conf.host || process.env.MYSQL_HOST || 'localhost',
+    user: conf.user || process.env.MYSQL_USER || 'root',
+    password: '',
+    database: conf.database || process.env.MYSQL_DB || 'objets'
+  });
+});
+
+router.get('/preset', (req, res) => {
+  res.json({
+    host: process.env.MYSQL_HOST || 'localhost',
+    user: process.env.MYSQL_USER || 'root',
+    password: '',
+    database: process.env.MYSQL_DB || 'objets'
+  });
 });
 
 router.post('/', (req, res) => {

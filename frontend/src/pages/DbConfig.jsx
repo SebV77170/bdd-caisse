@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button } from 'react-bootstrap';
 
-const preset = {
-  host: process.env.REACT_APP_DEFAULT_HOST || 'localhost',
-  user: process.env.REACT_APP_DEFAULT_USER || 'root',
-  password: process.env.REACT_APP_DEFAULT_PASS || '',
-  database: process.env.REACT_APP_DEFAULT_DB || 'objets'
-};
-
 const DbConfig = () => {
   const [config, setConfig] = useState({ host: '', user: '', password: '', database: '' });
   const [loading, setLoading] = useState(true);
@@ -63,7 +56,18 @@ const DbConfig = () => {
         </Form.Group>
         <div className="d-flex gap-2">
           <Button onClick={save}>Sauvegarder</Button>
-          <Button variant="secondary" onClick={() => setConfig(preset)}>
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              try {
+                const res = await fetch('http://localhost:3001/api/dbconfig/preset');
+                const data = await res.json();
+                setConfig(prev => ({ ...prev, ...data }));
+              } catch {
+                setMessage('Erreur chargement preset');
+              }
+            }}
+          >
             Utiliser valeurs .env
           </Button>
         </div>
