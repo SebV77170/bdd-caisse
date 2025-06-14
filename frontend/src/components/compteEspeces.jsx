@@ -29,6 +29,8 @@ function CompteEspeces({ onChangeTotal }) {
 
   const [quantites, setQuantites] = useState(initialState);
   const [total, setTotal] = useState(0);
+  const [totalPieces, setTotalPieces] = useState(0);
+  const [totalBillets, setTotalBillets] = useState(0);
 
   useEffect(() => {
     const t = Object.entries(quantites).reduce((sum, [valeur, quantite]) => {
@@ -37,6 +39,21 @@ function CompteEspeces({ onChangeTotal }) {
       return sum + (isNaN(q) ? 0 : q * v);
     }, 0);
     setTotal(t);
+
+    const valeursPieces = [0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2];
+    const tPieces = valeursPieces.reduce((sum, valeur) => {
+      const q = parseInt(quantites[valeur], 10);
+      return sum + (isNaN(q) ? 0 : q * valeur);
+    }, 0);
+    setTotalPieces(tPieces);
+
+    const valeursBillets = [5, 10, 20, 50, 100, 200, 500];
+    const tBillets = valeursBillets.reduce((sum, valeur) => {
+      const q = parseInt(quantites[valeur], 10);
+      return sum + (isNaN(q) ? 0 : q * valeur);
+    }, 0);
+    setTotalBillets(tBillets);
+
     onChangeTotal && onChangeTotal(t);
   }, [quantites, onChangeTotal]);
 
@@ -71,6 +88,10 @@ function CompteEspeces({ onChangeTotal }) {
         <button type="button" onClick={reset} className="btn btn-sm btn-outline-secondary">
           Réinitialiser
         </button>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9em', marginTop: 4 }}>
+        <span>Pièces : {totalPieces.toFixed(2).replace('.', ',')} €</span>
+        <span>Billets : {totalBillets.toFixed(2).replace('.', ',')} €</span>
       </div>
 
       <table style={{
