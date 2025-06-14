@@ -7,6 +7,7 @@ import BilanSessionCaisse from '../components/BilanSessionCaisse';
 import BilanReductionsSession from '../components/BilanReductionsSession';
 import TactileInput from '../components/TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+import { set } from 'date-fns';
 
 // Composant principal pour la fermeture de caisse
 function FermetureCaisse() {
@@ -99,7 +100,10 @@ function FermetureCaisse() {
     if (!uuidSessionCaisse) return;
     fetch('http://localhost:3001/api/bilan/reductions_session_caisse?uuid_session_caisse=' + uuidSessionCaisse)
       .then(res => res.json())
-      .then(data => setReductions(data))
+      .then(data => {
+        console.log('Réductions récupérées :', data); // 👈 Ici pour voir les résultats
+        setReductions(data);
+      })
       .catch(err => {
         console.error('Erreur récupération réductions :', err);
         setReductions({});

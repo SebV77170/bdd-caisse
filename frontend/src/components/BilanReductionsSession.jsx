@@ -6,10 +6,10 @@ function formatEuros(valeur) {
 
 function BilanReductionsSession({ reductions }) {
   const rows = [
-    { key: 'client', label: 'Fidélité client' },
-    { key: 'bene', label: 'Fidélité bénévole' },
-    { key: 'gros_panier_client', label: 'Gros panier client' },
-    { key: 'gros_panier_bene', label: 'Gros panier bénévole' }
+    { key: 'reduc_client', label: 'Fidélité client' },
+    { key: 'reduc_bene', label: 'Fidélité bénévole' },
+    { key: 'reduc_gros_panier_client', label: 'Gros panier client' },
+    { key: 'reduc_gros_panier_bene', label: 'Gros panier bénévole' }
   ];
 
   return (

@@ -27,4 +27,5 @@ function getBilanReductionsSession(uuid_session_caisse) {
   };
 }
 
+
 module.exports = getBilanReductionsSession;
