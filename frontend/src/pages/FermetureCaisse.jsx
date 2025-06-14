@@ -4,6 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import CompteEspeces from '../components/compteEspeces';
 import AffichageEcarts from '../components/AffichageEcarts';
 import BilanSessionCaisse from '../components/BilanSessionCaisse';
+import BilanReductionsSession from '../components/BilanReductionsSession';
 import TactileInput from '../components/TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
@@ -19,6 +20,7 @@ function FermetureCaisse() {
   const [commentaire, setCommentaire] = useState('');
   const [responsablePseudo, setResponsablePseudo] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
+  const [reductions, setReductions] = useState(null);
   const navigate = useNavigate();
   const { uuidSessionCaisse, sessionCaisseOuverte } = useSessionCaisse();
 
@@ -92,6 +94,18 @@ function FermetureCaisse() {
       });
   }, []);
 
+  // Récupère les réductions appliquées sur la session
+  useEffect(() => {
+    if (!uuidSessionCaisse) return;
+    fetch('http://localhost:3001/api/bilan/reductions_session_caisse?uuid_session_caisse=' + uuidSessionCaisse)
+      .then(res => res.json())
+      .then(data => setReductions(data))
+      .catch(err => {
+        console.error('Erreur récupération réductions :', err);
+        setReductions({});
+      });
+  }, [uuidSessionCaisse]);
+
 
   // Récupère les montants attendus pour la session de caisse en cours
   useEffect(() => {
@@ -140,6 +154,9 @@ function FermetureCaisse() {
             virement: attendu?.virement ?? 0
           }}
         />
+        {reductions && (
+          <BilanReductionsSession reductions={reductions} />
+        )}
 
         {/* Formulaire de fermeture de caisse */}
         <form onSubmit={handleSubmit}>
