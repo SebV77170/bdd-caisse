@@ -17,9 +17,11 @@ async function getSqliteCreate(table) {
 }
 
 async function getMysqlCreate(table) {
+  if (!table || typeof table !== 'string') throw new Error(`Nom de table invalide : ${table}`);
   const [rows] = await mysql.query(`SHOW CREATE TABLE \`${table}\``);
   return rows && rows[0] ? rows[0]['Create Table'] : null;
 }
+
 
 async function compareSchemas() {
   const sqliteTables = sqlite
@@ -30,26 +32,39 @@ async function compareSchemas() {
   const [mysqlTableRows] = await mysql.query(
     "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"
   );
-  const mysqlTables = mysqlTableRows.map(r => r.TABLE_NAME);
+  const mysqlTables = mysqlTableRows.map(r => Object.values(r)[0]).filter(Boolean);
+
 
   const result = {
     mysqlChanges: [],
     sqliteChanges: []
   };
 
-  for (const table of sqliteTables) {
-    if (!mysqlTables.includes(table)) {
-      const createSQL = await getSqliteCreate(table);
-      result.mysqlChanges.push({ action: 'createTable', table, createSQL });
-    }
+ for (const table of sqliteTables) {
+  if (!table || typeof table !== 'string') {
+    console.warn('Nom de table SQLite invalide détecté :', table);
+    continue;
   }
 
-  for (const table of mysqlTables) {
-    if (!sqliteTables.includes(table)) {
-      const createSQL = await getMysqlCreate(table);
-      result.sqliteChanges.push({ action: 'createTable', table, createSQL });
-    }
+  if (!mysqlTables.includes(table)) {
+    const createSQL = await getSqliteCreate(table);
+    result.mysqlChanges.push({ action: 'createTable', table, createSQL });
   }
+}
+
+
+  for (const table of mysqlTables) {
+  if (!table || typeof table !== 'string') {
+    console.warn('Nom de table MySQL invalide détecté :', table);
+    continue;
+  }
+
+  if (!sqliteTables.includes(table)) {
+    const createSQL = await getMysqlCreate(table);
+    result.sqliteChanges.push({ action: 'createTable', table, createSQL });
+  }
+}
+
 
   for (const table of sqliteTables) {
     if (!mysqlTables.includes(table)) continue;
