@@ -9,6 +9,7 @@ import OuvertureCaisse from './pages/ouvertureCaisse';
 import FermetureCaisse from './pages/FermetureCaisse';
 import JournalCaisse from './pages/JournalCaisse';
 import CompareSchemas from './pages/CompareSchemas';
+import DbConfig from './pages/DbConfig';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import 'react-toastify/dist/ReactToastify.css';
@@ -24,12 +25,20 @@ function App() {
     const saved = localStorage.getItem('modeTactile');
     return saved ? JSON.parse(saved) : false;
   });
+  const [devMode, setDevMode] = useState(() => {
+    const saved = localStorage.getItem('devMode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [caisseOuverte, setCaisseOuverte] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('modeTactile', JSON.stringify(modeTactile));
   }, [modeTactile]);
+
+  useEffect(() => {
+    localStorage.setItem('devMode', JSON.stringify(devMode));
+  }, [devMode]);
 
   useEffect(() => {
     const fetchBilan = () => {
@@ -90,7 +99,12 @@ function App() {
                   <Nav.Link as={Link} to="/ouverture-caisse" onClick={() => setShowMenu(false)}>🔓 Ouverture Caisse</Nav.Link>
                 )}
                 <Nav.Link as={Link} to="/journal-caisse" onClick={() => setShowMenu(false)}>📖 Journal caisse</Nav.Link>
-                <Nav.Link as={Link} to="/compare-schemas" onClick={() => setShowMenu(false)}>🗄️ Schémas</Nav.Link>
+                {devMode && (
+                  <Nav.Link as={Link} to="/compare-schemas" onClick={() => setShowMenu(false)}>🗄️ Schémas</Nav.Link>
+                )}
+                {devMode && (
+                  <Nav.Link as={Link} to="/db-config" onClick={() => setShowMenu(false)}>⚙️ DB</Nav.Link>
+                )}
               </Nav>
             </Offcanvas.Body>
           </Navbar.Offcanvas>
@@ -104,29 +118,31 @@ function App() {
           </div>
 
           <div className="d-flex align-items-center ms-auto">
-            <button
-              className="btn btn-sm btn-outline-warning me-2"
-              onClick={async () => {
-                const confirmReset = window.confirm('⚠️ Cette action va supprimer tous les tickets, paiements et bilans. Continuer ?');
-                if (confirmReset) {
-                  try {
-                    const res = await fetch('http://localhost:3001/api/reset', { method: 'POST' });
-                    const result = await res.json();
-                    if (result.success) {
-                      alert(result.message);
-                      window.location.reload();
-                    } else {
-                      alert('Erreur : ' + result.error);
+            {devMode && (
+              <button
+                className="btn btn-sm btn-outline-warning me-2"
+                onClick={async () => {
+                  const confirmReset = window.confirm('⚠️ Cette action va supprimer tous les tickets, paiements et bilans. Continuer ?');
+                  if (confirmReset) {
+                    try {
+                      const res = await fetch('http://localhost:3001/api/reset', { method: 'POST' });
+                      const result = await res.json();
+                      if (result.success) {
+                        alert(result.message);
+                        window.location.reload();
+                      } else {
+                        alert('Erreur : ' + result.error);
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      alert('Erreur lors de la réinitialisation.');
                     }
-                  } catch (err) {
-                    console.error(err);
-                    alert('Erreur lors de la réinitialisation.');
                   }
-                }
-              }}
-            >
-              Reset
-            </button>
+                }}
+              >
+                Reset
+              </button>
+            )}
 
             <button
               className="btn btn-sm btn-outline-success me-2"
@@ -172,6 +188,26 @@ function App() {
                 🖐️
               </label>
             </div>
+            <div className="form-check form-switch ms-2">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="devModeSwitch"
+                checked={devMode}
+                onChange={() => {
+                  if (!devMode) {
+                    const pass = prompt('Mot de passe développeur');
+                    if (pass === 'devpass') setDevMode(true);
+                  } else {
+                    setDevMode(false);
+                  }
+                }}
+              />
+              <label className="form-check-label text-white" htmlFor="devModeSwitch">
+                DEV
+              </label>
+            </div>
           </div>
         </Navbar>
 
@@ -197,6 +233,9 @@ function App() {
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
             <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
             <Route path="/compare-schemas" element={<RequireSession><CompareSchemas /></RequireSession>} />
+            {devMode && (
+              <Route path="/db-config" element={<RequireSession><DbConfig /></RequireSession>} />
+            )}
           </Routes>
         </div>
       </div>

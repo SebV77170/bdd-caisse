@@ -22,16 +22,58 @@ function mapMysqlTypeToSqlite(type) {
 }
 
 function sqliteCreateToMysql(sql) {
-  if (!sql) return sql;
-  let res = sql;
-  res = res.replace(/AUTOINCREMENT/gi, 'AUTO_INCREMENT');
-  res = res.replace(/"/g, '`');
-  res = res.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'INT AUTO_INCREMENT PRIMARY KEY');
-  res = res.replace(/INTEGER PRIMARY KEY/gi, 'INT AUTO_INCREMENT PRIMARY KEY');
-  res = res.replace(/\bINTEGER\b/gi, 'INT');
-  res = res.replace(/REAL/gi, 'DOUBLE');
-  return res;
+  if (!sql) return '';
+
+  let result = sql;
+
+  // Remplacer nom de table avec backticks
+  result = result.replace(/CREATE TABLE IF NOT EXISTS "?(\w+)"?/i, 'CREATE TABLE `$1`');
+
+  // Corriger TEXT utilisé dans des clés primaires ou indexées
+  result = result.replace(
+    /(\b\w+\b)\s+TEXT\s+PRIMARY KEY/gi,
+    (match, col) => `\`${col}\` VARCHAR(255) PRIMARY KEY`
+  );
+
+  result = result.replace(
+    /(\b\w+\b)\s+TEXT\s+UNIQUE/gi,
+    (match, col) => `\`${col}\` VARCHAR(255) UNIQUE`
+  );
+
+  // Types généraux
+  result = result
+    .replace(/\bINTEGER\b/gi, 'INT')
+    .replace(/\bDATETIME\b/gi, 'TIMESTAMP')
+    .replace(/\bTEXT\b/gi, 'TEXT')
+    .replace(/\bBOOLEAN\b/gi, 'TINYINT(1)')
+    .replace(/\bAUTOINCREMENT\b/gi, 'AUTO_INCREMENT')
+    .replace(/\bVARCHAR\b(?!\s*\()/gi, 'VARCHAR(255)')
+    .replace(/\bVARCHAR\(\)/gi, 'VARCHAR(255)')
+    .replace(/\bTEXT\(\d+\)/gi, 'TEXT')
+    .replace(/\bINT\(\d+\)/gi, 'INT')
+    .replace(/\bTIMESTAMP\(\d+\)/gi, 'TIMESTAMP');
+
+  // Champ spécifique
+  result = result.replace(/\bdateheure\b\s+TEXT/gi, 'dateheure DATETIME');
+
+  // Supprimer contraintes SQLite
+  result = result.replace(/\s+WITHOUT ROWID\s*;?/i, '');
+
+  // Remplacer les noms de colonnes entre guillemets
+  result = result.replace(/"(\w+)"/g, '`$1`');
+
+  // Corriger les virgules avant les parenthèses fermantes
+  result = result.replace(/,\s*\)/g, ')');
+
+  // Ajouter un ; final
+  if (!result.trim().endsWith(';')) result += ';';
+
+  return result;
 }
+
+
+
+
 
 function mysqlCreateToSqlite(sql) {
   if (!sql) return sql;

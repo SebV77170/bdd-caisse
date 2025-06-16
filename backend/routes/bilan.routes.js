@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
 const getBilanSession = require('../utils/bilanSession');
+const getBilanReductionsSession = require('../utils/bilanReductionsSession');
 
 // Route GET : liste de tous les tickets avec indication de correction
 router.get('/', (req, res) => {
@@ -80,6 +81,19 @@ router.get('/bilan_session_caisse', (req, res) => {
   const bilan_session_caisse = getBilanSession(uuid_session_caisse);
 
   res.json(bilan_session_caisse);
+});
+
+// Route GET : récapitulatif des réductions pour une session caisse
+router.get('/reductions_session_caisse', (req, res) => {
+  const uuid_session_caisse = req.query.uuid_session_caisse;
+
+  if (!uuid_session_caisse) {
+    return res.status(400).json({ error: 'uuid_session_caisse manquant' });
+  }
+
+  const reducs = getBilanReductionsSession(uuid_session_caisse);
+
+  res.json(reducs);
 });
 
 module.exports = router;
