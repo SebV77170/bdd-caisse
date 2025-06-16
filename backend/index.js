@@ -2,6 +2,7 @@
 const http = require('http');
 const app = require('./app');
 const PORT = process.env.PORT || 3001;
+const { startScheduler } = require('./syncScheduler');
 
 const server = http.createServer(app);
 const io = require('socket.io')(server, {
@@ -12,4 +13,5 @@ app.set('socketio', io);
 
 server.listen(PORT, () => {
   console.log(`Serveur backend lancé sur http://localhost:${PORT}`);
+  startScheduler(PORT, io);
 });

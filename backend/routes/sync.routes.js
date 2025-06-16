@@ -3,6 +3,8 @@ const router = express.Router();
 const { sqlite, mysql } = require('../db');
 
 router.post('/', async (req, res) => {
+  const io = req.app.get('socketio');
+  if (io) io.emit('syncStart');
   try {
     const lignes = sqlite.prepare(`SELECT * FROM sync_log WHERE synced = 0`).all();
 
@@ -131,6 +133,8 @@ router.post('/', async (req, res) => {
   } catch (err) {
     console.error('Erreur de synchronisation :', err);
     res.status(500).json({ error: 'Erreur de synchronisation.' });
+  } finally {
+    if (io) io.emit('syncEnd');
   }
 });
 

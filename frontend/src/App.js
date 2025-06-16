@@ -10,6 +10,7 @@ import FermetureCaisse from './pages/FermetureCaisse';
 import JournalCaisse from './pages/JournalCaisse';
 import CompareSchemas from './pages/CompareSchemas';
 import DbConfig from './pages/DbConfig';
+import Parametres from './pages/Parametres';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import 'react-toastify/dist/ReactToastify.css';
@@ -31,6 +32,18 @@ function App() {
   });
   const [caisseOuverte, setCaisseOuverte] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    const startHandler = () => setSyncing(true);
+    const endHandler = () => setSyncing(false);
+    socket.on('syncStart', startHandler);
+    socket.on('syncEnd', endHandler);
+    return () => {
+      socket.off('syncStart', startHandler);
+      socket.off('syncEnd', endHandler);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('modeTactile', JSON.stringify(modeTactile));
@@ -105,6 +118,7 @@ function App() {
                 {devMode && (
                   <Nav.Link as={Link} to="/db-config" onClick={() => setShowMenu(false)}>⚙️ DB</Nav.Link>
                 )}
+                <Nav.Link as={Link} to="/parametres" onClick={() => setShowMenu(false)}>🛠️ Paramètres</Nav.Link>
               </Nav>
             </Offcanvas.Body>
           </Navbar.Offcanvas>
@@ -161,7 +175,7 @@ function App() {
                 }
               }}
             >
-              🔄
+              {syncing ? <span className="sync-spinner">🔄</span> : '🔄'}
             </button>
 
             <button
@@ -233,6 +247,7 @@ function App() {
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
             <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
             <Route path="/compare-schemas" element={<RequireSession><CompareSchemas /></RequireSession>} />
+            <Route path="/parametres" element={<RequireSession><Parametres /></RequireSession>} />
             {devMode && (
               <Route path="/db-config" element={<RequireSession><DbConfig /></RequireSession>} />
             )}
