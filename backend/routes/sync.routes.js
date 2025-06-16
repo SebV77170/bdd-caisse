@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { sqlite, mysql } = require('../db');
+const { sqlite, getMysqlPool } = require('../db');
 
 router.post('/', async (req, res) => {
   const io = req.app.get('socketio');
+  const pool = getMysqlPool();
   if (io) io.emit('syncStart');
   try {
     const lignes = sqlite.prepare(`SELECT * FROM sync_log WHERE synced = 0`).all();
@@ -17,7 +18,7 @@ router.post('/', async (req, res) => {
 
       if (type === 'ticketdecaisse') {
         if (operation === 'INSERT') {
-          await mysql.query(`
+          await pool.query(`
             INSERT INTO ticketdecaisse 
             (uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt, nbr_objet, moyen_paiement, prix_total, lien, reducbene, reducclient, reducgrospanierclient, reducgrospanierbene)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -42,7 +43,7 @@ router.post('/', async (req, res) => {
 
       else if (type === 'objets_vendus') {
         if (operation === 'INSERT') {
-          await mysql.query(`
+          await pool.query(`
             INSERT INTO objets_vendus
             (id_ticket, uuid_objet, nom, nom_vendeur, id_vendeur, categorie, souscat, date_achat, timestamp, prix, nbr)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -65,7 +66,7 @@ router.post('/', async (req, res) => {
 
       else if (type === 'paiement_mixte') {
         if (operation === 'INSERT') {
-          await mysql.query(`
+          await pool.query(`
             INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)
             VALUES (?, ?, ?, ?, ?, ?)`,
             [
@@ -82,7 +83,7 @@ router.post('/', async (req, res) => {
 
       else if (type === 'bilan') {
         if (operation === 'INSERT') {
-          await mysql.query(`
+          await pool.query(`
             INSERT INTO bilan
             (date, timestamp, nombre_vente, poids, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -99,7 +100,7 @@ router.post('/', async (req, res) => {
             ]
           );
         } else if (operation === 'UPDATE') {
-            await mysql.query(`
+            await pool.query(`
                 UPDATE bilan SET 
                   timestamp = ?, 
                   nombre_vente = nombre_vente + ?, 

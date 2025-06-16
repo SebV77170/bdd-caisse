@@ -1,4 +1,4 @@
-const { sqlite, mysql } = require('./db');
+const { sqlite, getMysqlPool } = require('./db');
 const {
   mapSqliteTypeToMysql,
   mapMysqlTypeToSqlite,
@@ -17,19 +17,21 @@ async function getSqliteCreate(table) {
 }
 
 async function getMysqlCreate(table) {
+  const pool = getMysqlPool();
   if (!table || typeof table !== 'string') throw new Error(`Nom de table invalide : ${table}`);
-  const [rows] = await mysql.query(`SHOW CREATE TABLE \`${table}\``);
+  const [rows] = await pool.query(`SHOW CREATE TABLE \`${table}\``);
   return rows && rows[0] ? rows[0]['Create Table'] : null;
 }
 
 
 async function compareSchemas() {
+  const pool = getMysqlPool();
   const sqliteTables = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
     .all()
     .map(r => r.name);
 
-  const [mysqlTableRows] = await mysql.query(
+  const [mysqlTableRows] = await pool.query(
     "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"
   );
   const mysqlTables = mysqlTableRows.map(r => Object.values(r)[0]).filter(Boolean);
@@ -74,7 +76,7 @@ async function compareSchemas() {
       .all()
       .map(c => ({ name: c.name, type: normalizeType(c.type) }));
 
-    const [mysqlColumnRows] = await mysql.query(
+    const [mysqlColumnRows] = await pool.query(
       `SELECT COLUMN_NAME AS name, COLUMN_TYPE AS type FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ?`,
       [table]
     );
@@ -101,15 +103,16 @@ async function compareSchemas() {
 }
 
 async function applySchemaChanges(mysqlChanges = [], sqliteChanges = []) {
+  const pool = getMysqlPool();
   for (const change of mysqlChanges) {
     if (change.action === 'createTable' && change.createSQL) {
       const sql = sqliteCreateToMysql(change.createSQL);
-      await mysql.query(sql);
+      await pool.query(sql);
     } else if (change.action === 'addColumn') {
       const type = mapSqliteTypeToMysql(change.type);
-      await mysql.query(`ALTER TABLE \`${change.table}\` ADD COLUMN \`${change.column}\` ${type}`);
+      await pool.query(`ALTER TABLE \`${change.table}\` ADD COLUMN \`${change.column}\` ${type}`);
     } else if (change.action === 'dropColumn') {
-      await mysql.query(`ALTER TABLE \`${change.table}\` DROP COLUMN \`${change.column}\``);
+      await pool.query(`ALTER TABLE \`${change.table}\` DROP COLUMN \`${change.column}\``);
     }
   }
 

@@ -2,9 +2,10 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const router = express.Router();
-const { sqlite, mysql } = require('../db');
+const { sqlite, getMysqlPool } = require('../db');
 
 router.post('/', async (req, res) => {
+  const pool = getMysqlPool();
   try {
     const tables = [
       'bilan',
@@ -36,11 +37,11 @@ router.post('/', async (req, res) => {
 
     let mysqlOk = false;
     try {
-      await mysql.query('SELECT 1');
+      await pool.query('SELECT 1');
       // ⚙️ Suppression des données MySQL + reset auto-incrément
       for (const table of tablesMysql) {
-        await mysql.query(`DELETE FROM ${table}`);
-        await mysql.query(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
+        await pool.query(`DELETE FROM ${table}`);
+        await pool.query(`ALTER TABLE ${table} AUTO_INCREMENT = 1`);
       }
       mysqlOk = true;
     } catch (errMysql) {
