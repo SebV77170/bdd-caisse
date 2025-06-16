@@ -56,8 +56,8 @@ if (!motDePasseValide) {
 
   sqlite.prepare(`
     INSERT INTO session_caisse (
-      id_session, date_ouverture, heure_ouverture, 
-      utilisateur_ouverture, responsable_ouverture, 
+      id_session, date_ouverture, heure_ouverture,
+      utilisateur_ouverture, responsable_ouverture,
       fond_initial, caissiers
     )
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -70,6 +70,16 @@ if (!motDePasseValide) {
     fond_initial,
     caissiers
   );
+
+  logSync('session_caisse', 'INSERT', {
+    id_session,
+    date_ouverture,
+    heure_ouverture,
+    utilisateur_ouverture: utilisateur.nom,
+    responsable_ouverture: responsable.nom,
+    fond_initial,
+    caissiers
+  });
 
 
   const io = req.app.get('socketio');
