@@ -4,9 +4,16 @@ const { sqlite, getMysqlPool } = require('../db');
 
 router.post('/', async (req, res) => {
   const io = req.app.get('socketio');
-  const pool = getMysqlPool();
+  let pool ;
   if (io) io.emit('syncStart');
+  let syncSuccess = true;
   try {
+    // ✅ Vérification explicite de la connexion MySQL
+    const pool = getMysqlPool();
+    const connection = await pool.getConnection();
+    await connection.query('SELECT 1'); // test de connexion MySQL
+    connection.release();
+    
     const lignes = sqlite.prepare(`SELECT * FROM sync_log WHERE synced = 0`).all();
 
     for (const ligne of lignes) {
@@ -17,29 +24,62 @@ router.post('/', async (req, res) => {
       if (!type || !payload || !operation) continue;
 
       if (type === 'ticketdecaisse') {
-        if (operation === 'INSERT') {
-          await pool.query(`
-            INSERT INTO ticketdecaisse 
-            (uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt, nbr_objet, moyen_paiement, prix_total, lien, reducbene, reducclient, reducgrospanierclient, reducgrospanierbene)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              payload.uuid_ticket,
-              payload.nom_vendeur,
-              payload.id_vendeur,
-              payload.date_achat_dt,
-              payload.nbr_objet,
-              payload.moyen_paiement,
-              payload.prix_total,
-              payload.lien,
-              payload.reducbene,
-              payload.reducclient,
-              payload.reducgrospanierclient,
-              payload.reducgrospanierbene
-            ]
-          );
-        }
-        // Tu peux ajouter UPDATE/DELETE ici si besoin
-      }
+  if (operation === 'INSERT') {
+    await pool.query(`
+      INSERT INTO ticketdecaisse 
+      (uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt, nbr_objet, moyen_paiement, prix_total, lien, reducbene, reducclient, reducgrospanierclient, reducgrospanierbene)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        payload.uuid_ticket,
+        payload.nom_vendeur,
+        payload.id_vendeur,
+        payload.date_achat_dt,
+        payload.nbr_objet,
+        payload.moyen_paiement,
+        payload.prix_total,
+        payload.lien,
+        payload.reducbene,
+        payload.reducclient,
+        payload.reducgrospanierclient,
+        payload.reducgrospanierbene
+      ]
+    );
+  } else if (operation === 'UPDATE') {
+    await pool.query(`
+      UPDATE ticketdecaisse SET
+        nom_vendeur = ?,
+        id_vendeur = ?,
+        date_achat_dt = ?,
+        nbr_objet = ?,
+        moyen_paiement = ?,
+        prix_total = ?,
+        lien = ?,
+        reducbene = ?,
+        reducclient = ?,
+        reducgrospanierclient = ?,
+        reducgrospanierbene = ?
+      WHERE uuid_ticket = ?`,
+      [
+        payload.nom_vendeur,
+        payload.id_vendeur,
+        payload.date_achat_dt,
+        payload.nbr_objet,
+        payload.moyen_paiement,
+        payload.prix_total,
+        payload.lien,
+        payload.reducbene,
+        payload.reducclient,
+        payload.reducgrospanierclient,
+        payload.reducgrospanierbene,
+        payload.uuid_ticket
+      ]
+    );
+  } else if (operation === 'DELETE') {
+    await pool.query(`DELETE FROM ticketdecaisse WHERE uuid_ticket = ?`, [
+      payload.uuid_ticket
+    ]);
+  }
+}
 
       else if (type === 'objets_vendus') {
         if (operation === 'INSERT') {
@@ -132,10 +172,15 @@ router.post('/', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Erreur de synchronisation :', err);
-    res.status(500).json({ error: 'Erreur de synchronisation.' });
+    console.error('❌ ERREUR DURANT LA SYNC :', err);
+    syncSuccess = false;
+
+    // 🔁 renvoie malgré tout un JSON lisible par le frontend
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Erreur de synchronisation côté serveur.' });
+    }
   } finally {
-    if (io) io.emit('syncEnd');
+    if (io) io.emit('syncEnd', { success: syncSuccess });
   }
 });
 

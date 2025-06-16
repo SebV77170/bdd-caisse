@@ -1,6 +1,6 @@
 {
-  "host": "mysql-ressourcebrie.alwaysdata.net",
-  "user": "418153",
-  "password": "geMsos-wunxoc-1fucbu",
-  "database": "ressourcebrie_bdd"
+  "host": "localhost",
+  "user": "root",
+  "password": "",
+  "database": "objets"
 }

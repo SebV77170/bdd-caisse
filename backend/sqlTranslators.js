@@ -65,6 +65,9 @@ function sqliteCreateToMysql(sql) {
   // Corriger les virgules avant les parenthèses fermantes
   result = result.replace(/,\s*\)/g, ')');
 
+  // Corriger la longueur des VARCHAR en PRIMARY KEY pour éviter ER_TOO_LONG_KEY
+result = result.replace(/`(\w+)`\s+VARCHAR\(255\)\s+PRIMARY KEY/gi, '`$1` VARCHAR(191) PRIMARY KEY');
+
   // Ajouter un ; final
   if (!result.trim().endsWith(';')) result += ';';
 
