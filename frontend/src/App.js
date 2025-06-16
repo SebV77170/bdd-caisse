@@ -10,6 +10,7 @@ import FermetureCaisse from './pages/FermetureCaisse';
 import JournalCaisse from './pages/JournalCaisse';
 import CompareSchemas from './pages/CompareSchemas';
 import DbConfig from './pages/DbConfig';
+import Parametres from './pages/Parametres';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import 'react-toastify/dist/ReactToastify.css';
@@ -18,6 +19,7 @@ const socket = io('http://localhost:3001');
 export const ModeTactileContext = createContext();
 
 function App() {
+  const [syncStatus, setSyncStatus] = useState(null); // null | 'loading' | 'success' | 'error'
   const navigate = useNavigate();
   const vendeur = JSON.parse(localStorage.getItem('vendeur') || '{}');
   const [bilanJour, setBilanJour] = useState(null);
@@ -31,6 +33,38 @@ function App() {
   });
   const [caisseOuverte, setCaisseOuverte] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  
+useEffect(() => {
+  const startHandler = () => {
+    console.log('🟡 syncStart');
+    setSyncStatus('loading'); // 🔄 commence à tourner
+  };
+
+  const endHandler = (result) => {
+    console.log('🔵 syncEnd reçu :', result);
+    if (result?.success === true) {
+      setSyncStatus('success'); // ✅ reste jusqu’à prochain sync
+    } else if (result?.success === false) {
+      setSyncStatus('error');   // ❌ reste jusqu’à prochain sync
+    } else {
+      setSyncStatus(null);      // fallback
+    }
+
+    // ❌ ne surtout PAS remettre à null ici
+    // setTimeout(() => setSyncStatus(null), 3000);
+  };
+
+  socket.on('syncStart', startHandler);
+  socket.on('syncEnd', endHandler);
+
+  return () => {
+    socket.off('syncStart', startHandler);
+    socket.off('syncEnd', endHandler);
+  };
+}, []);
+
+
+
 
   useEffect(() => {
     localStorage.setItem('modeTactile', JSON.stringify(modeTactile));
@@ -105,6 +139,7 @@ function App() {
                 {devMode && (
                   <Nav.Link as={Link} to="/db-config" onClick={() => setShowMenu(false)}>⚙️ DB</Nav.Link>
                 )}
+                <Nav.Link as={Link} to="/parametres" onClick={() => setShowMenu(false)}>🛠️ Paramètres</Nav.Link>
               </Nav>
             </Offcanvas.Body>
           </Navbar.Offcanvas>
@@ -145,24 +180,35 @@ function App() {
             )}
 
             <button
-              className="btn btn-sm btn-outline-success me-2"
-              onClick={async () => {
-                try {
-                  const res = await fetch('http://localhost:3001/api/sync/', { method: 'POST' });
-                  const result = await res.json();
-                  if (result.success) {
-                    alert('✅ Synchronisation réussie !');
-                  } else {
-                    alert('❌ Échec : ' + (result.message || result.error));
-                  }
-                } catch (err) {
-                  console.error(err);
-                  alert('❌ Erreur de synchronisation.');
-                }
-              }}
-            >
-              🔄
-            </button>
+  className="btn btn-sm btn-outline-success me-2"
+  onClick={async () => {
+    setSyncStatus('loading');
+    try {
+      const res = await fetch('http://localhost:3001/api/sync/', { method: 'POST' });
+      const result = await res.json();
+
+      if (result && result.success === true) {
+        setSyncStatus('success');
+        alert('✅ Synchronisation réussie !');
+      } else {
+        setSyncStatus('error');
+        alert('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
+      }
+    } catch (err) {
+      console.error(err);
+      setSyncStatus('error');
+      alert('❌ Erreur de synchronisation.');
+    }
+
+    // ❌ NE PAS faire setTimeout(...), on garde l’état visible
+  }}
+>
+  {syncStatus === 'loading' && <span className="spin">⏳</span>}
+  {syncStatus === 'success' && '✅'}
+  {syncStatus === 'error' && '❌'}
+  {syncStatus === null && '⏳'}
+</button>
+
 
             <button
               className="btn btn-sm btn-outline-light me-2"
@@ -233,6 +279,7 @@ function App() {
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
             <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
             <Route path="/compare-schemas" element={<RequireSession><CompareSchemas /></RequireSession>} />
+            <Route path="/parametres" element={<RequireSession><Parametres /></RequireSession>} />
             {devMode && (
               <Route path="/db-config" element={<RequireSession><DbConfig /></RequireSession>} />
             )}
