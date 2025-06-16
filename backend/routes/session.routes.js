@@ -3,6 +3,7 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const bcrypt = require('bcrypt');
 const session = require('../session');
+const logSync = require('../logsync');
 
 
 // Connexion avec vérification du mot de passe
@@ -76,6 +77,11 @@ router.post('/ajouter-caissier', (req, res) => {
     sqlite
       .prepare('UPDATE session_caisse SET caissiers = ? WHERE id_session = ?')
       .run(JSON.stringify(caissiers), sessionCaisse.id_session);
+
+    logSync('session_caisse', 'UPDATE', {
+      id_session: sessionCaisse.id_session,
+      caissiers: JSON.stringify(caissiers)
+    });
   }
 
   res.json({ success: true, caissiers });
