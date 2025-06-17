@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Button } from 'react-bootstrap';
+import { Form, Button, Collapse } from 'react-bootstrap';
 import BoutonsManager from '../components/BoutonsManager';
 
 const Parametres = () => {
   const [interval, setIntervalValue] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [message, setMessage] = useState('');
+  const [showBoutons, setShowBoutons] = useState(false); // état pour afficher ou non le bloc
 
   useEffect(() => {
     fetch('http://localhost:3001/api/sync-config')
@@ -37,6 +38,7 @@ const Parametres = () => {
   };
 
   return (
+    <div className="bilan-scroll-container">
     <div className="container mt-3">
       <h3>Paramètres</h3>
       <Form>
@@ -59,8 +61,27 @@ const Parametres = () => {
         </Form.Group>
         <Button onClick={save}>Sauvegarder</Button>
       </Form>
+
       {message && <div className="mt-2">{message}</div>}
-      <BoutonsManager />
+
+      <hr />
+
+      <Button
+        variant="secondary"
+        className="mb-2"
+        onClick={() => setShowBoutons(prev => !prev)}
+        aria-controls="boutons-collapse"
+        aria-expanded={showBoutons}
+      >
+        {showBoutons ? 'Masquer les boutons' : 'Afficher les boutons'}
+      </Button>
+
+      <Collapse in={showBoutons}>
+        <div id="boutons-collapse">
+          <BoutonsManager />
+        </div>
+      </Collapse>
+    </div>
     </div>
   );
 };
