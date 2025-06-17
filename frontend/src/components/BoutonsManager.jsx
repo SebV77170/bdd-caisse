@@ -8,6 +8,13 @@ const BoutonsManager = () => {
   const [categories, setCategories] = useState([]);
   const [newBouton, setNewBouton] = useState({ nom: '', prix: '', id_cat: '', id_souscat: '' });
 
+  const parsePrix = (str) => {
+    if (!str) return 0;
+    const normalise = str.replace(',', '.');
+    const nombre = parseFloat(normalise);
+    return isNaN(nombre) ? 0 : Math.round(nombre * 100);
+  };
+
   useEffect(() => {
     fetch(`${api}/api/boutons`)
       .then(res => res.json())
@@ -26,14 +33,18 @@ const BoutonsManager = () => {
 
   const handleChange = (index, field, value) => {
     const updated = [...boutons];
-    updated[index] = { ...updated[index], [field]: value };
+    if (field === 'prix') {
+      updated[index] = { ...updated[index], prix: parsePrix(value) };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     setBoutons(updated);
   };
 
   const saveBouton = (b) => {
     const payload = {
       nom: b.nom,
-      prix: parseInt(b.prix, 10),
+      prix: b.prix,
       id_cat: b.id_cat ? parseInt(b.id_cat, 10) : null,
       id_souscat: b.id_souscat ? parseInt(b.id_souscat, 10) : null
     };
@@ -54,7 +65,7 @@ const BoutonsManager = () => {
   const addBouton = () => {
     const payload = {
       nom: newBouton.nom,
-      prix: parseInt(newBouton.prix, 10),
+      prix: parsePrix(newBouton.prix),
       id_cat: newBouton.id_cat ? parseInt(newBouton.id_cat, 10) : null,
       id_souscat: newBouton.id_souscat ? parseInt(newBouton.id_souscat, 10) : null
     };
@@ -92,7 +103,12 @@ const BoutonsManager = () => {
                 <Form.Control value={b.nom} onChange={e => handleChange(i, 'nom', e.target.value)} />
               </td>
               <td>
-                <Form.Control type="number" value={(b.prix)} onChange={e => handleChange(i, 'prix', e.target.value)} />
+                <Form.Control
+                  type="text"
+                  inputMode="decimal"
+                  value={(b.prix / 100).toFixed(2)}
+                  onChange={e => handleChange(i, 'prix', e.target.value)}
+                />
               </td>
               <td>
                 <Form.Select value={b.id_cat || ''} onChange={e => handleChange(i, 'id_cat', e.target.value)}>
@@ -121,7 +137,12 @@ const BoutonsManager = () => {
               <Form.Control value={newBouton.nom} onChange={e => setNewBouton({ ...newBouton, nom: e.target.value })} />
             </td>
             <td>
-              <Form.Control type="number" value={newBouton.prix} onChange={e => setNewBouton({ ...newBouton, prix: e.target.value })} />
+              <Form.Control
+                type="text"
+                inputMode="decimal"
+                value={newBouton.prix}
+                onChange={e => setNewBouton({ ...newBouton, prix: e.target.value })}
+              />
             </td>
             <td>
               <Form.Select value={newBouton.id_cat} onChange={e => setNewBouton({ ...newBouton, id_cat: e.target.value, id_souscat: '' })}>
