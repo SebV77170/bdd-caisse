@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button } from 'react-bootstrap';
+import BoutonsManager from '../components/BoutonsManager';
 
 const Parametres = () => {
   const [interval, setIntervalValue] = useState('');
@@ -59,6 +60,7 @@ const Parametres = () => {
         <Button onClick={save}>Sauvegarder</Button>
       </Form>
       {message && <div className="mt-2">{message}</div>}
+      <BoutonsManager />
     </div>
   );
 };
