@@ -201,7 +201,14 @@ console.log(req.body);
       uuid_session_caisse
     });
 
-    sqlite.prepare('UPDATE ticketdecaisse SET corrige_le_ticket = ? WHERE id_ticket = ?').run(id_ticket_original, id_corrige);
+    sqlite.prepare('UPDATE ticketdecaisse SET corrige_le_ticket = ? WHERE id_ticket = ?').run(
+      id_ticket_original,
+      id_corrige
+    );
+    logSync('ticketdecaisse', 'UPDATE', {
+      id_ticket: id_corrige,
+      corrige_le_ticket: id_ticket_original
+    });
 
     let pmCorrige = { espece: 0, carte: 0, cheque: 0, virement: 0 };
     const normalisation = {

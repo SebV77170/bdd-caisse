@@ -241,9 +241,14 @@ router.post('/', (req, res) => {
       });
     }
 
+    let lien = `tickets/Ticket-${uuid_ticket}.txt`;
 
 
-    sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE id_ticket = ?').run(`tickets/Ticket-${uuid_ticket}.txt`, id_ticket);
+    sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE uuid_ticket = ?').run(lien, uuid_ticket);
+    logSync('ticketdecaisse', 'UPDATE', {
+      uuid_ticket,
+      lien
+    });
     sqlite.prepare('DELETE FROM vente WHERE id_temp_vente = ?').run(id_temp_vente);
     sqlite.prepare('DELETE FROM ticketdecaissetemp WHERE id_temp_vente = ?').run(id_temp_vente);
 
