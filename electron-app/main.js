@@ -4,16 +4,17 @@ const fs = require('fs');
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1570,
-    height: 1255,
+    width: 1419,
+    height: 1066,
     resizable: false,
-    frame: false, // pas de barre système
+    frame: false,
     webPreferences: {
       contextIsolation: true
     }
   });
 
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(null); // supprime le menu système
+  win.center(); // optionnel : centre la fenêtre
 
   const indexPath = path.resolve(__dirname, 'build', 'index.html');
   const devURL = 'http://localhost:3000';
@@ -24,7 +25,7 @@ function createWindow() {
     win.loadURL(devURL);
   }
 
-  // win.webContents.openDevTools(); // désactivé pour simulation visuelle propre
+  // win.webContents.openDevTools(); // désactivé pour simulation propre
 }
 
 app.whenReady().then(createWindow);
