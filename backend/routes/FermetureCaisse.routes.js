@@ -3,7 +3,7 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const bcrypt = require('bcrypt');
 const session = require('../session');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 const genererTicketCloturePdf = require('../utils/genererTicketCloturePdf');
 const { v4: uuidv4 } = require('uuid');
 const getBilanSession = require('../utils/bilanSession');
@@ -129,12 +129,12 @@ router.post('/', (req, res) => {
     INSERT INTO ticketdecaisse (
       uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt,
       nbr_objet, moyen_paiement, prix_total, lien,
-      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, cloture
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
+      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, cloture, uuid_session_caisse
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)
   `).run(
     uuid_ticket, vendeur, id_vendeur, date_achat,
     0, "---", ecart, '',
-    0, 0, 0, 0, 1
+    0, 0, 0, 0, 1,uuid_session_caisse
   );
 
   const id_ticket = result.lastInsertRowid;

@@ -281,7 +281,7 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
               try {
                 // Appel API pour envoyer le ticket par email
                 const res = await fetch(
-                  `http://localhost:3001/api/envoieticket/${ticketPourEmail.id_ticket}/envoyer`,
+                  `http://localhost:3001/api/envoieticket/${ticketPourEmail.uuid_ticket}/envoyer`,
                   {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

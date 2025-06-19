@@ -16,6 +16,7 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
   win.center();
+  win.webContents.openDevTools(); // ouvre les DevTools automatiquement
 
   const indexPath = path.resolve(__dirname, 'build', 'index.html');
   const devURL = 'http://localhost:3000';
@@ -26,6 +27,7 @@ function createWindow() {
     win.loadURL(devURL);
   }
 }
+
 
 // ✅ écoute de l'événement pour ouvrir le PDF
 ipcMain.on('open-pdf', (event, relativePath) => {
