@@ -142,6 +142,10 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       .then(result => {
         if (result.success) {
           alert('Vente validée avec succès');
+          if (!reduction) {
+            const tampons = Math.floor(totalAvecReduction / 500);
+            alert(`Ajoutez ${tampons} tampon(s) sur la carte de fidélité`);
+          }
           if (email) {
             alert(`Un ticket sera envoyé à : ${email}`);
           }
