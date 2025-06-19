@@ -10,6 +10,8 @@ import TactileInput from '../components/TactileInput';
 import { Button } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
+import FactureModal from '../components/factureModal';
+
 
 
 const socket = io('http://localhost:3001');
@@ -26,6 +28,11 @@ const BilanTickets = () => {
 const [ticketPourEmail, setTicketPourEmail] = useState(null);
 const [emailDestinataire, setEmailDestinataire] = useState('');
 const location = useLocation();
+const [showFactureModal, setShowFactureModal] = useState(false);
+const [ticketPourFacture, setTicketPourFacture] = useState(null);
+const [raisonSociale, setRaisonSociale] = useState('');
+const [adresseFacturation, setAdresseFacturation] = useState('');
+
 
 
   useEffect(() => {
@@ -174,33 +181,20 @@ const location = useLocation();
                         </Button>
                       )}
                       <Button
-                        variant="outline-secondary"
-                        size="sm"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const raison = prompt('Raison sociale ?');
-                          if (!raison) return;
-                          const adresse = prompt('Adresse ?');
-                          if (!adresse) return;
-                          try {
-                            const res = await fetch(
-                              `http://localhost:3001/api/facture/${ticket.uuid_ticket}`,
-                              {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ raison_sociale: raison, adresse })
-                              }
-                            );
-                            const result = await res.json();
-                            if (result.success) toast.success('Facture créée');
-                            else toast.error('Échec création facture');
-                          } catch (err) {
-                            toast.error('Erreur serveur');
-                          }
-                        }}
-                      >
-                        📄
-                      </Button>
+  variant="outline-secondary"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    setTicketPourFacture(ticket);
+    setRaisonSociale('');
+    setAdresseFacturation('');
+    setShowFactureModal(true);
+  }}
+>
+  📄
+</Button>
+
+
                       <Button
                       variant="outline-primary"
                       size="sm"
@@ -283,7 +277,7 @@ const location = useLocation();
               try {
                 // Appel API pour envoyer le ticket par email
                 const res = await fetch(
-                  `http://localhost:3001/api/ticket/${ticketPourEmail.id_ticket}/envoyer`,
+                  `http://localhost:3001/api/envoieticket/${ticketPourEmail.id_ticket}/envoyer`,
                   {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -312,6 +306,25 @@ const location = useLocation();
   // Fin de la modale d'envoi d'email
 )}
 <ToastContainer position="top-center" autoClose={3000} />
+<FactureModal
+  show={showFactureModal}
+  onClose={() => setShowFactureModal(false)}
+  ticket={ticketPourFacture}
+  raisonSociale={raisonSociale}
+  adresseFacturation={adresseFacturation}
+  setRaisonSociale={setRaisonSociale}
+  setAdresseFacturation={setAdresseFacturation}
+  onSuccess={(lien) => {
+    setShowFactureModal(false);
+     // Attendre un petit délai que la modale soit fermée proprement
+     // Appel au backend Electron pour ouvrir le PDF
+  setTimeout(() => {
+    window.electron?.openPdf?.(lien); // 👈 ajout ici
+  }, 300);
+  }}
+/>
+
+
     </div>
   );
 };

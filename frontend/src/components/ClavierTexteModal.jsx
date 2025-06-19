@@ -24,7 +24,9 @@ function ClavierTexteModal({ show, onClose, onValider, initial = '' }) {
     ['1','2','3','4','5','6','7','8','9','0'],
     ['A','Z','E','R','T','Y','U','I','O','P'],
     ['Q','S','D','F','G','H','J','K','L','M'],
-    ['W','X','C','V','B','N']
+    ['W','X','C','V','B','N'],
+    ['@','.',';',':','!','?'],
+    ['gmail.com','orange.fr','free.fr','yahoo.fr','hotmail.fr']
   ];
 
   return (
@@ -37,16 +39,18 @@ function ClavierTexteModal({ show, onClose, onValider, initial = '' }) {
         {rows.map((row, idx) => (
           <div key={idx} className="d-flex justify-content-center mb-1">
             {row.map(char => (
-              <Button
-                key={char}
-                className="m-1"
-                variant="outline-primary"
-                style={{ width: 45 }}
-                onClick={() => handleInput(char)}
-              >
-                {char}
-              </Button>
-            ))}
+  <Button
+    key={char}
+    className={`m-1 ${idx === 5 ? 'btn-sm rounded-pill px-3' : ''}`}
+    variant="outline-primary"
+    style={idx !== 5 ? { width: 45 } : undefined}
+    onClick={() => handleInput(char)}
+  >
+    {char}
+  </Button>
+))}
+
+            
           </div>
         ))}
         <div className="d-flex justify-content-center">

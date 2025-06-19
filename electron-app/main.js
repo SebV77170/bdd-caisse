@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -9,12 +9,13 @@ function createWindow() {
     resizable: false,
     frame: false,
     webPreferences: {
-      contextIsolation: true
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js') // ✅ ajout ici
     }
   });
 
-  Menu.setApplicationMenu(null); // supprime le menu système
-  win.center(); // optionnel : centre la fenêtre
+  Menu.setApplicationMenu(null);
+  win.center();
 
   const indexPath = path.resolve(__dirname, 'build', 'index.html');
   const devURL = 'http://localhost:3000';
@@ -24,8 +25,17 @@ function createWindow() {
   } else {
     win.loadURL(devURL);
   }
-
-  // win.webContents.openDevTools(); // désactivé pour simulation propre
 }
+
+// ✅ écoute de l'événement pour ouvrir le PDF
+ipcMain.on('open-pdf', (event, relativePath) => {
+  const fullPath = path.resolve(__dirname, '..', relativePath); // ← ../ pour remonter à la racine
+  if (fs.existsSync(fullPath)) {
+    shell.openPath(fullPath);
+  } else {
+    console.error('❌ Fichier PDF introuvable :', fullPath);
+  }
+});
+
 
 app.whenReady().then(createWindow);
