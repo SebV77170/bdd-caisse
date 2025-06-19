@@ -27,15 +27,13 @@ function App() {
     const saved = localStorage.getItem('modeTactile');
     return saved ? JSON.parse(saved) : false;
   });
-  const [devMode, setDevMode] = useState(() => {
+  const [devMode] = useState(() => {
     const saved = localStorage.getItem('devMode');
     return saved ? JSON.parse(saved) : false;
   });
   const [showMenu, setShowMenu] = useState(false);
   const [caisseOuverte, setCaisseOuverte] = useState(false);
-  const [showPassModal, setShowPassModal] = useState(false);
-  const [inputPass, setInputPass] = useState('');
-
+  
   useEffect(() => {
     const startHandler = () => {
       setSyncStatus('loading');
@@ -139,31 +137,6 @@ function App() {
           </div>
 
           <div className="d-flex align-items-center ms-auto">
-            {devMode && (
-              <button
-                className="btn btn-sm btn-outline-warning me-2"
-                onClick={async () => {
-                  const confirmReset = window.confirm('⚠️ Cette action va supprimer tous les tickets, paiements et bilans. Continuer ?');
-                  if (confirmReset) {
-                    try {
-                      const res = await fetch('http://localhost:3001/api/reset', { method: 'POST' });
-                      const result = await res.json();
-                      if (result.success) {
-                        alert(result.message);
-                        window.location.reload();
-                      } else {
-                        alert('Erreur : ' + result.error);
-                      }
-                    } catch (err) {
-                      console.error(err);
-                      alert('Erreur lors de la réinitialisation.');
-                    }
-                  }
-                }}
-              >
-                Reset
-              </button>
-            )}
 
             <button
               className="btn btn-sm btn-outline-success me-2"
@@ -202,68 +175,9 @@ function App() {
             >
               Changer d'utilisateur 👤
             </button>
-
-            <div className="form-check form-switch ms-2">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                role="switch"
-                id="modeTactileSwitch"
-                checked={modeTactile}
-                onChange={() => setModeTactile(prev => !prev)}
-              />
-              <label className="form-check-label text-white" htmlFor="modeTactileSwitch">
-                🖐️
-              </label>
-            </div>
-
-            <div className="form-check form-switch ms-2">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                role="switch"
-                id="devModeSwitch"
-                checked={devMode}
-                onChange={() => {
-                  if (!devMode) {
-                    setShowPassModal(true);
-                  } else {
-                    setDevMode(false);
-                  }
-                }}
-              />
-              <label className="form-check-label text-white" htmlFor="devModeSwitch">
-                DEV
-              </label>
-            </div>
           </div>
         </Navbar>
 
-        {showPassModal && (
-          <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex justify-content-center align-items-center z-3">
-            <div className="bg-white p-4 rounded shadow">
-              <h5>Mot de passe développeur</h5>
-              <input
-                type="password"
-                className="form-control my-2"
-                value={inputPass}
-                onChange={e => setInputPass(e.target.value)}
-                autoFocus
-              />
-              <div className="d-flex justify-content-end">
-                <button className="btn btn-secondary me-2" onClick={() => {
-                  setShowPassModal(false);
-                  setInputPass('');
-                }}>Annuler</button>
-                <button className="btn btn-primary" onClick={() => {
-                  if (inputPass === 'devpass') setDevMode(true);
-                  setShowPassModal(false);
-                  setInputPass('');
-                }}>Valider</button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {bilanJour && (
           <div className="bg-dark text-white px-2 py-1" style={{ fontSize: '0.75rem' }}>

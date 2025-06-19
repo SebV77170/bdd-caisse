@@ -103,15 +103,19 @@ const location = useLocation();
       <div className="container">
         <h2>Bilan des tickets de caisse</h2>
 
-        <div className="my-3">
-          <label className="form-label">Filtrer par date :</label>
-          <DatePicker
-            selected={filtreDate}
-            onChange={(date) => setFiltreDate(date)}
-            highlightDates={[{ 'react-datepicker__day--highlighted-custom': datesDisponibles }]}
-            inline
-          />
-        </div>
+<div className="my-4 p-3 border rounded bg-light shadow-sm">
+  <h5 className="mb-3 text-center">📅 Filtrer par date</h5>
+  <div className="d-flex justify-content-center">
+    <DatePicker
+      selected={filtreDate}
+      onChange={(date) => setFiltreDate(date)}
+      highlightDates={[{ 'react-datepicker__day--highlighted-custom': datesDisponibles }]}
+      inline
+      calendarClassName="border rounded"
+    />
+  </div>
+</div>
+
 
         {ticketsFiltres.length === 0 ? (
           <div className="alert alert-info mt-4">Aucun ticket pour la date sélectionnée.</div>
