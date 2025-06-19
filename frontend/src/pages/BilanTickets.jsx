@@ -171,8 +171,36 @@ const location = useLocation();
                           }}
                         >
                           ✖
-                        </Button>                     
+                        </Button>
                       )}
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const raison = prompt('Raison sociale ?');
+                          if (!raison) return;
+                          const adresse = prompt('Adresse ?');
+                          if (!adresse) return;
+                          try {
+                            const res = await fetch(
+                              `http://localhost:3001/api/facture/${ticket.uuid_ticket}`,
+                              {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ raison_sociale: raison, adresse })
+                              }
+                            );
+                            const result = await res.json();
+                            if (result.success) toast.success('Facture créée');
+                            else toast.error('Échec création facture');
+                          } catch (err) {
+                            toast.error('Erreur serveur');
+                          }
+                        }}
+                      >
+                        📄
+                      </Button>
                       <Button
                       variant="outline-primary"
                       size="sm"

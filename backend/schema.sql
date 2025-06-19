@@ -86,3 +86,12 @@ CREATE TABLE IF NOT EXISTS sync_log (
     payload TEXT,
     synced INTEGER DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS facture (
+  id_facture INTEGER PRIMARY KEY AUTOINCREMENT,
+  uuid_facture TEXT,
+  uuid_ticket TEXT,
+  raison_sociale TEXT,
+  adresse TEXT,
+  lien TEXT
+);
+
