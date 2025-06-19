@@ -61,3 +61,45 @@ html, body, #root {
 }
 
 
+
+.ticket-item {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.ticket-name-top {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.2rem;
+}
+
+.ticket-name-top .btn {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.75rem;
+  margin-right: 0.5rem;
+  line-height: 1;
+}
+
+.ticket-row-below {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.ticket-input {
+  width: 50px;
+  padding: 0.2rem;
+  font-size: 0.85rem;
+  text-align: center;
+  height: auto;
+}
+
+.ticket-prix {
+  min-width: 55px;
+  text-align: right;
+  font-weight: 600;
+}

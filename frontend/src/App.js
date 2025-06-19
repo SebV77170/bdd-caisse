@@ -19,7 +19,7 @@ const socket = io('http://localhost:3001');
 export const ModeTactileContext = createContext();
 
 function App() {
-  const [syncStatus, setSyncStatus] = useState(null); // null | 'loading' | 'success' | 'error'
+  const [syncStatus, setSyncStatus] = useState(null);
   const navigate = useNavigate();
   const vendeur = JSON.parse(localStorage.getItem('vendeur') || '{}');
   const [bilanJour, setBilanJour] = useState(null);
@@ -31,40 +31,31 @@ function App() {
     const saved = localStorage.getItem('devMode');
     return saved ? JSON.parse(saved) : false;
   });
-  const [caisseOuverte, setCaisseOuverte] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  
-useEffect(() => {
-  const startHandler = () => {
-    console.log('🟡 syncStart');
-    setSyncStatus('loading'); // 🔄 commence à tourner
-  };
+  const [caisseOuverte, setCaisseOuverte] = useState(false);
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [inputPass, setInputPass] = useState('');
 
-  const endHandler = (result) => {
-    console.log('🔵 syncEnd reçu :', result);
-    if (result?.success === true) {
-      setSyncStatus('success'); // ✅ reste jusqu’à prochain sync
-    } else if (result?.success === false) {
-      setSyncStatus('error');   // ❌ reste jusqu’à prochain sync
-    } else {
-      setSyncStatus(null);      // fallback
-    }
-
-    // ❌ ne surtout PAS remettre à null ici
-    // setTimeout(() => setSyncStatus(null), 3000);
-  };
-
-  socket.on('syncStart', startHandler);
-  socket.on('syncEnd', endHandler);
-
-  return () => {
-    socket.off('syncStart', startHandler);
-    socket.off('syncEnd', endHandler);
-  };
-}, []);
-
-
-
+  useEffect(() => {
+    const startHandler = () => {
+      setSyncStatus('loading');
+    };
+    const endHandler = (result) => {
+      if (result?.success === true) {
+        setSyncStatus('success');
+      } else if (result?.success === false) {
+        setSyncStatus('error');
+      } else {
+        setSyncStatus(null);
+      }
+    };
+    socket.on('syncStart', startHandler);
+    socket.on('syncEnd', endHandler);
+    return () => {
+      socket.off('syncStart', startHandler);
+      socket.off('syncEnd', endHandler);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('modeTactile', JSON.stringify(modeTactile));
@@ -80,13 +71,9 @@ useEffect(() => {
         .then(res => res.json())
         .then(setBilanJour);
     };
-
     fetchBilan();
-    socket.on('bilanUpdated', () => {
-      console.log('🧾 Mise à jour du bilan reçue via WebSocket');
-      fetchBilan();
-    });
-    return () => socket.off('bilanUpdated');
+    socket.on('bilanUpdated', fetchBilan);
+    return () => socket.off('bilanUpdated', fetchBilan);
   }, []);
 
   useEffect(() => {
@@ -96,7 +83,6 @@ useEffect(() => {
         .then(data => setCaisseOuverte(data.ouverte))
         .catch(() => setCaisseOuverte(false));
     };
-
     fetchEtat();
     socket.on('etatCaisseUpdated', fetchEtat);
     return () => socket.off('etatCaisseUpdated', fetchEtat);
@@ -134,10 +120,10 @@ useEffect(() => {
                 )}
                 <Nav.Link as={Link} to="/journal-caisse" onClick={() => setShowMenu(false)}>📖 Journal caisse</Nav.Link>
                 {devMode && (
-                  <Nav.Link as={Link} to="/compare-schemas" onClick={() => setShowMenu(false)}>🗄️ Schémas</Nav.Link>
-                )}
-                {devMode && (
-                  <Nav.Link as={Link} to="/db-config" onClick={() => setShowMenu(false)}>⚙️ DB</Nav.Link>
+                  <>
+                    <Nav.Link as={Link} to="/compare-schemas" onClick={() => setShowMenu(false)}>🗄️ Schémas</Nav.Link>
+                    <Nav.Link as={Link} to="/db-config" onClick={() => setShowMenu(false)}>⚙️ DB</Nav.Link>
+                  </>
                 )}
                 <Nav.Link as={Link} to="/parametres" onClick={() => setShowMenu(false)}>🛠️ Paramètres</Nav.Link>
               </Nav>
@@ -180,35 +166,31 @@ useEffect(() => {
             )}
 
             <button
-  className="btn btn-sm btn-outline-success me-2"
-  onClick={async () => {
-    setSyncStatus('loading');
-    try {
-      const res = await fetch('http://localhost:3001/api/sync/', { method: 'POST' });
-      const result = await res.json();
-
-      if (result && result.success === true) {
-        setSyncStatus('success');
-        alert('✅ Synchronisation réussie !');
-      } else {
-        setSyncStatus('error');
-        alert('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
-      }
-    } catch (err) {
-      console.error(err);
-      setSyncStatus('error');
-      alert('❌ Erreur de synchronisation.');
-    }
-
-    // ❌ NE PAS faire setTimeout(...), on garde l’état visible
-  }}
->
-  {syncStatus === 'loading' && <span className="spin">⏳</span>}
-  {syncStatus === 'success' && '✅'}
-  {syncStatus === 'error' && '❌'}
-  {syncStatus === null && '⏳'}
-</button>
-
+              className="btn btn-sm btn-outline-success me-2"
+              onClick={async () => {
+                setSyncStatus('loading');
+                try {
+                  const res = await fetch('http://localhost:3001/api/sync/', { method: 'POST' });
+                  const result = await res.json();
+                  if (result && result.success === true) {
+                    setSyncStatus('success');
+                    alert('✅ Synchronisation réussie !');
+                  } else {
+                    setSyncStatus('error');
+                    alert('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
+                  }
+                } catch (err) {
+                  console.error(err);
+                  setSyncStatus('error');
+                  alert('❌ Erreur de synchronisation.');
+                }
+              }}
+            >
+              {syncStatus === 'loading' && <span className="spin">⏳</span>}
+              {syncStatus === 'success' && '✅'}
+              {syncStatus === 'error' && '❌'}
+              {syncStatus === null && '⏳'}
+            </button>
 
             <button
               className="btn btn-sm btn-outline-light me-2"
@@ -234,6 +216,7 @@ useEffect(() => {
                 🖐️
               </label>
             </div>
+
             <div className="form-check form-switch ms-2">
               <input
                 className="form-check-input"
@@ -243,8 +226,7 @@ useEffect(() => {
                 checked={devMode}
                 onChange={() => {
                   if (!devMode) {
-                    const pass = prompt('Mot de passe développeur');
-                    if (pass === 'devpass') setDevMode(true);
+                    setShowPassModal(true);
                   } else {
                     setDevMode(false);
                   }
@@ -256,6 +238,32 @@ useEffect(() => {
             </div>
           </div>
         </Navbar>
+
+        {showPassModal && (
+          <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex justify-content-center align-items-center z-3">
+            <div className="bg-white p-4 rounded shadow">
+              <h5>Mot de passe développeur</h5>
+              <input
+                type="password"
+                className="form-control my-2"
+                value={inputPass}
+                onChange={e => setInputPass(e.target.value)}
+                autoFocus
+              />
+              <div className="d-flex justify-content-end">
+                <button className="btn btn-secondary me-2" onClick={() => {
+                  setShowPassModal(false);
+                  setInputPass('');
+                }}>Annuler</button>
+                <button className="btn btn-primary" onClick={() => {
+                  if (inputPass === 'devpass') setDevMode(true);
+                  setShowPassModal(false);
+                  setInputPass('');
+                }}>Valider</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {bilanJour && (
           <div className="bg-dark text-white px-2 py-1" style={{ fontSize: '0.75rem' }}>

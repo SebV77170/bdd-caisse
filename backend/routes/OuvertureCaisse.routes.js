@@ -6,6 +6,7 @@ const { sqlite } = require('../db');
 const session = require('../session');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
+const logSync = require('../logSync');
 
 
 
