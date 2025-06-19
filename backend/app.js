@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
+const path = require('path');
 
 // Middlewares globaux
 app.use(cors());
@@ -22,6 +23,7 @@ const envoiTicket = require('./routes/envoiTicket.routes');
 const compareSchemasRoutes = require('./routes/compareSchemas.routes');
 const dbConfigRoutes = require('./routes/dbconfig.routes');
 const syncConfigRoutes = require('./routes/syncConfig.routes');
+const factureRoutes = require('./routes/facture.routes');
 
 
 
@@ -40,12 +42,14 @@ app.use('/api/session', sessionRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/reset', resetRoutes);
 app.use('/api/sync', syncRoutes);
-app.use('/api/ticket', envoiTicket);
+app.use('/api/envoieticket', envoiTicket);
+app.use('/api/facture', factureRoutes);
 app.use('/api/caisse', require('./routes/ouvertureCaisse.routes'));
 app.use('/api/caisse/fermeture', require('./routes/FermetureCaisse.routes'));
 app.use('/api/compare-schemas', compareSchemasRoutes);
 app.use('/api/dbconfig', dbConfigRoutes);
 app.use('/api/sync-config', syncConfigRoutes);
+app.use('/factures', express.static(path.join(__dirname, '../factures')));
 
 
 
