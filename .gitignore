@@ -11,11 +11,7 @@ electron-app/node_modules
 # testing
 /coverage
 
-# Ignorer tous les fichiers dans database/
-database/*
 
-# MAIS ne pas ignorer le fichier .keep
-!database/.keep
 
 # production
 /build
