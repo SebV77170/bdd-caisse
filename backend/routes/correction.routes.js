@@ -173,13 +173,21 @@ console.log(req.body);
 
     // --- PARTIE NOUVEAU TICKET CORRIGÉ ---
 
+    let paiementType = "mixte";
+if (paiements.length === 1) {
+  paiementType = paiements[0]?.moyen || null;
+} else if (paiements.length === 0) {
+  paiementType = null;
+}
+
+
     const uuid_ticket_corrige = uuidv4();
     const correc = sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, nom_vendeur, id_vendeur, nbr_objet, prix_total, moyen_paiement,
-        reducbene, reducclient, reducgrospanierclient, reducGrosPanierBene, uuid_ticket, uuid_session_caisse
+        reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_ticket, uuid_session_caisse
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
-    `).run(now, utilisateur, id_vendeur, articles_correction_sans_reduction.length, prixTotal, 'mixte', // Toujours 'mixte' si la correction utilise plusieurs paiements
+    `).run(now, utilisateur, id_vendeur, articles_correction_sans_reduction.length, prixTotal, paiementType, 
       reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, uuid_ticket_corrige, uuid_session_caisse);
     const id_corrige = correc.lastInsertRowid;
 
@@ -192,7 +200,7 @@ console.log(req.body);
       id_vendeur,
       date_achat_dt: now,
       nbr_objet: articles_correction_sans_reduction.length,
-      moyen_paiement: 'mixte', // Moyen de paiement du nouveau ticket
+      moyen_paiement: paiementType, // Moyen de paiement du nouveau ticket
       prix_total: prixTotal,
       reducbene: reducBene,
       reducclient: reducClient,
