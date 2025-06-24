@@ -75,25 +75,25 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
     isSameDay(new Date(ticket.date_achat_dt), filtreDate)
   );
 
-  const chargerObjets = (id_ticket) => {
-    if (details[id_ticket]) {
-      setTicketActif(ticketActif === id_ticket ? null : id_ticket);
+  const chargerObjets = (uuid_ticket) => {
+    if (details[uuid_ticket]) {
+      setTicketActif(ticketActif === uuid_ticket ? null : uuid_ticket);
       return;
     }
 
-    fetch(`http://localhost:3001/api/bilan/${id_ticket}/details`)
+    fetch(`http://localhost:3001/api/bilan/${uuid_ticket}/details`)
       .then(res => res.json())
       .then(data => {
-        setDetails(prev => ({ ...prev, [id_ticket]: data }));
-        setTicketActif(id_ticket);
+        setDetails(prev => ({ ...prev, [uuid_ticket]: data }));
+        setTicketActif(uuid_ticket);
       })
       .catch(err => console.error('Erreur chargement détails ticket:', err));
   };
 
-  const supprimerTicket = async (id_ticket) => {
+  const supprimerTicket = async (uuid_ticket) => {
     if (!window.confirm("Confirmer la suppression de ce ticket ?")) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/correction/${id_ticket}/supprimer`, {
+      const res = await fetch(`http://localhost:3001/api/correction/${uuid_ticket}/supprimer`, {
         method: 'POST'
       });
       const result = await res.json();
@@ -142,13 +142,13 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
             </thead>
             <tbody>
               {ticketsFiltres.map((ticket) => (
-                <React.Fragment key={ticket.id_ticket}>
+                <React.Fragment key={ticket.uuid_ticket}>
                   <tr
-                    onClick={() => chargerObjets(ticket.id_ticket)}
+                    onClick={() => chargerObjets(ticket.uuid_ticket)}
                     style={{ cursor: 'pointer' }}
-                    className={ticketActif === ticket.id_ticket ? 'table-active' : ''}
+                    className={ticketActif === ticket.uuid_ticket ? 'table-active' : ''}
                   >
-                    <td>{ticket.id_ticket}</td>
+                    <td>{ticket.id_friendly}</td>
                     <td>{ticket.nom_vendeur || '—'}</td>
                     <td>{new Date(ticket.date_achat_dt).toLocaleString()}</td>
                     <td>{ticket.moyen_paiement || '—'}</td>
@@ -159,11 +159,11 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
                     </td>
                     <td>{aReduction(ticket) ? '✅' : '—'}</td>
                     <td>
-                      {ticket.flag_correction ? (
-                        <span className="badge bg-danger">Annulation de #{ticket.annulation_de}</span>
+                      {ticket.flag_annulation ? (
+                        <span className="badge bg-danger">Annulation de #{ticket.id_friendly_annule}</span>
                       ) : ticket.corrige_le_ticket ? (
-                        <span className="badge bg-info text-dark">Correction de #{ticket.correction_de}</span>
-                      ) : ticket.correction_de ? (
+                        <span className="badge bg-info text-dark">Correction de #{ticket.id_friendly_corrige}</span>
+                      ) : ticket.annulation_de ? (
                         <span className="badge bg-warning text-dark">Correctif</span>
                       ) : ticket.cloture === 1 ? (
                         <span className="badge bg-success text-white">Cloture Caisse</span>
@@ -172,13 +172,13 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
                       )}
                     </td>
                     <td>
-                      {!ticket.flag_correction && !ticket.ticket_corrige && !ticket.cloture &&  (
+                      {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&  (
                         <Button
                           variant="outline-danger"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            supprimerTicket(ticket.id_ticket);
+                            supprimerTicket(ticket.uuid_ticket);
                           }}
                         >
                           ✖
@@ -213,17 +213,21 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
                     </td>
                   </tr>
 
-                  {ticketActif === ticket.id_ticket && details[ticket.id_ticket] && (
+                  {ticketActif === ticket.uuid_ticket && details[ticket.uuid_ticket] && (
                     <tr>
                       <td colSpan="8">
-                        <TicketDetail id_ticket={ticket.id_ticket} />
-                        {!ticket.flag_correction && !ticket.ticket_corrige && (
+<TicketDetail
+  uuid_ticket={ticket.uuid_ticket}
+  id_friendly_annule={ticket.id_friendly_annule}
+  id_friendly_corrige={ticket.id_friendly_corrige}
+/>
+                        {!ticket.flag_annulation && !ticket.ticket_corrige && (
                           <Button
                             variant="outline-warning"
                             size="sm"
                             className="mt-2"
                             onClick={() => {
-                              setTicketPourCorrection(details[ticket.id_ticket]);
+                              setTicketPourCorrection(details[ticket.uuid_ticket]);
                               setShowCorrection(true);
                             }}
                           >

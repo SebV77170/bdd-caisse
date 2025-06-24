@@ -50,7 +50,7 @@ describe('Test modification des moyens de paiement et mise à jour du bilan', ()
       const idTicket = result.lastInsertRowid;
 
       const insertArticle = sqlite.prepare(`
-        INSERT INTO objets_vendus (id_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp)
+        INSERT INTO objets_vendus (uuid_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const a of articles) {
@@ -62,7 +62,7 @@ describe('Test modification des moyens de paiement et mise à jour du bilan', ()
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(date, timestamp, 1, 0, prixTotal, 0, 0, prixTotal, 0);
 
-      const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idTicket);
+      const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idTicket);
 
       const res = await request(app).post('/api/correction').send({
         id_ticket_original: idTicket,
@@ -93,7 +93,7 @@ describe('Test modification des moyens de paiement et mise à jour du bilan', ()
     const idTicket = result.lastInsertRowid;
 
     const insertArticle = sqlite.prepare(`
-      INSERT INTO objets_vendus (id_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp)
+      INSERT INTO objets_vendus (uuid_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const a of articles) {
@@ -105,7 +105,7 @@ describe('Test modification des moyens de paiement et mise à jour du bilan', ()
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(date, timestamp, 1, 0, prixTotal, 0, 0, prixTotal, 0);
 
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idTicket);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idTicket);
 
     const paiements = [
       { moyen: 'espèce', montant: 500 },

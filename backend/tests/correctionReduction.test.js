@@ -43,7 +43,7 @@ describe('Test complet des corrections avec bilan', () => {
 
     const insertArticle = sqlite.prepare(`
       INSERT INTO objets_vendus (
-        id_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp
+        uuid_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -67,7 +67,7 @@ describe('Test complet des corrections avec bilan', () => {
   });
 
   it('Corrige la vente avec réduction bénévole', async () => {
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idOriginal);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idOriginal);
 
     const res = await request(app).post('/api/correction').send({
       id_ticket_original: idOriginal,
@@ -88,7 +88,7 @@ describe('Test complet des corrections avec bilan', () => {
   });
 
   it('Corrige à réduction client', async () => {
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idCorrection1);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idCorrection1);
 
     const res = await request(app).post('/api/correction').send({
       id_ticket_original: idCorrection1,
@@ -109,7 +109,7 @@ describe('Test complet des corrections avec bilan', () => {
   });
 
   it('Corrige à réduction gros panier bénévole', async () => {
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idCorrection2);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idCorrection2);
 
     const res = await request(app).post('/api/correction').send({
       id_ticket_original: idCorrection2,
@@ -130,7 +130,7 @@ describe('Test complet des corrections avec bilan', () => {
   });
 
   it('Corrige encore à réduction gros panier client', async () => {
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idCorrection3);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idCorrection3);
 
     const res = await request(app).post('/api/correction').send({
       id_ticket_original: idCorrection3,

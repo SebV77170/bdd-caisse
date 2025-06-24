@@ -37,7 +37,7 @@ describe('Test modification prix article et mise à jour bilan', () => {
 
     const insertArticle = sqlite.prepare(`
       INSERT INTO objets_vendus (
-        id_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp
+        uuid_ticket, nom, prix, nbr, categorie, nom_vendeur, id_vendeur, date_achat, timestamp
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const a of articles) {
@@ -55,7 +55,7 @@ describe('Test modification prix article et mise à jour bilan', () => {
   });
 
   it('Corrige le prix d’un article et met à jour le bilan', async () => {
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(idTicket);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(idTicket);
 
     // Changement : Produit X passe de 1000 à 1500
     const articlesModifies = [

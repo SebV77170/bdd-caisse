@@ -15,6 +15,8 @@ router.post('/', async (req, res) => {
       'paiement_mixte',
       'ticketdecaisse',
       'ticketdecaissetemp',
+      'uuid_mapping',
+      'vente',
       'sync_log'
     ];
 
@@ -24,6 +26,8 @@ router.post('/', async (req, res) => {
       'objets_vendus',
       'paiement_mixte',
       'ticketdecaisse',
+      'uuid_mapping',
+      'vente',
       'ticketdecaissetemp'
     ];
 

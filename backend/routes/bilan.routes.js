@@ -4,6 +4,8 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const getBilanSession = require('../utils/bilanSession');
 const getBilanReductionsSession = require('../utils/bilanReductionsSession');
+const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
+
 
 // Route GET : liste de tous les tickets avec indication de correction
 router.get('/', (req, res) => {
@@ -11,17 +13,39 @@ router.get('/', (req, res) => {
     const tickets = sqlite.prepare(`
       SELECT
         t.*,
-        jc_annul.id_ticket_original AS annulation_de,
-        jc_corr.id_ticket_original  AS correction_de,
+        um.id_friendly AS id_friendly,
+
+        -- Si ce ticket est une annulation
+        jc_annul.uuid_ticket_original AS annulation_de,
+        um_annule.id_friendly AS id_friendly_annule,
+
+        -- Si ce ticket est une correction
+        jc_corr.uuid_ticket_original AS annulation_de,
+        um_corrige.id_friendly AS id_friendly_corrige,
+
+        -- Si ce ticket a été corrigé par un autre
         EXISTS (
-          SELECT 1 FROM journal_corrections jc WHERE jc.id_ticket_original = t.id_ticket
+          SELECT 1 FROM journal_corrections jc WHERE jc.uuid_ticket_original = t.uuid_ticket
         ) AS ticket_corrige,
+
+        -- Si ce ticket est une correction d’un autre
         EXISTS (
-          SELECT 1 FROM journal_corrections jc WHERE jc.id_ticket_correction = t.id_ticket
+          SELECT 1 FROM journal_corrections jc WHERE jc.uuid_ticket_correction = t.uuid_ticket
         ) AS est_correction
+
       FROM ticketdecaisse t
-      LEFT JOIN journal_corrections jc_annul ON jc_annul.id_ticket_annulation = t.id_ticket
-      LEFT JOIN journal_corrections jc_corr  ON jc_corr.id_ticket_correction  = t.id_ticket
+
+      -- Friendly ID du ticket principal
+      LEFT JOIN uuid_mapping um ON um.uuid = t.uuid_ticket
+
+      -- Annulation : ce ticket est une annulation d’un autre
+      LEFT JOIN journal_corrections jc_annul ON jc_annul.uuid_ticket_annulation = t.uuid_ticket
+      LEFT JOIN uuid_mapping um_annule ON um_annule.uuid = jc_annul.uuid_ticket_original
+
+      -- Correction : ce ticket est une correction d’un autre
+      LEFT JOIN journal_corrections jc_corr ON jc_corr.uuid_ticket_correction = t.uuid_ticket
+      LEFT JOIN uuid_mapping um_corrige ON um_corrige.uuid = jc_corr.uuid_ticket_original
+
       ORDER BY t.id_ticket DESC
     `).all();
 
@@ -32,11 +56,12 @@ router.get('/', (req, res) => {
   }
 });
 
+
 // Route GET : détail des objets d'un ticket
 router.get('/:id/objets', (req, res) => {
-  const id = req.params.id;
+  const uuid = req.params.uuid;
   try {
-    const lignes = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(id);
+    const lignes = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(id);
     res.json(lignes);
   } catch (err) {
     console.error('Erreur chargement objets_vendus :', err);
@@ -45,15 +70,15 @@ router.get('/:id/objets', (req, res) => {
 });
 
 // Route GET : détail complet d'un ticket, y compris paiements mixtes
-router.get('/:id/details', (req, res) => {
-  const id = req.params.id;
+router.get('/:uuid/details', (req, res) => {
+  const uuid = req.params.uuid;
   try {
-    const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE id_ticket = ?').get(id);
+    const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid);
     if (!ticket) return res.status(404).json({ error: 'Ticket non trouvé' });
 
-    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(id);
+    const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(uuid);
 
-    const paiementMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE id_ticket = ?').get(id);
+    const paiementMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE uuid_ticket = ?').get(uuid);
 
     res.json({ ticket, objets, paiementMixte });
   } catch (err) {

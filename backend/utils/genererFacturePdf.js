@@ -9,7 +9,7 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket);
       if (!ticket) return reject(new Error('Ticket introuvable'));
 
-      const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(ticket.id_ticket);
+      const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(ticket.id_ticket);
       const dir = path.join(__dirname, '../../factures');
       if (!fs.existsSync(dir)) fs.mkdirSync(dir);
       const pdfPath = path.join(dir, `Facture-${uuid_facture}.pdf`);

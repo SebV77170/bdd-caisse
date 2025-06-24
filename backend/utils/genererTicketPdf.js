@@ -8,7 +8,7 @@ function genererTicketPdf(uuid_ticket) {
     const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket);
     if (!ticket) return reject(new Error('Ticket introuvable'));
 
-    const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(ticket.id_ticket);
+    const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(ticket.uuid_ticket);
 
     const pdfPath = path.join(__dirname, `../../tickets/Ticket-${uuid_ticket}.pdf`);
     const doc = new PDFDocument();
@@ -30,7 +30,7 @@ function genererTicketPdf(uuid_ticket) {
     doc.moveDown();
     doc.text('Merci de votre visite !', { align: 'center' });
     doc.end();
-    doc.on('finish', () => resolve());
+    doc.on('finish', () => resolve(pdfPath));
     doc.on('error', err => reject(err));
   });
 }
