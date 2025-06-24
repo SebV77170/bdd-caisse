@@ -4,7 +4,7 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const getBilanSession = require('../utils/bilanSession');
 const getBilanReductionsSession = require('../utils/bilanReductionsSession');
-const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
+
 
 
 // Route GET : liste de tous les tickets avec indication de correction

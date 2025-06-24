@@ -18,7 +18,7 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
 
-      const logoPath = path.join(__dirname, '../../factures/logo.png');
+      const logoPath = path.join(__dirname, '../../images/logo.png');
 
       // --- HEADER ---
       if (fs.existsSync(logoPath)) {
