@@ -5,6 +5,8 @@ import ResetButton from '../components/ResetButton';
 import DevModeToggle from '../components/DevModeToggle';
 import ModeTactileToggle from '../components/ModeTactileToggle';
 import DevModeModal from '../components/DevModeModal';
+import { useContext } from 'react';
+import { DevModeContext } from '../contexts/DevModeContext';
 
 const Parametres = () => {
   const [interval, setIntervalValue] = useState('');
@@ -12,12 +14,8 @@ const Parametres = () => {
   const [message, setMessage] = useState('');
   const [showBoutons, setShowBoutons] = useState(false);
 
-  const [devMode, setDevMode] = useState(() => {
-    const saved = localStorage.getItem('devMode');
-    return saved ? JSON.parse(saved) : false;
-  });
-
   const [showPassModal, setShowPassModal] = useState(false);
+  const { devMode, setDevMode } = useContext(DevModeContext);
 
   useEffect(() => {
     fetch('http://localhost:3001/api/sync-config')

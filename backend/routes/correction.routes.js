@@ -9,6 +9,7 @@ const logSync = require('../logsync');
 const { v4: uuidv4 } = require('uuid');
 const genererTicketPdf = require('../utils/genererTicketPdf');
 const {genererFriendlyIds} = require('../utils/genererFriendlyIds');
+const { log } = require('console');
 
 router.post('/', (req, res) => {
   const user = session.getUser();
@@ -67,9 +68,7 @@ router.post('/', (req, res) => {
     if (totalAnnulation > 0) totalAnnulation = 0;
 
     const ticketOriginalData = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket_original);
-    if (!ticketOriginalData) {
-      throw new Error(`Ticket original #${uuid_ticket_original} introuvable pour correction.`);
-    }
+    if (!ticketOriginalData) throw new Error(`Ticket original #${uuid_ticket_original} introuvable pour correction.`);
 
     const paiementsOriginauxMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE uuid_ticket = ?').get(uuid_ticket_original);
 
@@ -100,23 +99,55 @@ router.post('/', (req, res) => {
     const uuid_ticket_annul = uuidv4();
     genererFriendlyIds(uuid_ticket_annul, 'annulation');
 
-    const annul = sqlite.prepare(`
+    sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, annulation_de, flag_annulation, nom_vendeur, id_vendeur,
         nbr_objet, prix_total, moyen_paiement, uuid_ticket, uuid_session_caisse
       ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
     `).run(now, uuid_ticket_original, utilisateur, id_vendeur, articles_sans_reduction.length, totalAnnulation, ticketOriginalData.moyen_paiement || 'mixte', uuid_ticket_annul, uuid_session_caisse);
-    const id_annul = uuid_ticket_annul;
+
+    logSync('ticketdecaisse', 'INSERT', {
+      uuid_ticket: uuid_ticket_annul,
+      date_achat_dt: now,
+      annulation_de: uuid_ticket_original,
+      flag_annulation: 1,
+      nom_vendeur: utilisateur,
+      id_vendeur,
+      nbr_objet: articles_sans_reduction.length,
+      prix_total: totalAnnulation,
+      moyen_paiement: ticketOriginalData.moyen_paiement || 'mixte',
+      uuid_session_caisse
+    });
 
     for (const art of articles_sans_reduction) {
       const uuid_objet = uuidv4();
-      insertArticle.run(id_annul, art.nom, art.prix, -(art.nbr), art.categorie, utilisateur, id_vendeur, now, timestamp, uuid_objet);
+      insertArticle.run(uuid_ticket_annul, art.nom, art.prix, -(art.nbr), art.categorie, utilisateur, id_vendeur, now, timestamp, uuid_objet);
+      logSync('objets_vendus', 'INSERT', {
+        uuid_ticket: uuid_ticket_annul,
+        nom: art.nom,
+        prix: art.prix,
+        nbr: -(art.nbr),
+        categorie: art.categorie,
+        nom_vendeur: utilisateur,
+        id_vendeur,
+        date_achat: now,
+        timestamp,
+        uuid_objet
+      });
     }
 
     sqlite.prepare(`
       INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id_annul, -pmAnnul.espece, -pmAnnul.carte, -pmAnnul.cheque, -pmAnnul.virement, uuid_ticket_annul);
+    `).run(uuid_ticket_annul, -pmAnnul.espece, -pmAnnul.carte, -pmAnnul.cheque, -pmAnnul.virement, uuid_ticket_annul);
+
+    logSync('paiement_mixte', 'INSERT', {
+      uuid_ticket: uuid_ticket_annul,
+      espece: -pmAnnul.espece,
+      carte: -pmAnnul.carte,
+      cheque: -pmAnnul.cheque,
+      virement: -pmAnnul.virement
+    });
 
     let paiementType = 'mixte';
     if (paiements.length === 1) paiementType = paiements[0]?.moyen || null;
@@ -125,18 +156,46 @@ router.post('/', (req, res) => {
     const uuid_ticket_corrige = uuidv4();
     genererFriendlyIds(uuid_ticket_corrige, 'correction');
 
-    const correc = sqlite.prepare(`
+    sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, nom_vendeur, id_vendeur, nbr_objet, prix_total, moyen_paiement,
         reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, flag_correction, corrige_le_ticket, uuid_ticket, uuid_session_caisse
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(now, utilisateur, id_vendeur, articles_correction_sans_reduction.length, prixTotal, paiementType,
       reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, 1, uuid_ticket_original, uuid_ticket_corrige, uuid_session_caisse);
-    const id_corrige = uuid_ticket_corrige;
+
+    logSync('ticketdecaisse', 'INSERT', {
+      uuid_ticket: uuid_ticket_corrige,
+      date_achat_dt: now,
+      nom_vendeur: utilisateur,
+      id_vendeur,
+      nbr_objet: articles_correction_sans_reduction.length,
+      prix_total: prixTotal,
+      moyen_paiement: paiementType,
+      reducbene: reducBene,
+      reducclient: reducClient,
+      reducgrospanierclient: reducGrosPanierClient,
+      reducgrospanierbene: reducGrosPanierBene,
+      flag_correction: 1,
+      corrige_le_ticket: uuid_ticket_original,
+      uuid_session_caisse
+    });
 
     for (const art of articles_correction_sans_reduction) {
       const uuid_objet = uuidv4();
-      insertArticle.run(id_corrige, art.nom, art.prix, art.nbr, art.categorie, utilisateur, id_vendeur, now, timestamp, uuid_objet);
+      insertArticle.run(uuid_ticket_corrige, art.nom, art.prix, art.nbr, art.categorie, utilisateur, id_vendeur, now, timestamp, uuid_objet);
+      logSync('objets_vendus', 'INSERT', {
+        uuid_ticket: uuid_ticket_corrige,
+        nom: art.nom,
+        prix: art.prix,
+        nbr: art.nbr,
+        categorie: art.categorie,
+        nom_vendeur: utilisateur,
+        id_vendeur,
+        date_achat: now,
+        timestamp,
+        uuid_objet
+      });
     }
 
     const pm = { espece: 0, carte: 0, cheque: 0, virement: 0 };
@@ -154,10 +213,17 @@ router.post('/', (req, res) => {
     sqlite.prepare(`
       INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id_corrige, pm.espece, pm.carte, pm.cheque, pm.virement, uuid_ticket_corrige);
+    `).run(uuid_ticket_corrige, pm.espece, pm.carte, pm.cheque, pm.virement, uuid_ticket_corrige);
+
+    logSync('paiement_mixte', 'INSERT', {
+      uuid_ticket: uuid_ticket_corrige,
+      espece: pm.espece,
+      carte: pm.carte,
+      cheque: pm.cheque,
+      virement: pm.virement
+    });
 
     const bilanExistant = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
-
     if (bilanExistant) {
       sqlite.prepare(`
         UPDATE bilan
@@ -175,6 +241,14 @@ router.post('/', (req, res) => {
         pmAnnul.virement, pm.virement,
         today
       );
+      logSync('bilan', 'UPDATE', {
+        date: today,
+        prix_total: prixTotal - ticketOriginalData.prix_total,
+        prix_total_espece: pm.espece - pmAnnul.espece,
+        prix_total_cheque: pm.cheque - pmAnnul.cheque,
+        prix_total_carte: pm.carte - pmAnnul.carte,
+        prix_total_virement: pm.virement - pmAnnul.virement
+      });
     } else {
       sqlite.prepare(`
         INSERT INTO bilan (
@@ -189,14 +263,33 @@ router.post('/', (req, res) => {
         pm.carte - pmAnnul.carte,
         pm.virement - pmAnnul.virement
       );
+      logSync('bilan', 'INSERT', {
+        date: today,
+        timestamp,
+        nombre_vente: 1,
+        poids: 0,
+        prix_total: prixTotal - ticketOriginalData.prix_total,
+        prix_total_espece: pm.espece - pmAnnul.espece,
+        prix_total_cheque: pm.cheque - pmAnnul.cheque,
+        prix_total_carte: pm.carte - pmAnnul.carte,
+        prix_total_virement: pm.virement - pmAnnul.virement
+      });
     }
 
     sqlite.prepare(`
       INSERT INTO journal_corrections (date_correction, uuid_ticket_original, uuid_ticket_annulation, uuid_ticket_correction, utilisateur, motif)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(now, uuid_ticket_original, id_annul, id_corrige, utilisateur, motif);
+    `).run(now, uuid_ticket_original, uuid_ticket_annul, uuid_ticket_corrige, utilisateur, motif);
+    logSync('journal_corrections', 'INSERT', {
+      date_correction: now,
+      uuid_ticket_original,
+      uuid_ticket_annulation: uuid_ticket_annul,
+      uuid_ticket_correction: uuid_ticket_corrige,
+      utilisateur,
+      motif
+    });
 
-    return { id_annul, id_corrige, uuid_ticket_annul, uuid_ticket_corrige };
+    return { id_annul: uuid_ticket_annul, id_corrige: uuid_ticket_corrige, uuid_ticket_annul, uuid_ticket_corrige };
   });
 
   try {

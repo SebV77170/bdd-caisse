@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import React, { useEffect, useState, createContext } from 'react';
+import React, { useEffect, useState, createContext, useContext } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { Navbar, Nav, Offcanvas } from 'react-bootstrap';
 import Caisse from './pages/Caisse';
@@ -14,6 +14,8 @@ import Parametres from './pages/Parametres';
 import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import 'react-toastify/dist/ReactToastify.css';
+import { DevModeContext } from './contexts/DevModeContext';
+
 
 const socket = io('http://localhost:3001');
 export const ModeTactileContext = createContext();
@@ -27,10 +29,7 @@ function App() {
     const saved = localStorage.getItem('modeTactile');
     return saved ? JSON.parse(saved) : false;
   });
-  const [devMode] = useState(() => {
-    const saved = localStorage.getItem('devMode');
-    return saved ? JSON.parse(saved) : false;
-  });
+  const { devMode, setDevMode } = useContext(DevModeContext);
   const [showMenu, setShowMenu] = useState(false);
   const [caisseOuverte, setCaisseOuverte] = useState(false);
   
@@ -58,10 +57,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem('modeTactile', JSON.stringify(modeTactile));
   }, [modeTactile]);
-
-  useEffect(() => {
-    localStorage.setItem('devMode', JSON.stringify(devMode));
-  }, [devMode]);
 
   useEffect(() => {
     const fetchBilan = () => {

@@ -56,6 +56,7 @@ function insertTicket({ uuid_ticket, vendeur, id_vendeur, date_achat, articles, 
     reductions.reducBene, reductions.reducClient,
     reductions.reducGrosPanierClient, reductions.reducGrosPanierBene, uuid_session_caisse
   ).lastInsertRowid;
+  
 }
 
 // Fonction pour insérer les articles vendus
@@ -176,6 +177,22 @@ router.post('/', async (req, res) => {
       reductions,
       uuid_session_caisse
     });
+    logSync('ticketdecaisse', 'INSERT', {
+      uuid_ticket,
+      nom_vendeur: vendeur,
+      id_vendeur,
+      date_achat_dt: date_achat,
+      nbr_objet: articles.length,
+      moyen_paiement: moyenGlobal,
+      prix_total: prixTotal,
+      lien: '',
+      reducbene: reductions.reducBene,
+      reducclient: reductions.reducClient,
+      reducgrospanierclient: reductions.reducGrosPanierClient,
+      reducgrospanierbene: reductions.reducGrosPanierBene,
+      uuid_session_caisse
+    });
+
 
     // Insertion des articles vendus
     insertArticles(uuid_ticket, articles, vendeur, id_vendeur, date_achat);
