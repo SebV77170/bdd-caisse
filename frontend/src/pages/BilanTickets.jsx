@@ -221,7 +221,7 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
   id_friendly_annule={ticket.id_friendly_annule}
   id_friendly_corrige={ticket.id_friendly_corrige}
 />
-                        {!ticket.flag_annulation && !ticket.ticket_corrige && (
+                        {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&(
                           <Button
                             variant="outline-warning"
                             size="sm"
