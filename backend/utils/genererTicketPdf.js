@@ -2,8 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
-const {getFriendlyIdFromUuid} = require('../utils/genererFriendlyIds');
-
+const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
 
 function genererTicketPdf(uuid_ticket) {
   return new Promise((resolve, reject) => {
@@ -14,10 +13,18 @@ function genererTicketPdf(uuid_ticket) {
 
       const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(uuid_ticket);
 
-      const dir = path.join(__dirname, '../../tickets');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      // --- Date et dossier par date ---
+      const date = new Date(ticket.date_achat_dt);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+
+      const dir = path.join(__dirname, `../../tickets/${yyyy}/${mm}/${dd}`);
+      fs.mkdirSync(dir, { recursive: true }); // ✅ Crée tous les dossiers si besoin
+
       const pdfPath = path.join(dir, `Ticket-${friendlyId}.pdf`);
 
+      // --- Création du PDF ---
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
@@ -29,7 +36,7 @@ function genererTicketPdf(uuid_ticket) {
         doc.image(logoPath, 50, 45, { width: 100 });
       }
       doc.fontSize(10);
-      doc.text(`Date : ${new Date(ticket.date_achat_dt).toLocaleDateString()}`, 400, 50);
+      doc.text(`Date : ${date.toLocaleDateString()}`, 400, 50);
       doc.text(`Ticket n° : ${friendlyId.slice(0, 8)}`, 400, 65);
 
       doc.moveDown(2);
@@ -41,7 +48,7 @@ function genererTicketPdf(uuid_ticket) {
         .text(`Vendeur : ${ticket.nom_vendeur}`)
         .text(`Mode de paiement : ${ticket.moyen_paiement}`);
 
-      // --- TABLE HEADER ALIGNÉ ---
+      // --- TABLE HEADER ---
       doc.moveDown(1);
       const startY = doc.y;
       doc.fontSize(11);
@@ -58,13 +65,12 @@ function genererTicketPdf(uuid_ticket) {
 
       articles.forEach(a => {
         const prix = a.prix / 100;
-        const total = (a.nbr * prix);
+        const total = a.nbr * prix;
         totalHT += total;
 
         const rowHeight = doc.heightOfString(a.nom, { width: colWidths.nom }) + 6;
 
         doc.rect(50, y - 2, 500, rowHeight + 2).strokeColor('#ccc').stroke();
-
         doc.fontSize(10).fillColor('black');
         doc.text(a.nom, 50 + 2, y, { width: colWidths.nom });
         doc.text(a.nbr.toString(), 250 + 2, y, { width: colWidths.qte, align: 'right' });
@@ -87,9 +93,9 @@ function genererTicketPdf(uuid_ticket) {
           width: 500,
           align: 'left'
         });
-      doc.fillColor('black');
 
       // --- PIED DE PAGE ---
+      doc.fillColor('black');
       doc.moveDown(3).fontSize(9);
       doc.text("Ressource’Brie", 50);
       doc.text("28 avenue Carnot");

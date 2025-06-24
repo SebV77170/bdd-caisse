@@ -1,10 +1,12 @@
 const { sqlite } = require('../db');
+const session = require('../session');
 
 function genererFriendlyIds(uuid, type = 'vente') {
   const prefixMap = {
     vente: 'T',
     correction: 'C',
-    annulation: 'A'
+    annulation: 'A',
+    session: 'S',
   };
 
   const prefix = prefixMap[type] || 'X';

@@ -3,6 +3,8 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const axios = require('axios');
+const { getFriendlyIdFromUuid } = require('./genererFriendlyIds');
+
 
 function formatMontant(cents) {
   return `${(cents / 100).toFixed(2)} €`;
@@ -10,6 +12,7 @@ function formatMontant(cents) {
 
 async function genererTicketCloturePdf(id_session) {
   const session = sqlite.prepare('SELECT * FROM session_caisse WHERE id_session = ?').get(id_session);
+  const friendlyId = getFriendlyIdFromUuid(id_session);
   if (!session) throw new Error('Session de caisse introuvable');
 
   // Récupération des montants attendus via la route HTTP
@@ -19,9 +22,19 @@ async function genererTicketCloturePdf(id_session) {
   const bilan = bilanResponse.data;
   console.log('Bilan récupéré pour la session', id_session, bilan);
 
-  const pdfPath = path.join(__dirname, `../../tickets/Cloture-${id_session}.pdf`);
-  const doc = new PDFDocument();
+  // --- Création du chemin par date ---
+  const date = new Date(session.date_fermeture);
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
 
+  const dir = path.join(__dirname, `../../tickets/${yyyy}/${mm}/${dd}`);
+  fs.mkdirSync(dir, { recursive: true });
+
+  const pdfPath = path.join(dir, `Cloture-${friendlyId}.pdf`);
+
+  // --- Création du PDF ---
+  const doc = new PDFDocument();
   doc.pipe(fs.createWriteStream(pdfPath));
 
   doc.fontSize(16).text("Clôture de caisse - Ressource'Brie", { align: 'center' });
@@ -73,7 +86,7 @@ async function genererTicketCloturePdf(id_session) {
 
   return new Promise((resolve, reject) => {
     doc.end();
-    doc.on('finish', () => resolve());
+    doc.on('finish', () => resolve(pdfPath)); // ✅ on renvoie le chemin du PDF
     doc.on('error', err => reject(err));
   });
 }

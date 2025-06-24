@@ -6,7 +6,9 @@ const { sqlite } = require('../db');
 const session = require('../session');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
-const logSync = require('../logSync');
+const logSync = require('../logsync');
+const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
+
 
 
 
@@ -53,6 +55,7 @@ if (!motDePasseValide) {
   const heure_ouverture = now.toTimeString().slice(0, 5);
 
   const id_session = uuidv4();
+  genererFriendlyIds(id_session, 'session');
   const caissiers = JSON.stringify([utilisateur.nom]);
 
   sqlite.prepare(`
