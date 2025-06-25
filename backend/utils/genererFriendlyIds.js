@@ -1,5 +1,6 @@
 const { sqlite } = require('../db');
 const session = require('../session');
+const { getConfig } = require('../storeConfig');
 
 function genererFriendlyIds(uuid, type = 'vente') {
   const prefixMap = {
@@ -37,7 +38,8 @@ function genererFriendlyIds(uuid, type = 'vente') {
     nextIdNum = parseInt(row.id_friendly.replace(prefix, '')) + 1;
   }
 
-  const idFriendly = `${prefix}${String(nextIdNum).padStart(5, '0')}`;
+  const { localName, registerNumber } = getConfig();
+  const idFriendly = `${prefix}${String(nextIdNum).padStart(5, '0')}-${localName}-${registerNumber}`;
 
   // Insertion dans la table
   sqlite.prepare(`
@@ -57,4 +59,5 @@ function getFriendlyIdFromUuid(uuid) {
   return row ? row.id_friendly : null;
 }
 
-module.exports = {genererFriendlyIds, getFriendlyIdFromUuid};
+module.exports = { genererFriendlyIds, getFriendlyIdFromUuid };
+
