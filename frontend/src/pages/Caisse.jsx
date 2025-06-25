@@ -8,6 +8,7 @@ import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
 import { toast, ToastContainer } from 'react-toastify';
 import { useLocation } from 'react-router-dom';
+import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
 function Caisse() {
   const [boutons, setBoutons] = useState({});
@@ -17,6 +18,7 @@ function Caisse() {
   const [ventes, setVentes] = useState([]);
   const [venteActive, setVenteActive] = useState(null);
   const [ouvert, setOuvert] = useState(false);
+  const { sessionCaisseOuverte } = useSessionCaisse();
 
   useEffect(() => {
     fetch('http://localhost:3001/api/produits/organises')
@@ -125,6 +127,16 @@ function Caisse() {
   };
 
   const totalTicket = ticketModif.reduce((sum, item) => sum + item.prixt, 0);
+
+  if (!sessionCaisseOuverte) {
+    return (
+      <div className="d-flex justify-content-center align-items-center h-100">
+        <h1 className="display-4 text-center">
+          caisse fermée, merci d'ouvrir une session caisse dans le menu, svp
+        </h1>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid p-0 h-100 d-flex flex-column overflow-hidden">
