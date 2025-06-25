@@ -15,7 +15,7 @@ function logSync(type, operation, data) {
       VALUES (?, ?, ?)
     `).run(type, operation, payload);
 
-    console.log(`✅ Sync log enregistré : ${type} ${operation}`);
+    
   } catch (err) {
     console.error(`❌ Erreur logSync [${type} - ${operation}] :`, err.message);
   }

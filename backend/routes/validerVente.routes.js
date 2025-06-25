@@ -33,14 +33,22 @@ const transporter = nodemailer.createTransport({
 
 // Fonction de normalisation des moyens de paiement
 const normalizePaymentMethod = (moyen) => {
-  const map = {
-    'espèces': 'espece', 'espèce': 'espece',
-    'carte': 'carte',
-    'chèque': 'cheque', 'chéque': 'cheque', 'cheque': 'cheque',
-    'virement': 'virement'
+  const mapping = {
+    carte: 'carte',
+    cb: 'carte',
+    'cb visa': 'carte',
+    'cb_visa': 'carte',
+    espece: 'espèce',
+    'espèce': 'espèce',
+    cash: 'espèce',
+    cheque: 'chèque',
+    chèque: 'chèque',
+    virement: 'virement',
   };
-  return map[moyen.toLowerCase()] || null;
+
+  return mapping[moyen.toLowerCase()] || moyen; // ou garde 'carte' par défaut si tu veux
 };
+
 
 // Fonction pour insérer un ticket de caisse
 function insertTicket({ uuid_ticket, vendeur, id_vendeur, date_achat, articles, moyenGlobal, prixTotal, reductions, uuid_session_caisse }) {
@@ -163,7 +171,7 @@ router.post('/', async (req, res) => {
     };
 
     // Détermination du moyen de paiement global
-    const moyenGlobal = paiements.length > 1 ? 'mixte' : paiements[0].moyen;
+const moyenGlobal = paiements.length > 1 ? 'mixte' : normalizePaymentMethod(paiements[0].moyen);
 
     // Insertion du ticket de caisse
     id_ticket = insertTicket({
@@ -294,7 +302,6 @@ router.post('/', async (req, res) => {
         await sendTicketEmail(email, pdfPath, uuid_ticket);
       }
 
-      console.log(`✅ Ticket PDF généré et éventuellement envoyé pour ${uuid_ticket}`);
     } catch (err) {
       console.error(`⚠️ Erreur génération ou envoi PDF pour ${uuid_ticket} :`, err);
     }

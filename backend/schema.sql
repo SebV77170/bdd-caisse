@@ -1,68 +1,68 @@
 CREATE TABLE IF NOT EXISTS boutons_ventes (
-	id_bouton int NOT NULL,
-	sous_categorie varchar(34),
-	nom varchar(66),
-	id_cat varchar(6),
-	id_souscat int,
-	prix varchar(4)
+	id_bouton INT NOT NULL,
+	sous_categorie VARCHAR(34),
+	nom VARCHAR(66),
+	id_cat VARCHAR(6),
+	id_souscat INT,
+	prix VARCHAR(4)
 );
 
 CREATE TABLE IF NOT EXISTS categories (
-	id int NOT NULL,
-	parent_id varchar(255),
-	category varchar(255),
-	color varchar(255)
+	id INT NOT NULL,
+	parent_id VARCHAR(255),
+	category VARCHAR(255),
+	color VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS compte_transac (
 	date_transac TIMESTAMP(10) NOT NULL,
-	compte int NOT NULL
+	compte INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS facture (
-	uuid_facture int NOT NULL,
-	uuid_ticket int NOT NULL,
+	uuid_facture INT NOT NULL,
+	uuid_ticket INT NOT NULL,
 	lien TEXT
 );
 
 CREATE TABLE IF NOT EXISTS modifticketdecaisse (
-	id_modif int NOT NULL,
-	id_ticket int NOT NULL,
-	nom_vendeur varchar(255),
-	id_vendeur int NOT NULL,
+	id_modif INT NOT NULL,
+	id_ticket INT NOT NULL,
+	nom_vendeur VARCHAR(255),
+	id_vendeur INT NOT NULL,
 	date_achat_dt TIMESTAMP,
-	nbr_objet int NOT NULL,
+	nbr_objet INT NOT NULL,
 	moyen_paiement TEXT,
 	num_cheque TEXT,
-	banque varchar(255),
-	num_transac varchar(255),
-	prix_total int NOT NULL,
+	banque VARCHAR(255),
+	num_transac VARCHAR(255),
+	prix_total INT NOT NULL,
 	lien TEXT,
-	reducbene tinyint,
-	reducclient tinyint,
-	reducgrospanierclient tinyint,
-	reducgrospanierbene tinyint
+	reducbene TINYINT,
+	reducclient TINYINT,
+	reducgrospanierclient TINYINT,
+	reducgrospanierbene TINYINT
 );
 
 CREATE TABLE IF NOT EXISTS paiement_mixte_modif (
-	id_paiement_mixte_modif int NOT NULL,
-	id_paiement_mixte int NOT NULL,
-	id_ticket int NOT NULL,
-	espece int NOT NULL,
-	carte int NOT NULL,
-	cheque int NOT NULL,
-	virement int
+	id_paiement_mixte_modif INT NOT NULL,
+	id_paiement_mixte INT NOT NULL,
+	id_ticket INT NOT NULL,
+	espece INT NOT NULL,
+	carte INT NOT NULL,
+	cheque INT NOT NULL,
+	virement INT
 );
 
 CREATE TABLE IF NOT EXISTS users (
-	id int NOT NULL,
-	prenom varchar(255),
-	nom varchar(255),
-	pseudo varchar(255),
+	id INT NOT NULL,
+	prenom VARCHAR(255),
+	nom VARCHAR(255),
+	pseudo VARCHAR(255),
 	password TEXT,
-	admin tinyint NOT NULL,
-	mail varchar(255),
-	tel varchar(255)
+	admin TINYINT NOT NULL,
+	mail VARCHAR(255),
+	tel VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS vente (
@@ -105,12 +105,13 @@ CREATE TABLE IF NOT EXISTS ticketdecaisse (
 	corrige_le_ticket INTEGER,
 	uuid_ticket TEXT,
 	cloture INTEGER,
-	uuid_session_caisse INTEGER
+	uuid_session_caisse INTEGER,
+	flag_correction INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS objets_vendus (
 	id_achat INTEGER PRIMARY KEY AUTOINCREMENT,
-	id_ticket INTEGER NOT NULL,
+	uuid_ticket INTEGER NOT NULL,
 	nom_vendeur VARCHAR,
 	id_vendeur INTEGER NOT NULL,
 	nom VARCHAR,
@@ -129,10 +130,10 @@ CREATE TABLE IF NOT EXISTS bilan (
 	timestamp INTEGER NOT NULL,
 	nombre_vente INTEGER NOT NULL,
 	poids INTEGER NOT NULL,
-	prix_total INTEGER NOT NULL,
-	prix_total_espece INTEGER NOT NULL,
-	prix_total_cheque INTEGER NOT NULL,
-	prix_total_carte INTEGER NOT NULL,
+	prix_total INTEGER,
+	prix_total_espece INTEGER,
+	prix_total_cheque INTEGER,
+	prix_total_carte INTEGER,
 	prix_total_virement INTEGER
 );
 
@@ -149,9 +150,9 @@ CREATE TABLE IF NOT EXISTS paiement_mixte (
 CREATE TABLE IF NOT EXISTS journal_corrections (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	date_correction TEXT,
-	id_ticket_original INTEGER,
-	id_ticket_annulation INTEGER,
-	id_ticket_correction INTEGER,
+	uuid_ticket_original INTEGER,
+	uuid_ticket_annulation INTEGER,
+	uuid_ticket_correction INTEGER,
 	utilisateur TEXT,
 	motif TEXT
 );
@@ -189,4 +190,10 @@ CREATE TABLE IF NOT EXISTS session_caisse (
 	montant_reel_carte INTEGER,
 	montant_reel_cheque INTEGER,
 	montant_reel_virement INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS uuid_mapping (
+	uuid TEXT PRIMARY KEY,
+	id_friendly TEXT UNIQUE,
+	type TEXT
 );
