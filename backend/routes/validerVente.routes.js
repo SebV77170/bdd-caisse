@@ -38,16 +38,18 @@ const normalizePaymentMethod = (moyen) => {
     cb: 'carte',
     'cb visa': 'carte',
     'cb_visa': 'carte',
-    espece: 'espèce',
-    'espèce': 'espèce',
-    cash: 'espèce',
-    cheque: 'chèque',
-    chèque: 'chèque',
+    espece: 'espece',
+    'espèce': 'espece',
+    'especes': 'espece',
+    cash: 'espece',
+    cheque: 'cheque',
+    chèque: 'cheque',
     virement: 'virement',
   };
 
-  return mapping[moyen.toLowerCase()] || moyen; // ou garde 'carte' par défaut si tu veux
+  return mapping[moyen.toLowerCase()] || moyen.toLowerCase();
 };
+
 
 
 // Fonction pour insérer un ticket de caisse
@@ -171,7 +173,7 @@ router.post('/', async (req, res) => {
     };
 
     // Détermination du moyen de paiement global
-const moyenGlobal = paiements.length > 1 ? 'mixte' : normalizePaymentMethod(paiements[0].moyen);
+    const moyenGlobal = paiements.length > 1 ? 'mixte' : normalizePaymentMethod(paiements[0].moyen);
 
     // Insertion du ticket de caisse
     id_ticket = insertTicket({
@@ -225,11 +227,12 @@ const moyenGlobal = paiements.length > 1 ? 'mixte' : normalizePaymentMethod(paie
     // Gestion des paiements (mixte ou non)
     const pm = { espece: 0, carte: 0, cheque: 0, virement: 0 };
     paiements.forEach(p => {
-      const key = normalizePaymentMethod(p.moyen);
+      const key = normalizePaymentMethod(p.moyen); // maintenant "espece" ou "cheque" bien mappé
       if (key && pm.hasOwnProperty(key)) pm[key] += p.montant;
     });
 
-    // Insertion dans la table paiement_mixte si nécessaire
+
+    // Insertion dans la table paiement_mixte
     if (prixTotal > 0) {
       sqlite.prepare(`
         INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)

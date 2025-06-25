@@ -37,24 +37,24 @@ router.post('/', (req, res) => {
     let articles_correction_sans_reduction = articles_correction.filter(a => a.categorie !== 'Réduction');
 
     let reductionArticle = null;
-    let reducBene = 0, reducClient = 0, reducGrosPanierClient = 0, reducGrosPanierBene = 0;
+    let reducbene = 0, reducclient = 0, reducgrospanierclient = 0, reducgrospanierbene = 0;
 
     if (reductionType === 'trueClient') {
       reductionArticle = { uuid_objet: uuidv4(), nom: 'Réduction Fidélité Client', prix: -500, nbr: 1, categorie: 'Réduction' };
-      reducClient = 1;
+      reducclient = 1;
     } else if (reductionType === 'trueBene') {
       reductionArticle = { uuid_objet: uuidv4(), nom: 'Réduction Fidélité Bénévole', prix: -1000, nbr: 1, categorie: 'Réduction' };
-      reducBene = 1;
+      reducbene = 1;
     } else if (reductionType === 'trueGrosPanierClient') {
       const montantAvantReduc = articles_correction_sans_reduction.reduce((sum, a) => sum + a.prix * a.nbr, 0);
       const reducMontant = Math.round(montantAvantReduc * 0.1);
       reductionArticle = { uuid_objet: uuidv4(), nom: 'Réduction Gros Panier Client (-10%)', prix: -reducMontant, nbr: 1, categorie: 'Réduction' };
-      reducGrosPanierClient = 1;
+      reducgrospanierclient = 1;
     } else if (reductionType === 'trueGrosPanierBene') {
       const montantAvantReduc = articles_correction_sans_reduction.reduce((sum, a) => sum + a.prix * a.nbr, 0);
       const reducMontant = Math.round(montantAvantReduc * 0.2);
       reductionArticle = { uuid_objet: uuidv4(), nom: 'Réduction Gros Panier Bénévole (-20%)', prix: -reducMontant, nbr: 1, categorie: 'Réduction' };
-      reducGrosPanierBene = 1;
+      reducgrospanierbene = 1;
     }
 
     if (reductionArticle) {
@@ -83,9 +83,9 @@ router.post('/', (req, res) => {
     } else if (ticketOriginalData.moyen_paiement) {
       const moyen = ticketOriginalData.moyen_paiement.toLowerCase();
       const prixTotalOriginal = ticketOriginalData.prix_total;
-      if (moyen === 'espèces') pmAnnul.espece = prixTotalOriginal;
+      if (moyen === 'especes') pmAnnul.espece = prixTotalOriginal;
       if (moyen === 'carte') pmAnnul.carte = prixTotalOriginal;
-      if (moyen === 'chèque') pmAnnul.cheque = prixTotalOriginal;
+      if (moyen === 'cheque') pmAnnul.cheque = prixTotalOriginal;
       if (moyen === 'virement') pmAnnul.virement = prixTotalOriginal;
     }
 
@@ -162,7 +162,7 @@ router.post('/', (req, res) => {
         reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, flag_correction, corrige_le_ticket, uuid_ticket, uuid_session_caisse
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(now, utilisateur, id_vendeur, articles_correction_sans_reduction.length, prixTotal, paiementType,
-      reducBene, reducClient, reducGrosPanierClient, reducGrosPanierBene, 1, uuid_ticket_original, uuid_ticket_corrige, uuid_session_caisse);
+      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, 1, uuid_ticket_original, uuid_ticket_corrige, uuid_session_caisse);
 
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_corrige,
@@ -172,10 +172,10 @@ router.post('/', (req, res) => {
       nbr_objet: articles_correction_sans_reduction.length,
       prix_total: prixTotal,
       moyen_paiement: paiementType,
-      reducbene: reducBene,
-      reducclient: reducClient,
-      reducgrospanierclient: reducGrosPanierClient,
-      reducgrospanierbene: reducGrosPanierBene,
+      reducbene: reducbene,
+      reducclient: reducclient,
+      reducgrospanierclient: reducgrospanierclient,
+      reducgrospanierbene: reducgrospanierbene,
       flag_correction: 1,
       corrige_le_ticket: uuid_ticket_original,
       uuid_session_caisse
@@ -200,7 +200,7 @@ router.post('/', (req, res) => {
 
     const pm = { espece: 0, carte: 0, cheque: 0, virement: 0 };
     const normalisation = {
-      'espèce': 'espece', 'espèces': 'espece', 'carte': 'carte',
+      'espece': 'espece', 'espèce': 'espece', 'especes': 'espece', 'espèces': 'espece', 'carte': 'carte',
       'chèque': 'cheque', 'chéque': 'cheque', 'cheque': 'cheque', 'virement': 'virement'
     };
     for (const p of paiements) {
