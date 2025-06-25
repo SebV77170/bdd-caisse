@@ -2,19 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function LoginPage() {
-  const [users, setUsers] = useState([]);
-  const [selected, setSelected] = useState('');
+  const [pseudo, setPseudo] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [sessionOuverte, setSessionOuverte] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/users')
-      .then(res => res.json())
-      .then(setUsers)
-      .catch(err => console.error('Erreur chargement utilisateurs:', err));
-
     fetch('http://localhost:3001/api/session/etat-caisse')
       .then(res => res.json())
       .then(data => setSessionOuverte(data.ouverte))
@@ -23,7 +17,7 @@ function LoginPage() {
 
   const handleLogin = async () => {
     setMessage('');
-    if (!selected || !password) {
+    if (!pseudo || !password) {
       setMessage('Tous les champs doivent être remplis');
       return;
     }
@@ -31,7 +25,7 @@ function LoginPage() {
       const res = await fetch('http://localhost:3001/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pseudo: selected, mot_de_passe: password })
+        body: JSON.stringify({ pseudo, mot_de_passe: password })
       });
       const data = await res.json();
       if (data.success) {
@@ -62,13 +56,14 @@ function LoginPage() {
 
   return (
     <div className="container mt-5">
-      <h2>{sessionOuverte ? 'Changement de caissier' : 'Connexion vendeur'}</h2>
-      <select className="form-select my-3" onChange={e => setSelected(e.target.value)} value={selected}>
-        <option value="">-- Choisir un vendeur --</option>
-        {users.map(u => (
-          <option key={u.id} value={u.pseudo}>{u.pseudo}</option>
-        ))}
-      </select>
+      <h2>{sessionOuverte ? 'Changement de caissier' : "Bonjour, qui est là aujourd'hui ?"}</h2>
+      <input
+        type="text"
+        className="form-control my-3"
+        placeholder="Pseudo"
+        value={pseudo}
+        onChange={e => setPseudo(e.target.value)}
+      />
       <input
         type="password"
         className="form-control mb-3"
