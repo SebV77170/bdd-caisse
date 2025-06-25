@@ -132,7 +132,7 @@ function Caisse() {
     return (
       <div className="d-flex flex-column justify-content-center align-items-center h-100">
         <h1 className="display-4 text-center">
-          caisse fermée, merci d'ouvrir une session caisse dans le menu, svp
+          Caisse fermée, merci d'ouvrir une session caisse, svp.
         </h1>
         <Link to="/ouverture-caisse" className="btn btn-primary mt-4">
           Ouvrir la caisse
