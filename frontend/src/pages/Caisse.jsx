@@ -7,7 +7,7 @@ import BoutonsCaisse from '../components/BoutonsCaisse';
 import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
 import { toast, ToastContainer } from 'react-toastify';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 
 function Caisse() {
@@ -130,10 +130,13 @@ function Caisse() {
 
   if (!sessionCaisseOuverte) {
     return (
-      <div className="d-flex justify-content-center align-items-center h-100">
+      <div className="d-flex flex-column justify-content-center align-items-center h-100">
         <h1 className="display-4 text-center">
           caisse fermée, merci d'ouvrir une session caisse dans le menu, svp
         </h1>
+        <Link to="/ouverture-caisse" className="btn btn-primary mt-4">
+          Ouvrir la caisse
+        </Link>
       </div>
     );
   }
