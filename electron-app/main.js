@@ -6,8 +6,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1419,
     height: 1066,
-    resizable: false,
-    frame: false,
+    resizable: true,
+    frame: true,
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js') // ✅ ajout ici
@@ -16,7 +16,7 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
   win.center();
-  win.webContents.openDevTools(); // ouvre les DevTools automatiquement
+  //win.webContents.openDevTools(); // ouvre les DevTools automatiquement
 
   const indexPath = path.resolve(__dirname, 'build', 'index.html');
   const devURL = 'http://localhost:3000';
