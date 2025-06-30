@@ -30,7 +30,7 @@ function getBilanReductionsSession(uuid_session_caisse) {
     SELECT id_ticket
     FROM ticketdecaisse
     WHERE uuid_session_caisse = ?
-      AND (flag_correction IS NULL OR flag_correction = 0)
+      AND (flag_annulation IS NULL OR flag_annulation = 0)
   `).all(uuid_session_caisse).map(row => row.id_ticket);
 
   // 2. Liste des tickets corrigés (tickets initiaux de la chaîne)
@@ -60,7 +60,7 @@ function getBilanReductionsSession(uuid_session_caisse) {
 
     const objets = sqlite.prepare(`
       SELECT * FROM objets_vendus
-      WHERE id_ticket = ? AND categorie = 'Réduction'
+      WHERE uuid_ticket = ? AND categorie = 'Réduction'
     `).all(idTicket);
 
     for (const obj of objets) {

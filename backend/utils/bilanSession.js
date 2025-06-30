@@ -3,7 +3,7 @@ const {sqlite} = require('../db'); // ajuste le chemin selon ta structure
 function getBilanSession(uuid_session_caisse) {
   return sqlite.prepare(`
     SELECT 
-      SUM(CASE WHEN t.corrige_le_ticket IS NULL AND t.correction_de IS NULL THEN 1 ELSE 0 END) AS nombre_ventes,
+      SUM(CASE WHEN t.corrige_le_ticket IS NULL AND t.annulation_de IS NULL THEN 1 ELSE 0 END) AS nombre_ventes,
       SUM(p.espece) AS prix_total_espece,
       SUM(p.carte) AS prix_total_carte,
       SUM(p.cheque) AS prix_total_cheque,

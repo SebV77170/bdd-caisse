@@ -218,7 +218,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
     }
 
     const body = {
-      id_ticket_original: ticketOriginal.ticket.id_ticket,
+      uuid_ticket_original: ticketOriginal.ticket.uuid_ticket,
       articles_origine: ticketOriginal.objets,
       articles_correction: corrections,
       motif,

@@ -1,30 +1,39 @@
 // ✅ Composant React : affichage d'un ticket avec paiements mixtes
 import React, { useEffect, useState } from 'react';
 
-function TicketDetail({ id_ticket }) {
+function TicketDetail({ uuid_ticket, id_friendly_annule, id_friendly_corrige }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    if (!id_ticket) return;
+    if (!uuid_ticket) return;
 
-    fetch(`http://localhost:3001/api/bilan/${id_ticket}/details`)
+    fetch(`http://localhost:3001/api/bilan/${uuid_ticket}/details`)
       .then(res => res.json())
       .then(setData)
       .catch(err => console.error('Erreur chargement détails ticket :', err));
-  }, [id_ticket]);
+  }, [uuid_ticket]);
 
-  if (!data) return <div>Chargement...</div>;
+  if (!uuid_ticket) return null;
+
+if (data === null) {
+  return <div>Chargement...</div>;
+}
+
+if (!data.ticket) {
+  return <div className="text-danger">⚠️ Ticket introuvable ou erreur de chargement.</div>;
+}
+
 
   const { ticket, objets, paiementMixte } = data;
 
   return (
     <div className="p-3 border bg-white rounded">
       <h4>Ticket #{ticket.id_ticket}</h4>
-      {ticket.flag_correction === 1 && ticket.correction_de && (
-        <p className="text-danger">⚠️ Ce ticket annule le ticket #{ticket.correction_de}</p>
+      {ticket.flag_annulation === 1 && ticket.annulation_de && (
+        <p className="text-danger">⚠️ Ce ticket annule le ticket #{id_friendly_annule || ticket.annulation_de}</p>
       )}
      {ticket.corrige_le_ticket && (
-        <p className="text-warning">✏️ Ce ticket corrige le ticket #{ticket.corrige_le_ticket}</p>
+        <p className="text-warning">✏️ Ce ticket corrige le ticket #{id_friendly_corrige || ticket.corrige_le_ticket}</p>
       )}
 
 

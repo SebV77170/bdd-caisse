@@ -2,23 +2,26 @@ const fs = require('fs');
 const path = require('path');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
+const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
+
 
 function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
   return new Promise((resolve, reject) => {
     try {
       const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket);
+      const friendlyId = getFriendlyIdFromUuid(uuid_facture);
       if (!ticket) return reject(new Error('Ticket introuvable'));
 
-      const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE id_ticket = ?').all(ticket.id_ticket);
+      const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(ticket.uuid_ticket);
       const dir = path.join(__dirname, '../../factures');
       if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-      const pdfPath = path.join(dir, `Facture-${uuid_facture}.pdf`);
+      const pdfPath = path.join(dir, `Facture-${friendlyId}.pdf`);
 
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
 
-      const logoPath = path.join(__dirname, '../../factures/logo.png');
+      const logoPath = path.join(__dirname, '../../images/logo.png');
 
       // --- HEADER ---
       if (fs.existsSync(logoPath)) {
@@ -26,7 +29,7 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       }
       doc.fontSize(10);
       doc.text(`Date de facturation : ${new Date(ticket.date_achat_dt).toLocaleDateString()}`, 400, 50);
-      doc.text(`Facture n° : ${uuid_facture.slice(0, 8)}`, 400, 65);
+      doc.text(`Facture n° : ${friendlyId.slice(0, 8)}`, 400, 65);
 
       // --- CLIENT ---
       doc.moveDown(2);

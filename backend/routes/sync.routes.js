@@ -85,7 +85,7 @@ router.post('/', async (req, res) => {
         if (operation === 'INSERT') {
           await pool.query(`
             INSERT INTO objets_vendus
-            (id_ticket, uuid_objet, nom, nom_vendeur, id_vendeur, categorie, souscat, date_achat, timestamp, prix, nbr)
+            (uuid_ticket, uuid_objet, nom, nom_vendeur, id_vendeur, categorie, souscat, date_achat, timestamp, prix, nbr)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               payload.id_ticket,
