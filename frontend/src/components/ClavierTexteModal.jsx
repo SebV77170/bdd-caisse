@@ -3,14 +3,17 @@ import { Modal, Button } from 'react-bootstrap';
 
 function ClavierTexteModal({ show, onClose, onValider, initial = '' }) {
   const [value, setValue] = useState(initial);
+  const [isShift, setIsShift] = useState(true);
 
   const handleInput = (char) => {
     if (char === '←') {
-      setValue(prev => prev.slice(0, -1));
+      setValue((prev) => prev.slice(0, -1));
     } else if (char === 'SPACE') {
-      setValue(prev => prev + ' ');
+      setValue((prev) => prev + ' ');
+    } else if (char === 'CLEAR') {
+      setValue('');
     } else {
-      setValue(prev => prev + char);
+      setValue((prev) => prev + char);
     }
   };
 
@@ -18,63 +21,75 @@ function ClavierTexteModal({ show, onClose, onValider, initial = '' }) {
     onValider(value);
     onClose();
     setValue('');
+    setIsShift(true);
   };
+
+  const toggleShift = () => setIsShift((prev) => !prev);
+
+  const isEmail = (char) => ['gmail.com', 'orange.fr', 'free.fr', 'yahoo.fr', 'hotmail.fr'].includes(char);
 
   const rows = [
     ['1','2','3','4','5','6','7','8','9','0'],
-    ['A','Z','E','R','T','Y','U','I','O','P'],
-    ['Q','S','D','F','G','H','J','K','L','M'],
-    ['W','X','C','V','B','N'],
+    ['a','z','e','r','t','y','u','i','o','p'],
+    ['q','s','d','f','g','h','j','k','l','m'],
+    ['⇧','w','x','c','v','b','n','←'],
     ['@','.',';',':','!','?'],
-    ['gmail.com','orange.fr','free.fr','yahoo.fr','hotmail.fr']
+    ['gmail.com','orange.fr','free.fr','yahoo.fr','hotmail.fr'],
   ];
 
+  const transformChar = (char) => {
+    if (char === '⇧' || char === '←') return char;
+    return /^[a-zA-Z]$/.test(char)
+      ? isShift ? char.toUpperCase() : char.toLowerCase()
+      : char;
+  };
+
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal show={show} onHide={onClose} centered size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>Saisie</Modal.Title>
+        <Modal.Title>Clavier tactile</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <div className="display-6 text-center mb-2">{value || ' '}</div>
-        {rows.map((row, idx) => (
-          <div key={idx} className="d-flex justify-content-center mb-1">
-            {row.map(char => (
-  <Button
-    key={char}
-    className={`m-1 ${idx === 5 ? 'btn-sm rounded-pill px-3' : ''}`}
-    variant="outline-primary"
-    style={idx !== 5 ? { width: 45 } : undefined}
-    onClick={() => handleInput(char)}
-  >
-    {char}
-  </Button>
-))}
+        <div className="display-6 text-center mb-3 border p-2 rounded bg-light">{value || ' '}</div>
 
-            
+        {rows.map((row, idx) => (
+          <div key={idx} className="d-flex justify-content-center mb-2 flex-wrap">
+            {row.map((char) => (
+              <Button
+                key={char}
+                className="m-1"
+                variant="outline-primary"
+                style={{
+                  width: isEmail(char) ? 110 : 45,
+                  textTransform: 'none',
+                }}
+                onClick={() => {
+                  if (char === '⇧') toggleShift();
+                  else handleInput(transformChar(char));
+                }}
+              >
+                {transformChar(char)}
+              </Button>
+            ))}
           </div>
         ))}
-        <div className="d-flex justify-content-center">
-          <Button
-            className="m-1"
-            variant="outline-primary"
-            style={{ width: 90 }}
-            onClick={() => handleInput('SPACE')}
-          >
+
+        <div className="d-flex justify-content-center flex-wrap">
+          <Button className="m-1" variant="outline-secondary" style={{ width: 90 }} onClick={() => handleInput('SPACE')}>
             Espace
           </Button>
-          <Button
-            className="m-1"
-            variant="outline-primary"
-            style={{ width: 45 }}
-            onClick={() => handleInput('←')}
-          >
-            ←
+          <Button className="m-1" variant="outline-danger" style={{ width: 90 }} onClick={() => handleInput('CLEAR')}>
+            Effacer
           </Button>
         </div>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="success" onClick={valider}>Valider</Button>
-        <Button variant="secondary" onClick={onClose}>Annuler</Button>
+        <Button variant="success" onClick={valider}>
+          Valider
+        </Button>
+        <Button variant="secondary" onClick={onClose}>
+          Annuler
+        </Button>
       </Modal.Footer>
     </Modal>
   );

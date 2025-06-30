@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import TactileInput from './TactileInput';
+import TactileInput from '../components/TactileInput';
 import { ModeTactileContext } from '../App';
 
 function renderTactile(element) {
