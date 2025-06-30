@@ -1,7 +1,7 @@
 // ✅ Composant React : affichage d'un ticket avec paiements mixtes
 import React, { useEffect, useState } from 'react';
 
-function TicketDetail({ uuid_ticket, id_friendly_annule, id_friendly_corrige }) {
+function TicketDetail({ uuid_ticket,id_friendly, id_friendly_annule, id_friendly_corrige }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ if (!data.ticket) {
 
   return (
     <div className="p-3 border bg-white rounded">
-      <h4>Ticket #{ticket.id_ticket}</h4>
+      <h4>Ticket #{id_friendly}</h4>
       {ticket.flag_annulation === 1 && ticket.annulation_de && (
         <p className="text-danger">⚠️ Ce ticket annule le ticket #{id_friendly_annule || ticket.annulation_de}</p>
       )}
@@ -39,6 +39,18 @@ if (!data.ticket) {
 
       <p><strong>Date :</strong> {ticket.date_achat_dt}</p>
       <p><strong>Vendeur :</strong> {ticket.nom_vendeur}</p>
+
+      {(ticket.reducbene || ticket.reducclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene) && (
+  <p className="text-success">
+    <strong>Réduction appliquée :</strong>{' '}
+    {ticket.reducbene ? 'Fidélité Bénévole' :
+      ticket.reducclient ? 'Fidélité Client' :
+      ticket.reducgrospanierclient ? 'Gros Panier Client (-10%)' :
+      ticket.reducgrospanierbene ? 'Gros Panier Bénévole (-20%)' :
+      'Aucune'}
+  </p>
+)}
+
       <p><strong>Total :</strong> {(ticket.prix_total / 100).toFixed(2)} €</p>
       <p><strong>Mode de paiement :</strong> {ticket.moyen_paiement}</p>
 

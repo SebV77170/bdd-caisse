@@ -3,7 +3,7 @@ import { Modal, Button } from 'react-bootstrap';
 
 function ClavierTexteModal({ show, onClose, onValider, initial = '' }) {
   const [value, setValue] = useState(initial);
-  const [isShift, setIsShift] = useState(true);
+  const [isShift, setIsShift] = useState(false);
 
   const handleInput = (char) => {
     if (char === '←') {

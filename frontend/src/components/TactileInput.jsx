@@ -43,7 +43,7 @@ function TactileInput({
             show={show}
             onClose={() => setShow(false)}
             onValider={handleValider}
-            initial={displayValue.toString()}
+            initial=""
             isDecimal={true}
           />
         ) : (
@@ -51,7 +51,7 @@ function TactileInput({
             show={show}
             onClose={() => setShow(false)}
             onValider={handleValider}
-            initial={displayValue.toString()}
+            initial=""
           />
         )}
       </>

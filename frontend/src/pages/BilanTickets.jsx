@@ -12,8 +12,6 @@ import { useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import FactureModal from '../components/factureModal';
 
-
-
 const socket = io('http://localhost:3001');
 
 const BilanTickets = () => {
@@ -25,15 +23,13 @@ const BilanTickets = () => {
   const [showCorrection, setShowCorrection] = useState(false);
   const [ticketPourCorrection, setTicketPourCorrection] = useState(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
-const [ticketPourEmail, setTicketPourEmail] = useState(null);
-const [emailDestinataire, setEmailDestinataire] = useState('');
-const location = useLocation();
-const [showFactureModal, setShowFactureModal] = useState(false);
-const [ticketPourFacture, setTicketPourFacture] = useState(null);
-const [raisonSociale, setRaisonSociale] = useState('');
-const [adresseFacturation, setAdresseFacturation] = useState('');
-
-
+  const [ticketPourEmail, setTicketPourEmail] = useState(null);
+  const [emailDestinataire, setEmailDestinataire] = useState('');
+  const location = useLocation();
+  const [showFactureModal, setShowFactureModal] = useState(false);
+  const [ticketPourFacture, setTicketPourFacture] = useState(null);
+  const [raisonSociale, setRaisonSociale] = useState('');
+  const [adresseFacturation, setAdresseFacturation] = useState('');
 
   useEffect(() => {
     const fetchBilan = () => {
@@ -49,7 +45,6 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
         .catch(err => console.error('Erreur chargement tickets :', err));
     };
     fetchBilan();
-
 
     socket.on('ticketsmisajour', fetchBilan);
     return () => socket.off('ticketsmisajour');
@@ -105,25 +100,21 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
   };
 
   return (
-    
     <div className="bilan-scroll-container">
       <div className="container">
         <h2>Bilan des tickets de caisse</h2>
-
-<div className="my-4 p-3 border rounded bg-light shadow-sm">
-  <h5 className="mb-3 text-center">📅 Filtrer par date</h5>
-  <div className="d-flex justify-content-center">
-    <DatePicker
-      selected={filtreDate}
-      onChange={(date) => setFiltreDate(date)}
-      highlightDates={[{ 'react-datepicker__day--highlighted-custom': datesDisponibles }]}
-      inline
-      calendarClassName="border rounded"
-    />
-  </div>
-</div>
-
-
+        <div className="my-4 p-3 border rounded bg-light shadow-sm">
+          <h5 className="mb-3 text-center">📅 Filtrer par date</h5>
+          <div className="d-flex justify-content-center">
+            <DatePicker
+              selected={filtreDate}
+              onChange={(date) => setFiltreDate(date)}
+              highlightDates={[{ 'react-datepicker__day--highlighted-custom': datesDisponibles }]}
+              inline
+              calendarClassName="border rounded"
+            />
+          </div>
+        </div>
         {ticketsFiltres.length === 0 ? (
           <div className="alert alert-info mt-4">Aucun ticket pour la date sélectionnée.</div>
         ) : (
@@ -185,42 +176,40 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
                         </Button>
                       )}
                       <Button
-  variant="outline-secondary"
-  size="sm"
-  onClick={(e) => {
-    e.stopPropagation();
-    setTicketPourFacture(ticket);
-    setRaisonSociale('');
-    setAdresseFacturation('');
-    setShowFactureModal(true);
-  }}
->
-  📄
-</Button>
-
-
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTicketPourFacture(ticket);
+                          setRaisonSociale('');
+                          setAdresseFacturation('');
+                          setShowFactureModal(true);
+                        }}
+                      >
+                        📄
+                      </Button>
                       <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTicketPourEmail(ticket);
-                        setShowEmailModal(true);
-                      }}
-                    >
-                      ✉️
-                    </Button>
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTicketPourEmail(ticket);
+                          setShowEmailModal(true);
+                        }}
+                      >
+                        ✉️
+                      </Button>
                     </td>
                   </tr>
-
                   {ticketActif === ticket.uuid_ticket && details[ticket.uuid_ticket] && (
                     <tr>
                       <td colSpan="8">
-<TicketDetail
-  uuid_ticket={ticket.uuid_ticket}
-  id_friendly_annule={ticket.id_friendly_annule}
-  id_friendly_corrige={ticket.id_friendly_corrige}
-/>
+                        <TicketDetail
+                          uuid_ticket={ticket.uuid_ticket}
+                          id_friendly={ticket.id_friendly}
+                          id_friendly_annule={ticket.id_friendly_annule}
+                          id_friendly_corrige={ticket.id_friendly_corrige}
+                        />
                         {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&(
                           <Button
                             variant="outline-warning"
@@ -242,7 +231,6 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
             </tbody>
           </table>
         )}
-
         {ticketPourCorrection && (
           <CorrectionModal
             show={showCorrection}
@@ -256,83 +244,81 @@ const [adresseFacturation, setAdresseFacturation] = useState('');
         )}
       </div>
       {ticketPourEmail && (
-  <div className={`modal fade ${showEmailModal ? 'show d-block' : ''}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-    <div className="modal-dialog">
-      <div className="modal-content">
-        <div className="modal-header">
-          <h5 className="modal-title">Envoyer le ticket #{ticketPourEmail.id_ticket}</h5>
-          <button type="button" className="btn-close" onClick={() => setShowEmailModal(false)}></button>
+        <div className={`modal fade ${showEmailModal ? 'show d-block' : ''}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Envoyer le ticket #{ticketPourEmail.id_ticket}</h5>
+                <button type="button" className="btn-close" onClick={() => setShowEmailModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <label className="form-label">Adresse e-mail :</label>
+                <TactileInput
+                  type="email"
+                  className="form-control"
+                  value={emailDestinataire}
+                  onChange={(e) => setEmailDestinataire(e.target.value)}
+                  placeholder="exemple@domaine.com"
+                />
+              </div>
+              <div className="modal-footer">
+                {/* Bouton pour annuler l'envoi de l'email */}
+                <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
+                  Annuler
+                </Button>
+                {/* Bouton pour envoyer le ticket par email */}
+                <Button
+                  variant="primary"
+                  onClick={async () => {
+                    try {
+                      // Appel API pour envoyer le ticket par email
+                      const res = await fetch(
+                        `http://localhost:3001/api/envoieticket/${ticketPourEmail.uuid_ticket}/envoyer`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ email: emailDestinataire })
+                        }
+                      );
+                      const result = await res.json();
+                      if (result.success) {
+                        alert('Ticket envoyé !');
+                        setShowEmailModal(false);
+                      } else {
+                        alert('Échec de l\'envoi');
+                      }
+                    } catch (err) {
+                      alert('Erreur de communication');
+                      console.error(err);
+                    }
+                  }}
+                >
+                  Envoyer
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="modal-body">
-          <label className="form-label">Adresse e-mail :</label>
-          <TactileInput
-            type="email"
-            className="form-control"
-            value={emailDestinataire}
-            onChange={(e) => setEmailDestinataire(e.target.value)}
-            placeholder="exemple@domaine.com"
-          />
-        </div>
-        <div className="modal-footer">
-          {/* Bouton pour annuler l'envoi de l'email */}
-          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
-            Annuler
-          </Button>
-          {/* Bouton pour envoyer le ticket par email */}
-          <Button
-            variant="primary"
-            onClick={async () => {
-              try {
-                // Appel API pour envoyer le ticket par email
-                const res = await fetch(
-                  `http://localhost:3001/api/envoieticket/${ticketPourEmail.uuid_ticket}/envoyer`,
-                  {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: emailDestinataire })
-                  }
-                );
-                const result = await res.json();
-                if (result.success) {
-                  alert('Ticket envoyé !');
-                  setShowEmailModal(false);
-                } else {
-                  alert('Échec de l\'envoi');
-                }
-              } catch (err) {
-                alert('Erreur de communication');
-                console.error(err);
-              }
-            }}
-          >
-            Envoyer
-          </Button>
-        </div>
-      </div>
-    </div>
-  </div>
-  // Fin de la modale d'envoi d'email
-)}
-<ToastContainer position="top-center" autoClose={3000} />
-<FactureModal
-  show={showFactureModal}
-  onClose={() => setShowFactureModal(false)}
-  ticket={ticketPourFacture}
-  raisonSociale={raisonSociale}
-  adresseFacturation={adresseFacturation}
-  setRaisonSociale={setRaisonSociale}
-  setAdresseFacturation={setAdresseFacturation}
-  onSuccess={(lien) => {
-    setShowFactureModal(false);
-     // Attendre un petit délai que la modale soit fermée proprement
-     // Appel au backend Electron pour ouvrir le PDF
-  setTimeout(() => {
-    window.electron?.openPdf?.(lien); // 👈 ajout ici
-  }, 300);
-  }}
-/>
-
-
+        // Fin de la modale d'envoi d'email
+      )}
+      <ToastContainer position="top-center" autoClose={3000} />
+      <FactureModal
+        show={showFactureModal}
+        onClose={() => setShowFactureModal(false)}
+        ticket={ticketPourFacture}
+        raisonSociale={raisonSociale}
+        adresseFacturation={adresseFacturation}
+        setRaisonSociale={setRaisonSociale}
+        setAdresseFacturation={setAdresseFacturation}
+        onSuccess={(lien) => {
+          setShowFactureModal(false);
+          // Attendre un petit délai que la modale soit fermée proprement
+          // Appel au backend Electron pour ouvrir le PDF
+          setTimeout(() => {
+            window.electron?.openPdf?.(lien); // 👈 ajout ici
+          }, 300);
+        }}
+      />
     </div>
   );
 };

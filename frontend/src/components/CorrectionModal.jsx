@@ -384,14 +384,19 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
           </Form.Group>
 
           <Form.Group className="mt-3">
-            <Form.Label>Motif de correction</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              value={motif}
-              onChange={(e) => setMotif(e.target.value)}
-              placeholder="Exemple : erreur de quantité saisie par le bénévole"
-            />
+            
+            <Form.Group className="mt-3">
+  <Form.Label>Motif de correction</Form.Label>
+  <TactileInput
+    as="textarea"
+    rows={2}
+    className="form-control"
+    value={motif}
+    onChange={(e) => setMotif(e.target.value)}
+    placeholder="Exemple : erreur de quantité saisie par le caissier"
+  />
+</Form.Group>
+
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>

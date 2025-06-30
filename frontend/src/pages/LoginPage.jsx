@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import TactileInput from '../components/TactileInput';
+
 
 function LoginPage() {
   const [pseudo, setPseudo] = useState('');
@@ -56,15 +58,15 @@ function LoginPage() {
 
   return (
     <div className="container mt-5">
-      <h2>{sessionOuverte ? 'Changement de caissier' : "Bonjour, qui est là aujourd'hui ?"}</h2>
-      <input
+      <h2>{sessionOuverte ? 'Alors, on change de caissier, qui prend la place ?' : "Bonjour, qui est là aujourd'hui ?"}</h2>
+      <TactileInput
         type="text"
         className="form-control my-3"
         placeholder="Pseudo"
         value={pseudo}
         onChange={e => setPseudo(e.target.value)}
       />
-      <input
+      <TactileInput
         type="password"
         className="form-control mb-3"
         placeholder="Mot de passe"

@@ -132,6 +132,66 @@ describe('Tests de correction de ticket', () => {
     expect(bilan.prix_total_virement).toBe(0);
   });
 
+  test('Correction d’un ticket avec réduction bénévole initiale, suppression de la réduction', async () => {
+  // Création d'un ticket avec réduction bénévole
+  const uuid_ticket = 'uuid-bene';
+  const stmt = sqlite.prepare(`
+    INSERT INTO ticketdecaisse (
+      uuid_ticket, date_achat_dt, nom_vendeur, id_vendeur,
+      nbr_objet, prix_total, moyen_paiement, uuid_session_caisse,
+      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene
+    ) VALUES (?, datetime('now'), 'Testeur', 1, 2, 1000, 'carte', 'session-1', 1, 0, 0, 0)
+  `);
+  const result = stmt.run(uuid_ticket);
+  const id_ticket_original = result.lastInsertRowid;
+
+  sqlite.prepare(`
+    INSERT INTO objets_vendus (
+      uuid_ticket, nom, prix, nbr, categorie,
+      nom_vendeur, id_vendeur, date_achat, timestamp, uuid_objet
+    ) VALUES (?, ?, ?, ?, ?, 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
+  `).run(uuid_ticket, 'Produit A', 2000, 1, 'Test', 'uuid-article');
+
+  sqlite.prepare(`
+    INSERT INTO objets_vendus (
+      uuid_ticket, nom, prix, nbr, categorie,
+      nom_vendeur, id_vendeur, date_achat, timestamp, uuid_objet
+    ) VALUES (?, ?, ?, ?, ?, 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
+  `).run(uuid_ticket, 'Réduction Fidélité bénévole', 1000, -1, 'Réduction', 'uuid-reduc');
+
+  // Envoie de la correction SANS réduction
+  const res = await request(app).post('/api/correction').send({
+    id_ticket_original,
+    uuid_ticket_original: uuid_ticket,
+    uuid_session_caisse: 'session-1',
+    articles_origine: [
+      { nom: 'Produit A', prix: 2000, nbr: 1, categorie: 'Test' },
+      { nom: 'Réduction Fidélité bénévole', prix: 1000, nbr: -1, categorie: 'Réduction' }
+    ],
+    articles_correction: [
+      { nom: 'Produit A', prix: 1800, nbr: 1, categorie: 'Test' }
+    ],
+    reductionType: '', // pas de réduction appliquée
+    motif: 'Correction du prix',
+    paiements: [{ moyen: 'carte', montant: 1800 }]
+  });
+
+  expect(res.body.success).toBe(true);
+
+  const ticketCorr = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE flag_correction = 1').get();
+  expect(ticketCorr.reducbene).toBe(0);
+  expect(ticketCorr.prix_total).toBe(1800);
+
+  const lignesReduc = sqlite.prepare("SELECT * FROM objets_vendus WHERE uuid_ticket = ? AND categorie = 'Réduction'")
+    .all(ticketCorr.uuid_ticket);
+  expect(lignesReduc.length).toBe(0);
+
+  const bilan = sqlite.prepare('SELECT * FROM bilan').get();
+  expect(bilan.prix_total).toBe(1800);
+  expect(bilan.prix_total_carte).toBe(1800);
+});
+
+
   test('Échec de correction si ticket original introuvable', async () => {
     const res = await request(app).post('/api/correction').send({
       id_ticket_original: 999,
