@@ -63,19 +63,39 @@ function getMysqlPool() {
 }
 
 // Connexion SQLite
+
+
+const os = require('os');
+
+
 let db;
 
 if (process.env.NODE_ENV === 'test') {
   db = new Database(':memory:');
-  console.log('Connecté à SQLite en mémoire (tests isolés)');
+  console.log('✅ Connecté à SQLite en mémoire (mode test)');
 } else {
-  const dbPath = path.join(__dirname, '..', 'database', 'ressourcebrie-sqlite.db');
+  // 📁 Chemin vers le répertoire persistant de l'utilisateur
+  const userDataDir = path.join(os.homedir(), '.bdd-caisse');
+  const dbPath = path.join(userDataDir, 'ressourcebrie-sqlite.db');
+
+  // 📦 Si le fichier n'existe pas encore, on copie un modèle depuis l'app (template)
+  const templatePath = path.join(__dirname, '..', 'database', 'ressourcebrie-sqlite-template.db');
   if (!fs.existsSync(dbPath)) {
-    throw new Error(`Base de données SQLite introuvable à : ${dbPath}`);
+    fs.mkdirSync(userDataDir, { recursive: true });
+    if (fs.existsSync(templatePath)) {
+      fs.copyFileSync(templatePath, dbPath);
+      console.log('📂 Base initialisée depuis le modèle');
+    } else {
+      throw new Error(`⚠️ Fichier modèle introuvable à : ${templatePath}`);
+    }
   }
+
   db = new Database(dbPath);
-  console.log('Connecté à SQLite :', dbPath);
+  console.log('✅ Connecté à SQLite :', dbPath);
 }
+
+module.exports = db;
+
 
 module.exports = {
   sqlite: db,

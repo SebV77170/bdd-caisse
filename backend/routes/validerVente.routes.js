@@ -210,7 +210,7 @@ router.post('/', async (req, res) => {
     // Insertion de la ligne de réduction si besoin
     if (reduc.reduction > 0) {
       insertArticles(
-        id_ticket,
+        uuid_ticket,
         [{
           nom: `Réduction ${reduc.label}`,
           categorie: 'Réduction',

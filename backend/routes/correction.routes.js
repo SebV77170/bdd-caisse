@@ -8,13 +8,16 @@ const path = require('path');
 const logSync = require('../logsync');
 const { v4: uuidv4 } = require('uuid');
 const genererTicketPdf = require('../utils/genererTicketPdf');
-const {genererFriendlyIds} = require('../utils/genererFriendlyIds');
+const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const { log } = require('console');
 
+// Route principale pour corriger un ticket de caisse
 router.post('/', (req, res) => {
+  // Récupère l'utilisateur courant depuis la session
   const user = session.getUser();
   if (!user) return res.status(401).json({ error: 'Aucun utilisateur connecté' });
 
+  // Récupération des données de la requête
   const {
     id_ticket_original,
     uuid_ticket_original,
@@ -32,13 +35,16 @@ router.post('/', (req, res) => {
   const utilisateur = user.nom;
   const id_vendeur = user.id;
 
+  // Transaction SQLite pour garantir la cohérence des modifications
   const transaction = sqlite.transaction(() => {
+    // Préparation des articles sans réduction
     const articles_sans_reduction = [...articles_origine];
     let articles_correction_sans_reduction = articles_correction.filter(a => a.categorie !== 'Réduction');
 
     let reductionArticle = null;
     let reducbene = 0, reducclient = 0, reducgrospanierclient = 0, reducgrospanierbene = 0;
 
+    // Gestion des différents types de réduction
     if (reductionType === 'trueClient') {
       reductionArticle = { uuid_objet: uuidv4(), nom: 'Réduction Fidélité Client', prix: -500, nbr: 1, categorie: 'Réduction' };
       reducclient = 1;
@@ -57,19 +63,24 @@ router.post('/', (req, res) => {
       reducgrospanierbene = 1;
     }
 
+    // Ajoute l'article de réduction si nécessaire
     if (reductionArticle) {
       articles_correction_sans_reduction.push(reductionArticle);
     }
 
+    // Calcule le prix total après correction
     let prixTotal = articles_correction_sans_reduction.reduce((sum, a) => sum + a.prix * a.nbr, 0);
     if (prixTotal < 0) prixTotal = 0;
 
+    // Calcule le montant total à annuler
     let totalAnnulation = articles_sans_reduction.reduce((sum, a) => sum + a.prix * (-(a.nbr)), 0);
     if (totalAnnulation > 0) totalAnnulation = 0;
 
+    // Récupère les données du ticket original
     const ticketOriginalData = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket_original);
     if (!ticketOriginalData) throw new Error(`Ticket original #${uuid_ticket_original} introuvable pour correction.`);
 
+    // Récupère les paiements mixtes du ticket original
     const paiementsOriginauxMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE uuid_ticket = ?').get(uuid_ticket_original);
 
     let pmAnnul = { espece: 0, carte: 0, cheque: 0, virement: 0 };
@@ -81,6 +92,7 @@ router.post('/', (req, res) => {
         virement: paiementsOriginauxMixte.virement || 0
       };
     } else if (ticketOriginalData.moyen_paiement) {
+      // Si pas de paiement mixte, on répartit selon le moyen de paiement principal
       const moyen = ticketOriginalData.moyen_paiement.toLowerCase();
       const prixTotalOriginal = ticketOriginalData.prix_total;
       if (moyen === 'especes') pmAnnul.espece = prixTotalOriginal;
@@ -89,6 +101,7 @@ router.post('/', (req, res) => {
       if (moyen === 'virement') pmAnnul.virement = prixTotalOriginal;
     }
 
+    // Prépare la requête d'insertion d'article vendu
     const insertArticle = sqlite.prepare(`
       INSERT INTO objets_vendus (
         uuid_ticket, nom, prix, nbr, categorie,
@@ -96,9 +109,11 @@ router.post('/', (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // Génère un nouvel UUID pour le ticket d'annulation
     const uuid_ticket_annul = uuidv4();
     genererFriendlyIds(uuid_ticket_annul, 'annulation');
 
+    // Insère le ticket d'annulation
     sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, annulation_de, flag_annulation, nom_vendeur, id_vendeur,
@@ -106,6 +121,7 @@ router.post('/', (req, res) => {
       ) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
     `).run(now, uuid_ticket_original, utilisateur, id_vendeur, articles_sans_reduction.length, totalAnnulation, ticketOriginalData.moyen_paiement || 'mixte', uuid_ticket_annul, uuid_session_caisse);
 
+    // Log la synchronisation de l'annulation
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_annul,
       date_achat_dt: now,
@@ -119,6 +135,7 @@ router.post('/', (req, res) => {
       uuid_session_caisse
     });
 
+    // Insère les articles annulés (quantité négative)
     for (const art of articles_sans_reduction) {
       const uuid_objet = uuidv4();
       insertArticle.run(uuid_ticket_annul, art.nom, art.prix, -(art.nbr), art.categorie, utilisateur, id_vendeur, now, timestamp, uuid_objet);
@@ -136,12 +153,14 @@ router.post('/', (req, res) => {
       });
     }
 
+    // Insère le paiement mixte annulé (montants négatifs)
     sqlite.prepare(`
       INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(uuid_ticket_annul, -pmAnnul.espece, -pmAnnul.carte, -pmAnnul.cheque, -pmAnnul.virement, uuid_ticket_annul);
 
     logSync('paiement_mixte', 'INSERT', {
+      id_ticket: uuid_ticket_annul,
       uuid_ticket: uuid_ticket_annul,
       espece: -pmAnnul.espece,
       carte: -pmAnnul.carte,
@@ -149,13 +168,16 @@ router.post('/', (req, res) => {
       virement: -pmAnnul.virement
     });
 
+    // Détermine le type de paiement pour le ticket corrigé
     let paiementType = 'mixte';
     if (paiements.length === 1) paiementType = paiements[0]?.moyen || null;
     if (paiements.length === 0) paiementType = null;
 
+    // Génère un nouvel UUID pour le ticket corrigé
     const uuid_ticket_corrige = uuidv4();
     genererFriendlyIds(uuid_ticket_corrige, 'correction');
 
+    // Insère le ticket corrigé
     sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, nom_vendeur, id_vendeur, nbr_objet, prix_total, moyen_paiement,
@@ -164,6 +186,7 @@ router.post('/', (req, res) => {
     `).run(now, utilisateur, id_vendeur, articles_correction_sans_reduction.length, prixTotal, paiementType,
       reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, 1, uuid_ticket_original, uuid_ticket_corrige, uuid_session_caisse);
 
+    // Log la synchronisation du ticket corrigé
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_corrige,
       date_achat_dt: now,
@@ -181,6 +204,7 @@ router.post('/', (req, res) => {
       uuid_session_caisse
     });
 
+    // Insère les articles corrigés
     for (const art of articles_correction_sans_reduction) {
       const uuid_objet = uuidv4();
       insertArticle.run(uuid_ticket_corrige, art.nom, art.prix, art.nbr, art.categorie, utilisateur, id_vendeur, now, timestamp, uuid_objet);
@@ -198,6 +222,7 @@ router.post('/', (req, res) => {
       });
     }
 
+    // Gestion des paiements pour le ticket corrigé
     const pm = { espece: 0, carte: 0, cheque: 0, virement: 0 };
     const normalisation = {
       'espece': 'espece', 'espèce': 'espece', 'especes': 'espece', 'espèces': 'espece', 'carte': 'carte',
@@ -216,6 +241,7 @@ router.post('/', (req, res) => {
     `).run(uuid_ticket_corrige, pm.espece, pm.carte, pm.cheque, pm.virement, uuid_ticket_corrige);
 
     logSync('paiement_mixte', 'INSERT', {
+      id_ticket: uuid_ticket_corrige,
       uuid_ticket: uuid_ticket_corrige,
       espece: pm.espece,
       carte: pm.carte,
@@ -223,6 +249,7 @@ router.post('/', (req, res) => {
       virement: pm.virement
     });
 
+    // Mise à jour du bilan quotidien
     const bilanExistant = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
     if (bilanExistant) {
       sqlite.prepare(`
@@ -276,6 +303,7 @@ router.post('/', (req, res) => {
       });
     }
 
+    // Journalise la correction
     sqlite.prepare(`
       INSERT INTO journal_corrections (date_correction, uuid_ticket_original, uuid_ticket_annulation, uuid_ticket_correction, utilisateur, motif)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -294,16 +322,13 @@ router.post('/', (req, res) => {
 
   try {
     const { id_annul, id_corrige, uuid_ticket_annul, uuid_ticket_corrige } = transaction();
-
     genererTicketPdf(uuid_ticket_annul);
     genererTicketPdf(uuid_ticket_corrige);
-
     const io = req.app.get('socketio');
     if (io) {
       io.emit('bilanUpdated');
       io.emit('ticketsmisajour');
     }
-
     res.json({ success: true, id_ticket_annulation: id_annul, id_ticket_correction: id_corrige });
   } catch (err) {
     console.error("Erreur lors de l'insertion de la correction :", err);
@@ -311,19 +336,23 @@ router.post('/', (req, res) => {
   }
 });
 
+// Route pour supprimer (annuler) un ticket de caisse
 router.post('/:uuid/supprimer', (req, res) => {
   const uuid = req.params.uuid;
   const now = new Date().toISOString();
   const timestamp = Math.floor(Date.now() / 1000);
 
+  // Récupère le ticket à annuler
   const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid);
   if (!ticket) return res.status(404).json({ error: 'Ticket introuvable' });
 
+  // Récupère les articles vendus liés au ticket
   const objets = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(uuid);
   const totalAnnulation = -Math.abs(ticket.prix_total);
   const uuid_ticket_annul = uuidv4();
   genererFriendlyIds(uuid_ticket_annul, 'annulation');
 
+  // Récupère les paiements liés au ticket
   const paiementsOriginalMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE uuid_ticket = ?').get(uuid);
   let pmAnnul = { espece: 0, carte: 0, cheque: 0, virement: 0 };
 
@@ -343,7 +372,9 @@ router.post('/:uuid/supprimer', (req, res) => {
     if (moyen === 'virement') pmAnnul.virement = prix;
   }
 
+  // Transaction SQLite pour l'annulation
   const transaction = sqlite.transaction(() => {
+    // Insère le ticket d'annulation
     const annul = sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, annulation_de, flag_annulation, nom_vendeur, id_vendeur,
@@ -357,6 +388,7 @@ router.post('/:uuid/supprimer', (req, res) => {
 
     genererTicketPdf(uuid_ticket_annul);
 
+    // Log la synchronisation de l'annulation
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket: uuid_ticket_annul,
       id_ticket: id_annul,
@@ -375,6 +407,7 @@ router.post('/:uuid/supprimer', (req, res) => {
       uuid_session_caisse: ticket.uuid_session_caisse
     });
 
+    // Prépare la requête d'insertion d'article annulé
     const insertArticle = sqlite.prepare(`
       INSERT INTO objets_vendus (
         uuid_ticket, nom, prix, nbr, categorie,
@@ -401,6 +434,7 @@ router.post('/:uuid/supprimer', (req, res) => {
       });
     }
 
+    // Insère le paiement mixte annulé (montants négatifs)
     sqlite.prepare(`
       INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -421,6 +455,7 @@ router.post('/:uuid/supprimer', (req, res) => {
       virement: -pmAnnul.virement
     });
 
+    // Met à jour le bilan du jour
     const today = now.slice(0, 10);
     const bilan = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
     if (bilan) {
@@ -451,6 +486,7 @@ router.post('/:uuid/supprimer', (req, res) => {
       });
     }
 
+    // Journalise la correction (suppression)
     sqlite.prepare(`
       INSERT INTO journal_corrections (date_correction, uuid_ticket_original, uuid_ticket_annulation, uuid_ticket_correction, utilisateur, motif)
       VALUES (?, ?, ?, NULL, ?, 'Suppression demandée')

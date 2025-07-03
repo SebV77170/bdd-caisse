@@ -73,6 +73,7 @@ const BilanTickets = () => {
   const chargerObjets = (uuid_ticket) => {
     if (details[uuid_ticket]) {
       setTicketActif(ticketActif === uuid_ticket ? null : uuid_ticket);
+      console.log('Détails déjà chargés :', details[uuid_ticket]); // 👈 ici
       return;
     }
 

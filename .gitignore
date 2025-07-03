@@ -14,7 +14,9 @@ electron-app/node_modules
 
 
 # production
-/build
+frontend/build
+electron-app/build
+electron-app/dist
 
 # misc
 .DS_Store

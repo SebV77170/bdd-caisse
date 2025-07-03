@@ -134,26 +134,42 @@ function App() {
           <div className="d-flex align-items-center ms-auto">
 
             <button
-              className="btn btn-sm btn-outline-success me-2"
-              onClick={async () => {
-                setSyncStatus('loading');
-                try {
-                  const res = await fetch('http://localhost:3001/api/sync/', { method: 'POST' });
-                  const result = await res.json();
-                  if (result && result.success === true) {
-                    setSyncStatus('success');
-                    alert('✅ Synchronisation réussie !');
-                  } else {
-                    setSyncStatus('error');
-                    alert('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
-                  }
-                } catch (err) {
-                  console.error(err);
-                  setSyncStatus('error');
-                  alert('❌ Erreur de synchronisation.');
-                }
-              }}
-            >
+  className="btn btn-sm btn-outline-success me-2"
+  onClick={async () => {
+    setSyncStatus('loading');
+    try {
+      const res = await fetch('http://localhost:3001/api/sync?debug=true', { method: 'POST' });
+      const result = await res.json();
+
+      if (result.debug) {
+  console.log("🪵 Logs debug :\n" + result.debug.join('\n'));
+}
+
+
+      if (result && result.success === true) {
+        setSyncStatus('success');
+
+        if (result.doublons && result.doublons.length > 0) {
+          const doublonsMsg = result.doublons
+            .map(d => `• ${d.type} (${d.uuid})`)
+            .join('\n');
+
+          alert(`✅ Synchronisation réussie avec des doublons ignorés :\n\n${doublonsMsg}`);
+        } else {
+          alert('✅ Synchronisation réussie sans doublons.');
+        }
+
+      } else {
+        setSyncStatus('error');
+        alert('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
+      }
+    } catch (err) {
+      console.error(err);
+      setSyncStatus('error');
+      alert('❌ Erreur de synchronisation.');
+    }
+  }}
+>
               {syncStatus === 'loading' && <span className="spin">⏳</span>}
               {syncStatus === 'success' && '✅'}
               {syncStatus === 'error' && '❌'}
@@ -196,7 +212,7 @@ function App() {
             <Route path="/fermeture-caisse" element={<RequireSession><FermetureCaisse /></RequireSession>} />
             <Route path="/journal-caisse" element={<RequireSession><JournalCaisse /></RequireSession>} />
             <Route path="/compare-schemas" element={<RequireSession><CompareSchemas /></RequireSession>} />
-            <Route path="/parametres" element={<RequireSession><Parametres /></RequireSession>} />
+            <Route path="/parametres" element={<Parametres />} />
             {devMode && (
               <Route path="/db-config" element={<RequireSession><DbConfig /></RequireSession>} />
             )}

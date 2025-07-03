@@ -1,4 +1,5 @@
 const { sqlite } = require('../db');
+const logSync = require('../logsync');
 const session = require('../session');
 const { getConfig } = require('../storeConfig');
 
@@ -46,6 +47,11 @@ function genererFriendlyIds(uuid, type = 'vente') {
     INSERT INTO uuid_mapping (uuid, id_friendly, type)
     VALUES (?, ?, ?)
   `).run(uuid, idFriendly, type);
+  logSync('uuid_mapping', 'INSERT', {
+    uuid,
+    id_friendly: idFriendly,
+    type
+  });
 
   return idFriendly; // Utile si tu veux l'afficher ou le loguer
 }

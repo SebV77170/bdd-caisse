@@ -53,9 +53,103 @@ function createInitialTicket(uuid_ticket = 'uuid-original') {
   `).run();
 }
 
+function createInitialTicketWithReduction(reductionType = '') {
+  const uuid_ticket = 'uuidv4ticket';
+  const uuid_objet = 'uuidv4objet';
+  const uuid_reduc = 'uuidv4reduc';
+  const now = new Date();
+
+  let reducFlags = {
+    reducbene: 0,
+    reducclient: 0,
+    reducgrospanierclient: 0,
+    reducgrospanierbene: 0
+  };
+
+  let reductionNom = '';
+  let reductionMontant = 0;
+
+  switch (reductionType) {
+    case 'trueBene':
+      reducFlags.reducbene = 1;
+      reductionNom = 'Réduction Fidélité bénévole';
+      reductionMontant = 1000;
+      break;
+    case 'trueClient':
+      reducFlags.reducclient = 1;
+      reductionNom = 'Réduction Fidélité client';
+      reductionMontant = 500;
+      break;
+    case 'trueGrosPanierClient':
+      reducFlags.reducgrospanierclient = 1;
+      reductionNom = 'Réduction Gros panier client (-10%)';
+      reductionMontant = 1000; // simulé, à ajuster selon le prix initial
+      break;
+    case 'trueGrosPanierBene':
+      reducFlags.reducgrospanierbene = 1;
+      reductionNom = 'Réduction Gros panier bénévole (-20%)';
+      reductionMontant = 2000; // simulé, à ajuster selon le prix initial
+      break;
+    default:
+      break;
+  }
+
+  const prixTotal = 2000 - reductionMontant;
+
+  // Insertion ticket
+  const stmt = sqlite.prepare(`
+    INSERT INTO ticketdecaisse (
+      uuid_ticket, date_achat_dt, nom_vendeur, id_vendeur,
+      nbr_objet, prix_total, moyen_paiement, uuid_session_caisse,
+      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene
+    ) VALUES (?, datetime('now'), 'Testeur', 1, 2, ?, 'carte', 'session-1',
+      ?, ?, ?, ?)
+  `);
+  const result = stmt.run(
+    uuid_ticket,
+    prixTotal,
+    reducFlags.reducbene,
+    reducFlags.reducclient,
+    reducFlags.reducgrospanierclient,
+    reducFlags.reducgrospanierbene
+  );
+  const id_ticket = result.lastInsertRowid;
+
+  // Produit principal
+  sqlite.prepare(`
+    INSERT INTO objets_vendus (
+      uuid_ticket, nom, prix, nbr, categorie,
+      nom_vendeur, id_vendeur, date_achat, timestamp, uuid_objet
+    ) VALUES (?, ?, ?, ?, ?, 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
+  `).run(uuid_ticket, 'Produit A', 2000, 1, 'Test', uuid_objet);
+
+  // Ligne de réduction
+  if (reductionType && reductionNom) {
+    sqlite.prepare(`
+      INSERT INTO objets_vendus (
+        uuid_ticket, nom, prix, nbr, categorie,
+        nom_vendeur, id_vendeur, date_achat, timestamp, uuid_objet
+      ) VALUES (?, ?, ?, ?, 'Réduction', 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
+    `).run(uuid_ticket, reductionNom, reductionMontant, -1, uuid_reduc);
+  }
+
+  // Mise à jour du bilan
+  sqlite.prepare(`
+    INSERT INTO bilan (
+      date, timestamp, nombre_vente, poids,
+      prix_total, prix_total_espece, prix_total_cheque,
+      prix_total_carte, prix_total_virement
+    )
+    VALUES (date('now'), strftime('%s','now'), 1, 0, ?, 0, 0, ?, 0)
+  `).run(prixTotal, prixTotal);
+
+  return { uuid_ticket, id_ticket_original: id_ticket, uuid_objet, uuid_reduc };
+}
+
 beforeEach(() => {
   initTables();
   sqlite.prepare('DELETE FROM ticketdecaisse').run();
+  sqlite.prepare('DELETE FROM objets_vendus').run();
   sqlite.prepare('DELETE FROM bilan').run();
 });
 
@@ -134,30 +228,7 @@ describe('Tests de correction de ticket', () => {
 
   test('Correction d’un ticket avec réduction bénévole initiale, suppression de la réduction', async () => {
   // Création d'un ticket avec réduction bénévole
-  const uuid_ticket = 'uuid-bene';
-  const stmt = sqlite.prepare(`
-    INSERT INTO ticketdecaisse (
-      uuid_ticket, date_achat_dt, nom_vendeur, id_vendeur,
-      nbr_objet, prix_total, moyen_paiement, uuid_session_caisse,
-      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene
-    ) VALUES (?, datetime('now'), 'Testeur', 1, 2, 1000, 'carte', 'session-1', 1, 0, 0, 0)
-  `);
-  const result = stmt.run(uuid_ticket);
-  const id_ticket_original = result.lastInsertRowid;
-
-  sqlite.prepare(`
-    INSERT INTO objets_vendus (
-      uuid_ticket, nom, prix, nbr, categorie,
-      nom_vendeur, id_vendeur, date_achat, timestamp, uuid_objet
-    ) VALUES (?, ?, ?, ?, ?, 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
-  `).run(uuid_ticket, 'Produit A', 2000, 1, 'Test', 'uuid-article');
-
-  sqlite.prepare(`
-    INSERT INTO objets_vendus (
-      uuid_ticket, nom, prix, nbr, categorie,
-      nom_vendeur, id_vendeur, date_achat, timestamp, uuid_objet
-    ) VALUES (?, ?, ?, ?, ?, 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
-  `).run(uuid_ticket, 'Réduction Fidélité bénévole', 1000, -1, 'Réduction', 'uuid-reduc');
+  const { uuid_ticket, id_ticket_original } = createInitialTicketWithReduction('trueBene');
 
   // Envoie de la correction SANS réduction
   const res = await request(app).post('/api/correction').send({
@@ -172,7 +243,7 @@ describe('Tests de correction de ticket', () => {
       { nom: 'Produit A', prix: 1800, nbr: 1, categorie: 'Test' }
     ],
     reductionType: '', // pas de réduction appliquée
-    motif: 'Correction du prix',
+    motif: 'Correction du prix et retrait de la réduction',
     paiements: [{ moyen: 'carte', montant: 1800 }]
   });
 
@@ -181,6 +252,9 @@ describe('Tests de correction de ticket', () => {
   const ticketCorr = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE flag_correction = 1').get();
   expect(ticketCorr.reducbene).toBe(0);
   expect(ticketCorr.prix_total).toBe(1800);
+
+  const ticketAnnul = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE flag_annulation = 1').get();
+  expect(ticketAnnul.prix_total).toBe(-1000);
 
   const lignesReduc = sqlite.prepare("SELECT * FROM objets_vendus WHERE uuid_ticket = ? AND categorie = 'Réduction'")
     .all(ticketCorr.uuid_ticket);

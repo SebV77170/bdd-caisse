@@ -6,6 +6,7 @@ const genererFacturePdf = require('../utils/genererFacturePdf');
 const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+const logSync = require('../logsync');
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.ouvaton.coop',
@@ -42,6 +43,12 @@ router.post('/:uuid_ticket', async (req, res) => {
     sqlite
       .prepare('INSERT INTO facture (uuid_facture, uuid_ticket, lien) VALUES (?, ?, ?)')
       .run(uuid_facture, uuid_ticket, lien);
+
+    logSync('facture', 'INSERT', {
+      uuid_facture,
+      uuid_ticket,
+      lien
+    });  
 
     // Envoi email si fourni
     if (email) {
