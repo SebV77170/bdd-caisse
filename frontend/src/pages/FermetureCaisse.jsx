@@ -8,6 +8,7 @@ import BilanReductionsSession from '../components/BilanReductionsSession';
 import TactileInput from '../components/TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import { set } from 'date-fns';
+import InputMontantEuros from '../components/InputMontantEuros';
 
 // Composant principal pour la fermeture de caisse
 function FermetureCaisse() {
@@ -16,14 +17,18 @@ function FermetureCaisse() {
   const [montantReel, setMontantReel] = useState('');
   const [attendu, setAttendu] = useState(null);
   const [montantReelCarte, setMontantReelCarte] = useState('');
-  const [montantReelCheque, setMontantReelCheque] = useState('');
-  const [montantReelVirement, setMontantReelVirement] = useState('');
+  const [montantReelCheque, setMontantReelCheque] = useState(0);
+  const [montantReelVirement, setMontantReelVirement] = useState(0);
   const [commentaire, setCommentaire] = useState('');
   const [responsablePseudo, setResponsablePseudo] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [reductions, setReductions] = useState(null);
   const navigate = useNavigate();
   const { uuidSessionCaisse, sessionCaisseOuverte } = useSessionCaisse();
+  const [montantEspece, setMontantEspece] = useState('0,00');
+  const [montantCarte, setMontantCarte] = useState('0,00');
+  const [montantCheque, setMontantCheque] = useState('0,00');
+  const [montantVirement, setMontantVirement] = useState('0,00');
 
   // Affiche l'UUID de la session caisse dans la console (debug)
   console.log("UUID session caisse en contexte :", uuidSessionCaisse);
@@ -39,7 +44,7 @@ function FermetureCaisse() {
     }
 
     // Vérifie que les champs obligatoires sont remplis
-    if (!montantReel || !responsablePseudo || !motDePasse) {
+    if (!montantEspece || !responsablePseudo || !motDePasse) {
       toast.error('Tous les champs obligatoires doivent être remplis');
       return;
     }
@@ -50,10 +55,10 @@ function FermetureCaisse() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          montant_reel: parseFloat(montantReel)*100,
-          montant_reel_carte: parseFloat(montantReelCarte)*100,
-          montant_reel_cheque: parseFloat(montantReelCheque)*100,
-          montant_reel_virement: parseFloat(montantReelVirement)*100,
+          montant_reel: parseFloat(montantEspece)*100,
+          montant_reel_carte: parseFloat(montantCarte)*100,
+          montant_reel_cheque: parseFloat(montantCheque)*100,
+          montant_reel_virement: parseFloat(montantVirement)*100,
           commentaire,
           uuid_session_caisse: uuidSessionCaisse,
           responsable_pseudo: responsablePseudo,
@@ -165,43 +170,26 @@ function FermetureCaisse() {
         {/* Formulaire de fermeture de caisse */}
         <form onSubmit={handleSubmit}>
           {/* ✅ Intégration du tableau des espèces */}
-          <CompteEspeces onChangeTotal={(total) => setMontantReel(total)} />
+          <CompteEspeces onChangeTotal={(total) => setMontantEspece(total)} />
           <div></div>
           <div>
             <label>Montant réel dans la caisse (€) :</label><br />
-            <TactileInput
-              type="number"
-              value={montantReel}
-              onChange={(e) => setMontantReel(e.target.value)}
-              required
-            />
+            <InputMontantEuros value={montantEspece} onChange={setMontantEspece} />
+
           </div>
           <div>
             <label>Montant réel des transactions Sumup (€) :</label><br />
-            <TactileInput
-              type="number"
-              value={montantReelCarte}
-              onChange={(e) => setMontantReelCarte(e.target.value)}
-              required
-            />
+            <InputMontantEuros value={montantCarte} onChange={setMontantCarte} />
           </div>
           <div>
             <label>Montant réel des chèques (€) :</label><br />
-            <TactileInput
-              type="number"
-              value={montantReelCheque}
-              onChange={(e) => setMontantReelCheque(e.target.value)}
-              required
-            />
+            <InputMontantEuros value={montantCheque} onChange={setMontantCheque} />
+
           </div>
           <div>
             <label>Montant réel des virement (€) :</label><br />
-            <TactileInput
-              type="number"
-              value={montantReelVirement}
-              onChange={(e) => setMontantReelVirement(e.target.value)}
-              required
-            />
+            <InputMontantEuros value={montantVirement} onChange={setMontantVirement} />
+    
           </div>
           {/* Affiche les écarts entre attendu et réel */}
           <AffichageEcarts
@@ -212,10 +200,10 @@ function FermetureCaisse() {
               virement: (attendu?.virement ?? 0),
             }}
             reel={{
-              espece: montantReel*100,           // en centimes
-              carte: montantReelCarte*100,
-              cheque: montantReelCheque*100,
-              virement: montantReelVirement*100
+              espece: montantEspece*100,           // en centimes
+              carte: montantCarte*100,
+              cheque: montantCheque*100,
+              virement: montantVirement*100
             }}
             fondInitial={fondInitial*100}
           />
