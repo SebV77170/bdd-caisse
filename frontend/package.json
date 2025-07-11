@@ -9,6 +9,8 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.5",
+    "currency": "^4.1.0",
+    "currency.js": "^2.0.4",
     "date-fns": "^4.1.0",
     "react": "^19.1.0",
     "react-bootstrap": "^2.10.9",

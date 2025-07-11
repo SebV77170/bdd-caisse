@@ -1,12 +1,10 @@
 import React from 'react';
-
-function formatEuros(valeur) {
-  return `${(valeur / 100).toFixed(2).replace('.', ',')} €`;
-}
+import { formatCents } from '../utils/euro';
 
 function BilanSessionCaisse({ nbVentes, totalPaiements }) {
   const totalGlobal = ['espece', 'carte', 'cheque', 'virement'].reduce(
-    (acc, moyen) => acc + (totalPaiements?.[moyen] ?? 0), 0
+    (acc, moyen) => acc + (totalPaiements?.[moyen] ?? 0),
+    0
   );
 
   return (
@@ -19,9 +17,8 @@ function BilanSessionCaisse({ nbVentes, totalPaiements }) {
       margin: '20px auto'
     }}>
       <h5 style={{ marginBottom: 10 }}>Bilan de la session</h5>
-
       <p><strong>Nombre de ventes :</strong> {nbVentes}</p>
-      <p><strong>Total encaissé :</strong> {formatEuros(totalGlobal)}</p>
+      <p><strong>Total encaissé :</strong> {formatCents(totalGlobal)}</p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', marginTop: 16 }}>
         <thead>
@@ -34,7 +31,7 @@ function BilanSessionCaisse({ nbVentes, totalPaiements }) {
           {['espece', 'carte', 'cheque', 'virement'].map(moyen => (
             <tr key={moyen}>
               <td style={{ textTransform: 'capitalize' }}>{moyen}</td>
-              <td>{formatEuros(totalPaiements?.[moyen] ?? 0)}</td>
+              <td>{formatCents(totalPaiements?.[moyen] ?? 0)}</td>
             </tr>
           ))}
         </tbody>

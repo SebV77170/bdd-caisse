@@ -58,7 +58,7 @@ const BilanTickets = () => {
   }, [location.state]);
 
   const aReduction = (ticket) => {
-    return ticket.reducbene || ticket.reduclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene;
+    return ticket.reducbene || ticket.reducclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene;
   };
 
   const isSameDay = (d1, d2) =>
