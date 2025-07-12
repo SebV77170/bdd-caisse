@@ -185,8 +185,9 @@ montant_reel_virement: euro(montantReelVirement).intValue,
           <div>
             <label>Montant réel des transactions Sumup (€) :</label><br />
             <TactileInput
-              type="number"
+              type="text"
               value={montantReelCarte}
+              isDecimal={true}
               onChange={(e) => setMontantReelCarte(e.target.value)}
               required
             />

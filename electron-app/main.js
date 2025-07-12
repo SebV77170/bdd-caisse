@@ -50,6 +50,11 @@ if (isDev) {
 
 // ✅ Lancement du backend
 function launchBackend() {
+
+  if (backendProcess) {
+    console.log('⚠️ Backend déjà lancé, on ne relance pas');
+    return;
+  }
   const isDev = !app.isPackaged;
 
   const backendPath = isDev
@@ -57,7 +62,7 @@ function launchBackend() {
     : path.join(process.resourcesPath, 'backend', 'index.js');
 
   const command = isDev
-    ? process.execPath
+    ? 'node'
     : path.join(process.resourcesPath, 'node.exe');
 
   const args = isDev ? [backendPath] : [backendPath]; // ✅ ici aussi !
@@ -71,6 +76,8 @@ function launchBackend() {
   stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
   shell: false
 });
+console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
+
   backendProcess.unref(); // ← permet au processus de continuer seul et silencieux
 
 
@@ -79,14 +86,50 @@ function launchBackend() {
   });
 }
 
+function verifierSessionUtilisateur() {
+  const options = {
+    hostname: 'localhost',
+    port: 3001,
+    path: '/api/session',
+    method: 'GET'
+  };
+
+  const req = http.request(options, (res) => {
+    let data = '';
+    res.on('data', chunk => { data += chunk; });
+
+    res.on('end', () => {
+      try {
+        if (res.statusCode === 200) {
+          const result = JSON.parse(data);
+          console.log(`👤 Session utilisateur déjà ouverte : ${result.user.pseudo}`);
+        } else {
+          console.log('👥 Aucune session utilisateur active');
+        }
+      } catch (e) {
+        console.error('❌ Erreur JSON /api/session :', e.message);
+      }
+    });
+  });
+
+  req.on('error', (err) => {
+    console.error('❌ Impossible de vérifier session utilisateur :', err.message);
+  });
+
+  req.end();
+}
 
 
 
 
+let isQuitting = false;
 
-// ✅ Arrêt propre du backend si l’app se ferme
 app.on('before-quit', (event) => {
-  event.preventDefault(); // 🔒 bloque la fermeture tant que tout n’est pas terminé
+  // Évite de repasser dans cette logique plusieurs fois
+  if (isQuitting) return;
+  isQuitting = true;
+
+  event.preventDefault(); // ⛔️ On bloque TEMPORAIREMENT la fermeture
 
   const options = {
     hostname: 'localhost',
@@ -95,25 +138,26 @@ app.on('before-quit', (event) => {
     method: 'DELETE'
   };
 
-  const req = http.request(options, res => {
+  const req = http.request(options, (res) => {
     console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
 
-    // 🛑 Une fois la session supprimée, on peut tuer le backend
+    // 🔪 On tue proprement le backend si encore actif
     if (backendProcess) backendProcess.kill();
 
-    // ✅ Puis on ferme Electron proprement
-    app.quit();
+    // ✅ Maintenant qu'on a fini : on relance la fermeture
+    app.exit();
   });
 
   req.on('error', (err) => {
     console.error('❌ Échec suppression session utilisateur :', err.message);
-    
+
     if (backendProcess) backendProcess.kill();
-    app.quit(); // on quitte même si l'appel échoue
+    app.exit(); // Même en cas d'erreur, on quitte
   });
 
   req.end();
 });
+
 
 
 // 📂 Ouvre le PDF à la demande
@@ -135,7 +179,12 @@ ipcMain.on('devtools-open', () => {
 });
 
 // 🚀 Lancement global
+const isDev = !app.isPackaged;
+
 app.whenReady().then(() => {
-  launchBackend();   // ✅ Démarre le backend
+  if (!isDev) {
+  launchBackend();   // ✅ Démarre le backend seulement en production
+  }
+  verifierSessionUtilisateur(); // ✅ Vérifie la session utilisateur
   createWindow();    // ✅ Puis ouvre la fenêtre
 });

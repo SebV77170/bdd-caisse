@@ -32,27 +32,13 @@ router.post('/:uuid_ticket/envoyer', (req, res) => {
   const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket);
   if (!ticket) return res.status(404).json({ error: 'Ticket introuvable' });
 
-  const folder = path.join(__dirname, '../../tickets');
-  const pdfPath = path.join(folder, `Ticket-${uuid_ticket}.pdf`);
-  let finalPath = pdfPath;
+  if (!ticket.lien) return res.status(404).json({ error: 'Chemin du ticket PDF non renseigné dans la base' });
+
+  // 🧩 Convertit le chemin relatif en chemin absolu
+  const pdfPath = path.join(__dirname, '../../', ticket.lien);
 
   if (!fs.existsSync(pdfPath)) {
-    const result = sqlite.prepare(
-      'SELECT uuid_session_caisse FROM ticketdecaisse WHERE uuid_ticket = ?'
-    ).get(uuid_ticket);
-
-    if (!result || !result.uuid_session_caisse) {
-      return res.status(404).json({ error: 'Ticket introuvable ou session manquante' });
-    }
-
-    const clotureFile = `cloture-${result.uuid_session_caisse}.pdf`;
-    const cloturePath = path.join(folder, clotureFile);
-
-    if (fs.existsSync(cloturePath)) {
-      finalPath = cloturePath;
-    } else {
-      return res.status(404).json({ error: 'Fichier ticket ou clôture introuvable' });
-    }
+    return res.status(404).json({ error: 'Fichier PDF introuvable sur le disque' });
   }
 
   transporter.sendMail({
@@ -62,8 +48,8 @@ router.post('/:uuid_ticket/envoyer', (req, res) => {
     text: "Veuillez trouver ci-joint votre ticket de caisse en PDF.",
     attachments: [
       {
-        filename: path.basename(finalPath),
-        path: finalPath
+        filename: path.basename(pdfPath),
+        path: pdfPath
       }
     ]
   }, (error, info) => {
