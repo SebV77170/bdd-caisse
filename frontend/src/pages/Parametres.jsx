@@ -7,6 +7,7 @@ import ModeTactileToggle from '../components/ModeTactileToggle';
 import DevModeModal from '../components/DevModeModal';
 import { useContext } from 'react';
 import { DevModeContext } from '../contexts/DevModeContext';
+import TactileInput from '../components/TactileInput';
 
 const Parametres = () => {
   const [interval, setIntervalValue] = useState('');
@@ -76,6 +77,11 @@ const Parametres = () => {
     }
   };
 
+  useEffect(() => {
+  console.log('🧪 window.electron:', window.electron);
+}, []);
+
+
   return (
     <div className="bilan-scroll-container">
       <div className="container mt-3">
@@ -84,7 +90,7 @@ const Parametres = () => {
         <Form>
           <Form.Group className="mb-2">
             <Form.Label>Période de synchronisation (minutes)</Form.Label>
-            <Form.Control
+            <TactileInput
               type="number"
               value={interval}
               onChange={e => setIntervalValue(e.target.value)}
@@ -112,11 +118,11 @@ const Parametres = () => {
         <Form>
           <Form.Group className="mb-2">
             <Form.Label>Nom du local</Form.Label>
-            <Form.Control value={localName} onChange={e => setLocalName(e.target.value)} />
+            <TactileInput value={localName} onChange={e => setLocalName(e.target.value)} />
           </Form.Group>
           <Form.Group className="mb-2">
             <Form.Label>Numéro de poste de caisse</Form.Label>
-            <Form.Control type="number" value={registerNumber} onChange={e => setRegisterNumber(e.target.value)} />
+            <TactileInput type="number" value={registerNumber} onChange={e => setRegisterNumber(e.target.value)} />
           </Form.Group>
           <Button onClick={saveStore}>💾 Sauvegarder</Button>
         </Form>
@@ -169,8 +175,20 @@ const Parametres = () => {
           <>
             <p>Reset les bases de données</p>
             <ResetButton />
-          </>
+          </> 
         )}
+
+        {devMode && window.electron && (
+          <>
+            <Button onClick={() =>{ 
+              console.log('🖱️ Bouton cliqué');
+              window.electron.ouvrirDevTools()
+              }}>
+              
+              Ouvrir les DevTools
+            </Button>
+          </>
+)}
       </div>
     </div>
   );

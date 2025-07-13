@@ -7,14 +7,36 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "copy-react-build": "rm -rf build && cp -r ../frontend/build ./build"
-
   },
   "build": {
     "appId": "com.bdd.caisse",
     "productName": "CaisseRessource",
     "files": [
+      "main.js",
+      "preload.js",
+      "assets/**/*",
       "build/**/*",
-      "main.js"
+      "../backend/**/*",
+      "!node_modules/.cache",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend"
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules"
+      },
+      {
+        "from": "C:/Program Files/nodejs/node.exe",
+        "to": "node.exe"
+      },
+      {
+        "from": "../database/ressourcebrie-sqlite-template.db",
+        "to": "ressourcebrie-sqlite-template.db"
+      }
     ],
     "directories": {
       "buildResources": "assets"
@@ -24,11 +46,13 @@
       "icon": "assets/icon.ico"
     }
   },
-  
   "dependencies": {
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
-     "electron": "^36.2.1",
-    "electron-builder": "^26.0.12"
+    "@electron/rebuild": "^4.0.1",
+    "electron": "27.1.3",
+    "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9"
   }
 }

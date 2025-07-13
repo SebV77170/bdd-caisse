@@ -4,9 +4,17 @@
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
-    "client": "cd frontend && npm start"
+    "client": "cd frontend && npm start",
+    "electron": "wait-on http://localhost:3000 && electron electron-app",
+    "dev:full": "run-p server client electron",
+    "build": "cd frontend && npm run build",
+    "copy-react": "xcopy /E /I /Y frontend\\build electron-app\\build",
+    "package": "npm run build && npm run copy-react && cd electron-app && npm run dist"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "electron": "^37.2.1",
+    "npm-run-all": "^4.1.5",
+    "wait-on": "^8.0.3"
   }
 }

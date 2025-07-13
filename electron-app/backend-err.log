@@ -1,0 +1,48 @@
+App threw an error during load
+Error: The module '\\?\C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 108. This version of Node.js requires
+NODE_MODULE_VERSION 118. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at process.func [as dlopen] (node:electron/js2c/asar_bundle:2:2131)
+    at Object.<anonymous> (node:internal/modules/cjs/loader:1356:18)
+    at Object.func [as .node] (node:electron/js2c/asar_bundle:2:2131)
+    at Module.load (node:internal/modules/cjs/loader:1126:32)
+    at node:internal/modules/cjs/loader:967:12
+    at Function._load (node:electron/js2c/asar_bundle:2:13327)
+    at Module.require (node:internal/modules/cjs/loader:1150:19)
+    at require (node:internal/modules/cjs/helpers:121:18)
+    at bindings (C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\bindings\bindings.js:112:48)
+    at new Database (C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\lib\database.js:48:64)
+App threw an error during load
+Error: The module '\\?\C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 108. This version of Node.js requires
+NODE_MODULE_VERSION 118. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at process.func [as dlopen] (node:electron/js2c/asar_bundle:2:2131)
+    at Object.<anonymous> (node:internal/modules/cjs/loader:1356:18)
+    at Object.func [as .node] (node:electron/js2c/asar_bundle:2:2131)
+    at Module.load (node:internal/modules/cjs/loader:1126:32)
+    at node:internal/modules/cjs/loader:967:12
+    at Function._load (node:electron/js2c/asar_bundle:2:13327)
+    at Module.require (node:internal/modules/cjs/loader:1150:19)
+    at require (node:internal/modules/cjs/helpers:121:18)
+    at bindings (C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\bindings\bindings.js:112:48)
+    at new Database (C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\lib\database.js:48:64)
+App threw an error during load
+Error: The module '\\?\C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 118. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at process.func [as dlopen] (node:electron/js2c/asar_bundle:2:2131)
+    at Object.<anonymous> (node:internal/modules/cjs/loader:1356:18)
+    at Object.func [as .node] (node:electron/js2c/asar_bundle:2:2131)
+    at Module.load (node:internal/modules/cjs/loader:1126:32)
+    at node:internal/modules/cjs/loader:967:12
+    at Function._load (node:electron/js2c/asar_bundle:2:13327)
+    at Module.require (node:internal/modules/cjs/loader:1150:19)
+    at require (node:internal/modules/cjs/helpers:121:18)
+    at bindings (C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\bindings\bindings.js:112:48)
+    at new Database (C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\lib\database.js:48:64)

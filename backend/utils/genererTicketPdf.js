@@ -105,8 +105,27 @@ function genererTicketPdf(uuid_ticket) {
 
       doc.end();
 
-      stream.on('finish', () => resolve(pdfPath));
+      stream.on('finish', () => {
+  // 🧠 On extrait un chemin relatif propre pour l'enregistrement
+  const relativePath = path.relative(path.join(__dirname, '../../'), pdfPath).replace(/\\/g, '/');
+
+  // 📦 Mise à jour du champ `lien` en base
+  sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE uuid_ticket = ?')
+    .run(relativePath, uuid_ticket);
+
+  // 📝 Log optionnel
+  try {
+    const logSync = require('../logsync');
+    logSync('ticketdecaisse', 'UPDATE', { uuid_ticket, lien: relativePath });
+  } catch (e) {
+    console.warn('logSync non disponible, pas de log enregistré.');
+  }
+
+  resolve(pdfPath);
+});
+
       stream.on('error', reject);
+
     } catch (err) {
       reject(err);
     }

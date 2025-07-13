@@ -62,12 +62,12 @@ router.post('/', (req, res) => {
   const ventesJour = getBilanSession(uuid_session_caisse);
 
   // Calcul des montants attendus et des écarts
-  const fond_de_caisse = sessionCaisse.fond_initial * 100 || 0;
+  const fond_de_caisse = sessionCaisse.fond_initial || 0;
   const attendu_espece = ventesJour.prix_total_espece ?? 0;
   const attendu_carte = ventesJour.prix_total_carte ?? 0;
   const attendu_cheque = ventesJour.prix_total_cheque ?? 0;
   const attendu_virement = ventesJour.prix_total_virement ?? 0;
-  const ecart_espece = montant_reel - attendu_espece - fond_de_caisse / 100;
+  const ecart_espece = montant_reel - attendu_espece - fond_de_caisse;
   const ecart_carte = montant_reel_carte - attendu_carte;
   const ecart_cheque = montant_reel_cheque - attendu_cheque;
   const ecart_virement = montant_reel_virement - attendu_virement;

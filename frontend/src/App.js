@@ -15,6 +15,7 @@ import RequireSession from './components/RequireSession';
 import './styles/App.scss';
 import 'react-toastify/dist/ReactToastify.css';
 import { DevModeContext } from './contexts/DevModeContext';
+import { useSession } from './contexts/SessionContext';
 
 
 const socket = io('http://localhost:3001');
@@ -23,7 +24,6 @@ export const ModeTactileContext = createContext();
 function App() {
   const [syncStatus, setSyncStatus] = useState(null);
   const navigate = useNavigate();
-  const vendeur = JSON.parse(localStorage.getItem('vendeur') || '{}');
   const [bilanJour, setBilanJour] = useState(null);
   const [modeTactile, setModeTactile] = useState(() => {
     const saved = localStorage.getItem('modeTactile');
@@ -32,6 +32,9 @@ function App() {
   const { devMode, setDevMode } = useContext(DevModeContext);
   const [showMenu, setShowMenu] = useState(false);
   const [caisseOuverte, setCaisseOuverte] = useState(false);
+
+  const { user } = useSession();
+
   
   useEffect(() => {
     const startHandler = () => {
@@ -124,9 +127,9 @@ function App() {
           </Navbar.Offcanvas>
 
           <div className="d-flex align-items-center justify-content-center flex-grow-1 text-white">
-            {vendeur.nom && (
+            {user && (
               <span className="text-center">
-                👤 <strong>Bonjour {vendeur.prenom} {vendeur.nom}</strong>
+                👤 <strong>Bonjour {user.prenom} {user.nom}</strong>
               </span>
             )}
           </div>

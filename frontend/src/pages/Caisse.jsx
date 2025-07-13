@@ -127,7 +127,7 @@ function Caisse() {
   };
 
   const totalTicket = ticketModif.reduce((sum, item) => sum + item.prixt, 0);
-
+console.log(sessionCaisseOuverte, "Session caisse ouverte ?");
   if (!sessionCaisseOuverte) {
     return (
       <div className="d-flex flex-column justify-content-center align-items-center h-100">

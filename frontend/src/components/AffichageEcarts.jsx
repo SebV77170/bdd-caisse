@@ -1,8 +1,5 @@
 import React from 'react';
-
-function formatEuros(valeur) {
-  return `${(valeur / 100).toFixed(2).replace('.', ',')} €`;
-}
+import { formatCents } from '../utils/euro';
 
 function AffichageEcarts({ attendu, reel, fondInitial }) {
   const ecart = {
@@ -35,10 +32,12 @@ function AffichageEcarts({ attendu, reel, fondInitial }) {
           {['espece', 'carte', 'cheque', 'virement'].map(moyen => (
             <tr key={moyen}>
               <td style={{ textTransform: 'capitalize' }}>{moyen}</td>
-              <td>{formatEuros(attendu?.[moyen] ?? 0)}</td>
-              <td>{formatEuros(reel?.[moyen] ?? 0)}</td>
-              <td style={{ color: ecart[moyen] === 0 ? 'black' : (ecart[moyen] < 0 ? 'red' : 'green') }}>
-                {formatEuros(ecart[moyen])}
+              <td>{formatCents(attendu?.[moyen] ?? 0)}</td>
+              <td>{formatCents(reel?.[moyen] ?? 0)}</td>
+              <td style={{
+                color: ecart[moyen] === 0 ? 'black' : (ecart[moyen] < 0 ? 'red' : 'green')
+              }}>
+                {formatCents(ecart[moyen])}
               </td>
             </tr>
           ))}

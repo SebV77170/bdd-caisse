@@ -241,10 +241,6 @@ router.post('/', async (req, res) => {
       logSync('paiement_mixte', 'INSERT', { id_ticket, uuid_ticket, ...pm });
     }
 
-    // Mise à jour du lien du ticket dans la base
-    sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE uuid_ticket = ?')
-      .run(`tickets/Ticket-${uuid_ticket}.txt`, uuid_ticket);
-    logSync('ticketdecaisse', 'UPDATE', { uuid_ticket, lien: `tickets/Ticket-${uuid_ticket}.txt` });
 
     // Suppression des données temporaires
     sqlite.prepare('DELETE FROM vente WHERE id_temp_vente = ?').run(id_temp_vente);

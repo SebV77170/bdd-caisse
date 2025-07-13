@@ -1,0 +1,224 @@
+App threw an error during load
+Error: The module '\\?\C:\Users\Seb Bis\Sites\bdd-caisse\backend\node_modules\better-sqlite3\build\Release\better_sqlite3.node'
+was compiled against a different Node.js version using
+NODE_MODULE_VERSION 127. This version of Node.js requires
+NODE_MODULE_VERSION 136. Please try re-compiling or re-installing
+the module (for instance, using `npm rebuild` or `npm install`).
+    at process.func [as dlopen] (node:electron/js2c/node_init:2:2617)
+    at Module._extensions..node (node:internal/modules/cjs/loader:1930:18)
+    at Object.func [as .node] (node:electron/js2c/node_init:2:2617)
+    at Module.load (node:internal/modules/cjs/loader:1472:32)
+    at Module._load (node:internal/modules/cjs/loader:1289:12)
+    at c._load (node:electron/js2c/node_init:2:18013)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:242:24)
+    at Module.require (node:internal/modules/cjs/loader:1494:12)
+    at require (node:internal/modules/helpers:135:16)
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1
+node:events:502
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:1937:16)
+    at listenInCluster (node:net:1994:12)
+    at Server.listen (node:net:2099:7)
+    at Object.<anonymous> (C:\Users\Seb Bis\Sites\bdd-caisse\backend\index.js:14:8)
+    at Module._compile (node:internal/modules/cjs/loader:1562:14)
+    at Object..js (node:internal/modules/cjs/loader:1699:10)
+    at Module.load (node:internal/modules/cjs/loader:1313:32)
+    at Function._load (node:internal/modules/cjs/loader:1123:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:217:24)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1973:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3001
+}
+
+Node.js v22.13.1

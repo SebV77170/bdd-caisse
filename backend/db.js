@@ -77,6 +77,7 @@ if (process.env.NODE_ENV === 'test') {
   // 📁 Chemin vers le répertoire persistant de l'utilisateur
   const userDataDir = path.join(os.homedir(), '.bdd-caisse');
   const dbPath = path.join(userDataDir, 'ressourcebrie-sqlite.db');
+console.log('🪛 Chemin recherché pour SQLite :', dbPath);
 
   // 📦 Si le fichier n'existe pas encore, on copie un modèle depuis l'app (template)
   const templatePath = path.join(__dirname, '..', 'database', 'ressourcebrie-sqlite-template.db');

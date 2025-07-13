@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
+import TactileInput from '../components/TactileInput';
+
 
 const DevModeModal = ({ show, onClose, onSuccess, password = 'devpass' }) => {
   const [input, setInput] = useState('');
@@ -23,7 +25,7 @@ const DevModeModal = ({ show, onClose, onSuccess, password = 'devpass' }) => {
         <Modal.Title>Mot de passe développeur</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <Form.Control
+        <TactileInput
           type="password"
           placeholder="Entrez le mot de passe"
           value={input}

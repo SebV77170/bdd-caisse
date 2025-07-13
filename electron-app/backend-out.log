@@ -1,0 +1,61 @@
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+[2025-07-11 12:23:34] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+[2025-07-11 12:23:34] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+Serveur backend lancé sur http://localhost:3001
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+[2025-07-11 12:24:15] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+[2025-07-11 12:24:15] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+Serveur backend lancé sur http://localhost:3001
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+[2025-07-11 12:29:29] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+[2025-07-11 12:29:29] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+Serveur backend lancé sur http://localhost:3001
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+[2025-07-11 12:44:50] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+[2025-07-11 12:44:50] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+Serveur backend lancé sur http://localhost:3001
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+🎯 POST /api/ticket reçu
+🧾 Corps de requête : { id_produit: 139, quantite: 1, id_temp_vente: 10 }
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+[2025-07-11 12:48:28] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+[2025-07-11 12:48:28] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+Serveur backend lancé sur http://localhost:3001
+📥 Requête GET /api/ventes reçue
+📥 Requête GET /api/ventes reçue
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+[2025-07-11 15:31:32] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+[2025-07-11 15:31:32] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+Serveur backend lancé sur http://localhost:3001
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+
+🪛 Chemin recherché pour SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db

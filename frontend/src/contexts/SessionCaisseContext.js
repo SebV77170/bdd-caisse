@@ -45,3 +45,4 @@ export function SessionCaisseProvider({ children }) {
 export function useSessionCaisse() {
   return useContext(SessionCaisseContext);
 }
+
