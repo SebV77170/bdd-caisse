@@ -157,7 +157,7 @@ router.post('/', (req, res) => {
   });
 
   // Génération du PDF de clôture
-  genererTicketCloturePdf(sessionCaisse.id_session)
+  genererTicketCloturePdf(sessionCaisse.id_session, uuid_ticket)
     .then(() => console.log('✅ PDF de clôture généré'))
     .catch(err => console.error('❌ Erreur PDF clôture :', err));
 

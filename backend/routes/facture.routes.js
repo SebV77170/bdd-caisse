@@ -37,18 +37,10 @@ router.post('/:uuid_ticket', async (req, res) => {
     if (!ticket) return res.status(404).json({ success: false, error: 'Ticket non trouvé' });
 
     const uuid_facture = uuidv4();
-    await genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse);
-    const lien = `factures/Facture-${uuid_facture}.pdf`;
-
-    sqlite
-      .prepare('INSERT INTO facture (uuid_facture, uuid_ticket, lien) VALUES (?, ?, ?)')
-      .run(uuid_facture, uuid_ticket, lien);
-
-    logSync('facture', 'INSERT', {
-      uuid_facture,
-      uuid_ticket,
-      lien
-    });  
+    const { lien , friendlyId } = await genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse);
+    if (!lien) {
+      return res.status(500).json({ success: false, error: 'Erreur lors de la génération de la facture PDF' });
+    }
 
     // Envoi email si fourni
     if (email) {
@@ -59,7 +51,7 @@ router.post('/:uuid_ticket', async (req, res) => {
           to: email,
           subject: "Votre facture - Ressource'Brie",
           text: "Veuillez trouver ci-joint votre facture au format PDF.",
-          attachments: [{ filename: `Facture-${uuid_facture}.pdf`, path: pdfPath }]
+          attachments: [{ filename: `Facture-${raison_sociale}-${friendlyId}.pdf`, path: pdfPath }]
         });
       }
     }

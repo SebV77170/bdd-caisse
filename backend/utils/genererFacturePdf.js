@@ -3,19 +3,27 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
+const logSync = require('../logsync');
 
 
 function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
   return new Promise((resolve, reject) => {
     try {
       const ticket = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?').get(uuid_ticket);
-      const friendlyId = getFriendlyIdFromUuid(uuid_facture);
+      const friendlyId = getFriendlyIdFromUuid(uuid_ticket);
       if (!ticket) return reject(new Error('Ticket introuvable'));
 
       const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(ticket.uuid_ticket);
-      const dir = path.join(__dirname, '../../factures');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-      const pdfPath = path.join(dir, `Facture-${friendlyId}.pdf`);
+
+      // 📆 Création du répertoire par date
+      const date = new Date(ticket.date_achat_dt);
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const dir = path.join(__dirname, `../../factures/${yyyy}/${mm}/${dd}`);
+      fs.mkdirSync(dir, { recursive: true });
+
+      const pdfPath = path.join(dir, `Facture-${raison_sociale}-${friendlyId}.pdf`);
 
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const stream = fs.createWriteStream(pdfPath);
@@ -28,14 +36,14 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
         doc.image(logoPath, 50, 45, { width: 100 });
       }
       doc.fontSize(10);
-      doc.text(`Date de facturation : ${new Date(ticket.date_achat_dt).toLocaleDateString()}`, 400, 50);
+      doc.text(`Date de facturation : ${date.toLocaleDateString()}`, 400, 50);
       doc.text(`Facture n° : ${friendlyId.slice(0, 8)}`, 400, 65);
 
       // --- CLIENT ---
       doc.moveDown(2);
       doc.fontSize(12).text("Destinataire :", { underline: true });
-      doc.fontSize(10).text(`${raison_sociale}`);
-      doc.text(`${adresse}`);
+      doc.fontSize(10).text(raison_sociale);
+      doc.text(adresse);
       doc.moveDown();
 
       // --- TABLE HEADER ---
@@ -50,7 +58,7 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       doc.moveDown(0.5);
       articles.forEach(a => {
         const prix = a.prix / 100;
-        const total = (a.nbr * prix);
+        const total = a.nbr * prix;
         totalHT += total;
 
         doc.fontSize(10)
@@ -63,10 +71,9 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       // --- TOTAL ---
       doc.moveDown().moveTo(50, doc.y).lineTo(550, doc.y).stroke();
       doc.moveDown();
-      doc.fontSize(10)
-        .text(`Total à régler : ${totalHT.toFixed(2)} €`, { align: 'right' });
+      doc.fontSize(10).text(`Total à régler : ${totalHT.toFixed(2)} €`, { align: 'right' });
 
-      // --- MENTION TVA FIABLE ---
+      // --- TVA ---
       doc.moveDown();
       doc.fontSize(9)
         .fillColor('#555555')
@@ -86,8 +93,29 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
 
       doc.end();
 
-      stream.on('finish', () => resolve(pdfPath));
+      stream.on('finish', () => {
+        // 📁 Chemin relatif à enregistrer
+        const relativePath = path.relative(path.join(__dirname, '../../'), pdfPath).replace(/\\/g, '/');
+
+      sqlite
+            .prepare('INSERT INTO facture (uuid_facture, uuid_ticket, lien) VALUES (?, ?, ?)')
+            .run(uuid_facture, uuid_ticket, relativePath);
+      
+          logSync('facture', 'INSERT', {
+            uuid_facture : uuid_facture,
+            uuid_ticket : uuid_ticket,
+            lien : relativePath
+          });  
+
+        resolve({
+          lien: relativePath,
+          friendlyId
+        });
+
+      });
+
       stream.on('error', reject);
+
     } catch (err) {
       reject(err);
     }
