@@ -3,9 +3,11 @@ const router = express.Router();
 const { updateMysqlConfig, getMysqlPresets, getMysqlPool } = require('../db');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-
-const configPath = path.join(__dirname, '../dbConfig.json');
+const baseDir = path.join(os.homedir(), '.bdd-caisse');
+const configPath = path.join(baseDir, 'dbConfig.json');
+fs.mkdirSync(baseDir, { recursive: true });
 
 router.get('/', (req, res) => {
   let conf;

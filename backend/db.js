@@ -4,7 +4,10 @@ const Database = require('better-sqlite3');
 const mysql = require('mysql2/promise');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-const dbConfigPath = path.join(__dirname, 'dbConfig.json');
+const os = require('os');
+const baseDir = path.join(os.homedir(), '.bdd-caisse');
+const dbConfigPath = path.join(baseDir, 'dbConfig.json');
+fs.mkdirSync(baseDir, { recursive: true });
 
 function getMysqlPresets() {
   const presets = [];
@@ -65,7 +68,6 @@ function getMysqlPool() {
 // Connexion SQLite
 
 
-const os = require('os');
 const { app } = require('electron'); // uniquement si ce fichier est exécuté dans le main process Electron
 
 

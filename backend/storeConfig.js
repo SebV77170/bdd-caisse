@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-const configPath = path.join(__dirname, 'storeConfig.json');
+const baseDir = path.join(os.homedir(), '.bdd-caisse');
+const configPath = path.join(baseDir, 'storeConfig.json');
+fs.mkdirSync(baseDir, { recursive: true });
 
 function loadConfig() {
   if (fs.existsSync(configPath)) {
