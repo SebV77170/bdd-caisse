@@ -21,7 +21,7 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
   const bilan = bilanResponse.data;
 
   const date = new Date(session.date_fermeture);
-  const yyyy = date.getFullYear();
+  const yyyy = String(date.getFullYear());
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
 

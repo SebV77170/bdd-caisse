@@ -18,7 +18,7 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
 
       // 📆 Création du répertoire par date
       const date = new Date(ticket.date_achat_dt);
-      const yyyy = date.getFullYear();
+      const yyyy = String(date.getFullYear());
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const baseDir = path.join(os.homedir(), '.bdd-caisse');
