@@ -48,7 +48,7 @@ const JournalCaisse = () => {
       })
       .catch(err => console.error('Erreur chargement bilan/modifs session:', err));
   };
-
+console.log(sessions, details, modifs);
   return (
     <div className="bilan-scroll-container">
       <div className="container">

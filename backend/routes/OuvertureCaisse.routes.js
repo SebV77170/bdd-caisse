@@ -120,9 +120,9 @@ router.get('/modifications', (req, res) => {
               annul.uuid_ticket AS uuid_ticket_annulation,
               corr.uuid_ticket  AS uuid_ticket_correction
          FROM journal_corrections jc
-    LEFT JOIN ticketdecaisse orig  ON orig.id_ticket  = jc.id_ticket_original
-    LEFT JOIN ticketdecaisse annul ON annul.id_ticket = jc.id_ticket_annulation
-    LEFT JOIN ticketdecaisse corr  ON corr.id_ticket  = jc.id_ticket_correction
+    LEFT JOIN ticketdecaisse orig  ON orig.uuid_ticket  = jc.uuid_ticket_original
+    LEFT JOIN ticketdecaisse annul ON annul.uuid_ticket = jc.uuid_ticket_annulation
+    LEFT JOIN ticketdecaisse corr  ON corr.uuid_ticket  = jc.uuid_ticket_correction
         WHERE orig.uuid_session_caisse  = ?
            OR annul.uuid_session_caisse = ?
            OR corr.uuid_session_caisse  = ?
