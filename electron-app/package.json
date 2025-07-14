@@ -44,6 +44,10 @@
     {
       "from": "backend/inserts_users.sql",
       "to": "."
+    },
+    {
+      "from": "../images",
+      "to": "images"
     }
     ],
     "directories": {

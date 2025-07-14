@@ -1,9 +1,12 @@
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const axios = require('axios');
 const cron = require('node-cron');
 
-const configPath = path.join(__dirname, 'syncConfig.json');
+const baseDir = path.join(os.homedir(), '.bdd-caisse');
+const configPath = path.join(baseDir, 'syncConfig.json');
+fs.mkdirSync(baseDir, { recursive: true });
 
 function loadConfig() {
   if (fs.existsSync(configPath)) {
