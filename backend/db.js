@@ -66,6 +66,7 @@ function getMysqlPool() {
 
 
 const os = require('os');
+const { app } = require('electron'); // uniquement si ce fichier est exécuté dans le main process Electron
 
 
 let db;
@@ -74,23 +75,55 @@ if (process.env.NODE_ENV === 'test') {
   db = new Database(':memory:');
   console.log('✅ Connecté à SQLite en mémoire (mode test)');
 } else {
-  // 📁 Chemin vers le répertoire persistant de l'utilisateur
+  // 📁 Dossier utilisateur pour la base persistante
   const userDataDir = path.join(os.homedir(), '.bdd-caisse');
   const dbPath = path.join(userDataDir, 'ressourcebrie-sqlite.db');
-console.log('🪛 Chemin recherché pour SQLite :', dbPath);
+  console.log('🪛 Chemin recherché pour SQLite :', dbPath);
 
-  // 📦 Si le fichier n'existe pas encore, on copie un modèle depuis l'app (template)
-  const templatePath = path.join(__dirname, '..', 'database', 'ressourcebrie-sqlite-template.db');
+  // 🔍 Détection de l'environnement d'exécution (Electron ou Node.js)
+  let appPath;
+
+  if (process.versions.electron) {
+    const { app } = require('electron');
+    appPath = process.env.NODE_ENV === 'development'
+      ? __dirname // En dev : dans ton dossier source
+      : process.resourcesPath; // En prod : dossier /resources
+  } else {
+    // Fallback Node.js pur (ex: `nodemon`, `node index.js`)
+    appPath = __dirname;
+  }
+
+  const templatePath = path.join(appPath, 'database', 'ressourcebrie-sqlite-template.db');
+  const insertionsPath = path.join(appPath, 'inserts_categories_boutons.sql');
+  const insertsUsersPath = path.join(appPath, 'inserts_users.sql');
+
+  // ⛏️ Si la BDD utilisateur n'existe pas, on copie depuis le template + inserts
   if (!fs.existsSync(dbPath)) {
     fs.mkdirSync(userDataDir, { recursive: true });
+
     if (fs.existsSync(templatePath)) {
       fs.copyFileSync(templatePath, dbPath);
+
+      const dbTemp = new Database(dbPath);
+
+      if (fs.existsSync(insertionsPath)) {
+        const insertions = fs.readFileSync(insertionsPath, 'utf-8');
+        dbTemp.exec(insertions);
+      }
+
+      if (fs.existsSync(insertsUsersPath)) {
+        const insertsUsers = fs.readFileSync(insertsUsersPath, 'utf-8');
+        dbTemp.exec(insertsUsers);
+      }
+
+      dbTemp.close();
       console.log('📂 Base initialisée depuis le modèle');
     } else {
       throw new Error(`⚠️ Fichier modèle introuvable à : ${templatePath}`);
     }
   }
 
+  // 🎯 Connexion active à la BDD
   db = new Database(dbPath);
   console.log('✅ Connecté à SQLite :', dbPath);
 }

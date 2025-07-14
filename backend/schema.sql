@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS modifticketdecaisse (
 	id_modif INT NOT NULL,
 	id_ticket INT NOT NULL,
 	nom_vendeur VARCHAR(255),
-	id_vendeur INT NOT NULL,
+	id_vendeur TEXT NOT NULL,
 	date_achat_dt TIMESTAMP,
 	nbr_objet INT NOT NULL,
 	moyen_paiement TEXT,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS paiement_mixte_modif (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-	id INT NOT NULL,
+	uuid_user TEXT NOT NULL,
 	prenom VARCHAR(255),
 	nom VARCHAR(255),
 	pseudo VARCHAR(255),
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS vente (
 	id_temp_vente INTEGER PRIMARY KEY AUTOINCREMENT,
 	dateheure TEXT,
-	id_vendeur INTEGER,
+	id_vendeur TEXT,
 	modif TINYINT,
 	id_modif INTEGER
 );
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS ticketdecaissetemp (
 CREATE TABLE IF NOT EXISTS ticketdecaisse (
 	id_ticket INTEGER PRIMARY KEY AUTOINCREMENT,
 	nom_vendeur VARCHAR,
-	id_vendeur INTEGER NOT NULL,
+	id_vendeur TEXT NOT NULL,
 	date_achat_dt TIMESTAMP,
 	nbr_objet INTEGER NOT NULL,
 	moyen_paiement TEXT,
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS objets_vendus (
 	id_achat INTEGER PRIMARY KEY AUTOINCREMENT,
 	uuid_ticket INTEGER NOT NULL,
 	nom_vendeur VARCHAR,
-	id_vendeur INTEGER NOT NULL,
+	id_vendeur TEXT NOT NULL,
 	nom VARCHAR,
 	categorie VARCHAR,
 	souscat VARCHAR,

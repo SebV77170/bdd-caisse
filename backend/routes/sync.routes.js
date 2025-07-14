@@ -196,6 +196,13 @@ router.post('/', async (req, res) => {
           ]);
         }
 
+        else if (type === 'users' && operation === 'INSERT') {
+          await pool.query(`INSERT INTO users (prenom, nom, pseudo, password, admin, mail, tel, uuid_user) VALUES (?, ?, ?, ?, ?, ?, ?,?)`, [
+            payload.nom, payload.prenom, payload.pseudo, payload.password,
+            payload.admin || 0, payload.mail || '', payload.tel || '', payload.uuid_user
+          ]);
+        }
+
         sqlite.prepare(`UPDATE sync_log SET synced = 1 WHERE id = ?`).run(ligne.id);
       } catch (err) {
         if (debugMode) debugLogs.push(`❌ Erreur ligne ID ${ligne.id} : ${err.message}`);

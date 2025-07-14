@@ -155,7 +155,7 @@ router.post('/', async (req, res) => {
 
     const date_achat = new Date().toISOString().slice(0, 19).replace('T', ' ');
     const vendeur = user.nom;
-    const id_vendeur = user.id;
+    const id_vendeur = user.uuid_user;
 
     // Calcul du prix total
     let prixTotal = articles.reduce((sum, a) => sum + a.prixt, 0);

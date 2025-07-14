@@ -33,7 +33,7 @@ router.post('/', (req, res) => {
   const today = now.slice(0, 10);
   const timestamp = Math.floor(Date.now() / 1000);
   const utilisateur = user.nom;
-  const id_vendeur = user.id;
+  const id_vendeur = user.uuid_user;
 
   // Transaction SQLite pour garantir la cohérence des modifications
   const transaction = sqlite.transaction(() => {

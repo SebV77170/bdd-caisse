@@ -3,7 +3,7 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const bcrypt = require('bcrypt');
 const session = require('../session');
-const logSync = require('../logSync');
+const logSync = require('../logsync');
 const genererTicketCloturePdf = require('../utils/genererTicketCloturePdf');
 const { v4: uuidv4 } = require('uuid');
 const getBilanSession = require('../utils/bilanSession');
@@ -121,7 +121,7 @@ router.post('/', (req, res) => {
 
   // Création d'un ticket de clôture (ticket de caisse spécial)
   const vendeur = utilisateur.nom;
-  const id_vendeur = utilisateur.id;
+  const id_vendeur = utilisateur.uuid_user;
   const date_achat = new Date().toISOString().slice(0, 19).replace('T', ' ');
   const uuid_ticket = uuidv4();
 

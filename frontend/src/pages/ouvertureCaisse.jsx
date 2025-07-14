@@ -18,38 +18,48 @@ function OuvertureCaisse() {
   const { refreshSessionCaisse } = useSessionCaisse();
   
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!fondInitial || !responsablePseudo || !motDePasse) {
-      setMessage('Tous les champs sont obligatoires.');
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!fondInitial || !responsablePseudo || !motDePasse) {
+    setMessage('Tous les champs sont obligatoires.');
+    return;
+  }
+
+  try {
+    const res = await fetch('http://localhost:3001/api/caisse/ouverture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fond_initial: parseFloat(fondInitial) * 100,
+        responsable_pseudo: responsablePseudo,
+        mot_de_passe: motDePasse,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      // 🔴 Si le serveur a renvoyé une erreur, on affiche le message d'erreur spécifique
+      const errorMessage = data.error || 'Erreur inconnue lors de l’ouverture de caisse.';
+      setMessage(errorMessage);
       return;
     }
 
-    try {
-      const res = await fetch('http://localhost:3001/api/caisse/ouverture', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fond_initial: parseFloat(fondInitial)*100,
-          responsable_pseudo: responsablePseudo,
-          mot_de_passe: motDePasse
-        })
-      });
+    if (data.success) {
       refreshSessionCaisse(); // pour recharger l’uuid de la session caisse dans le contexte
-
-
-      const data = await res.json();
-
-      if (data.success) {
-        navigate('/', {
-        state: { toastMessage: 'Caisse ouverte avec succès !' }
-    });
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage('Erreur de communication avec le serveur.');
+      navigate('/', {
+        state: { toastMessage: 'Caisse ouverte avec succès !' },
+      });
+    } else {
+      // 🔴 Fallback si pas de succès explicite
+      setMessage(data.message || 'Impossible d’ouvrir la caisse.');
     }
-  };
+  } catch (err) {
+    console.error(err);
+    setMessage('Erreur de communication avec le serveur.');
+  }
+};
+
 
   return (
 

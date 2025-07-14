@@ -32,6 +32,7 @@ CREATE TABLE categories (
 	color varchar(255)
 );
 
+
 CREATE TABLE compte_transac (
 	date_transac TIMESTAMP(10) NOT NULL,
 	compte int NOT NULL
@@ -47,7 +48,7 @@ CREATE TABLE modifticketdecaisse (
 	id_modif int NOT NULL,
 	id_ticket int NOT NULL,
 	nom_vendeur varchar(255),
-	id_vendeur int NOT NULL,
+	id_vendeur text NOT NULL,
 	date_achat_dt TIMESTAMP(26),
 	nbr_objet int NOT NULL,
 	moyen_paiement TEXT(32767),
@@ -73,7 +74,7 @@ CREATE TABLE paiement_mixte_modif (
 );
 
 CREATE TABLE users (
-	id int NOT NULL,
+	uuid_user text NOT NULL,
 	prenom varchar(255),
 	nom varchar(255),
 	pseudo varchar(255),
@@ -86,7 +87,7 @@ CREATE TABLE users (
 CREATE TABLE vente (
   id_temp_vente INTEGER PRIMARY KEY AUTOINCREMENT,
   dateheure TEXT,
-  id_vendeur INTEGER,
+  id_vendeur TEXT,
   modif TINYINT,
   id_modif INTEGER
 );
@@ -105,7 +106,7 @@ CREATE TABLE ticketdecaissetemp (
 CREATE TABLE ticketdecaisse (
   id_ticket INTEGER PRIMARY KEY AUTOINCREMENT,
   nom_vendeur VARCHAR,
-  id_vendeur INTEGER NOT NULL,
+  id_vendeur TEXT NOT NULL,
   date_achat_dt TIMESTAMP,
   nbr_objet INTEGER NOT NULL,
   moyen_paiement TEXT,
@@ -124,7 +125,7 @@ CREATE TABLE objets_vendus (
   id_achat INTEGER PRIMARY KEY AUTOINCREMENT,
   uuid_ticket INTEGER NOT NULL,
   nom_vendeur VARCHAR,
-  id_vendeur INTEGER NOT NULL,
+  id_vendeur TEXT NOT NULL,
   nom VARCHAR,
   categorie VARCHAR,
   souscat VARCHAR,
@@ -205,6 +206,7 @@ CREATE TABLE uuid_mapping (
 );
 
 `);
+
 
 db.close();
 console.log('✅ Template généré avec succès !');

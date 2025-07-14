@@ -26,8 +26,8 @@ router.post('/', (req, res) => {
     return res.status(403).json({ error: 'Mot de passe invalide' });
   }
 
-  session.setUser({ id: user.id, nom: user.nom, prenom: user.prenom, pseudo: user.pseudo });
-  res.json({ success: true, user: { id: user.id, nom: user.nom, prenom: user.prenom, pseudo: user.pseudo} });
+  session.setUser({ nom: user.nom, prenom: user.prenom, pseudo: user.pseudo, uuid_user: user.uuid_user });
+  res.json({ success: true, user: { nom: user.nom, prenom: user.prenom, pseudo: user.pseudo, uuid_user: user.uuid_user} });
 });
 
 router.get('/', (req, res) => {

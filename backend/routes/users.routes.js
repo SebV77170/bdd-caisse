@@ -1,12 +1,14 @@
+
 const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
 const bcrypt = require('bcrypt');
+const logSync = require('../logsync');
 
 // GET /api/users — retourne la liste pour la page de login
 router.get('/', (req, res) => {
   try {
-    const users = sqlite.prepare('SELECT id, nom, pseudo FROM users').all();
+    const users = sqlite.prepare('SELECT uuid_user, nom, pseudo FROM users').all();
     res.json(users);
   } catch (err) {
     console.error('Erreur chargement utilisateurs:', err);
@@ -22,20 +24,30 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Champs manquants' });
   }
 
-  const exist = sqlite.prepare('SELECT id FROM users WHERE pseudo = ?').get(pseudo);
+  const exist = sqlite.prepare('SELECT uuid_user FROM users WHERE pseudo = ?').get(pseudo);
   if (exist) {
     return res.status(409).json({ error: 'Pseudo déjà utilisé' });
   }
 
-  const row = sqlite.prepare('SELECT MAX(id) as max FROM users').get();
-  const id = (row?.max || 0) + 1;
+  const uuid = require('uuid').v4();
   const hash = bcrypt.hashSync(mot_de_passe.trim(), 10);
 
   sqlite.prepare(
-    'INSERT INTO users (id, prenom, nom, pseudo, password, admin, mail, tel) VALUES (?,?,?,?,?,?,?,?)'
-  ).run(id, prenom, nom, pseudo, hash, 1, mail, tel);
+    'INSERT INTO users (prenom, nom, pseudo, password, admin, mail, tel, uuid_user) VALUES (?,?,?,?,?,?,?,?)'
+  ).run(prenom, nom, pseudo, hash, 1, mail, tel, uuid);
 
-  res.json({ success: true, id });
+  logSync('users', 'insert', {
+    prenom: prenom,
+    nom: nom,
+    pseudo: pseudo,
+    password: hash,
+    admin: 1,
+    mail: mail,
+    tel: tel,
+    uuid_user: uuid
+  });
+
+  res.json({ success: true });
 });
 
 module.exports = router;

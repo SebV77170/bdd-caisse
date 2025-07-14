@@ -20,7 +20,7 @@ beforeEach(() => {
   session.clearUser();
   const hash = bcrypt.hashSync('secret', 10);
   sqlite.prepare(
-    'INSERT INTO users (id, prenom, nom, pseudo, password, admin) VALUES (?,?,?,?,?,0)'
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?,?,?,?,?,0)'
   ).run(1, 'John', 'Doe', 'jdoe', hash);
 });
 
