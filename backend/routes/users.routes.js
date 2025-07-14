@@ -36,7 +36,7 @@ router.post('/', (req, res) => {
     'INSERT INTO users (prenom, nom, pseudo, password, admin, mail, tel, uuid_user) VALUES (?,?,?,?,?,?,?,?)'
   ).run(prenom, nom, pseudo, hash, 1, mail, tel, uuid);
 
-  logSync('users', 'insert', {
+  logSync('users', 'INSERT', {
     prenom: prenom,
     nom: nom,
     pseudo: pseudo,
