@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TactileInput from '../components/TactileInput';
+import SignupModal from '../components/SignupModal';
 
 
 function LoginPage() {
@@ -8,6 +9,7 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
   const [sessionOuverte, setSessionOuverte] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,6 +77,12 @@ function LoginPage() {
       />
       <button className="btn btn-primary" onClick={handleLogin}>Se connecter</button>
       {message && <p className="text-danger mt-2">{message}</p>}
+      <p className="mt-3">
+        <button type="button" className="btn btn-link p-0" onClick={() => setShowSignup(true)}>
+          Je n'ai pas de compte
+        </button>
+      </p>
+      <SignupModal show={showSignup} onHide={() => setShowSignup(false)} />
     </div>
   );
 }
