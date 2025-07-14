@@ -1,4 +1,4 @@
 module.exports = {
-    getUser: () => ({ id: 1, nom: 'Testeur' }),
+    getUser: () => ({ uuid_user: 1, nom: 'Testeur' }),
   };
   

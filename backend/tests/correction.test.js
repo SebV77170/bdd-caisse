@@ -1,7 +1,7 @@
 // correction.test.js
 
 jest.mock('../session', () => ({
-  getUser: () => ({ id: 1, nom: 'Testeur' })
+  getUser: () => ({ uuid_user: 1, nom: 'Testeur' })
 }));
 
 jest.mock('../utils/genererTicketPdf', () => jest.fn().mockResolvedValue('/tmp/correction.pdf'));
