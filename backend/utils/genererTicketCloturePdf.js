@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const axios = require('axios');
@@ -24,7 +25,8 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
 
-  const dir = path.join(__dirname, `../../tickets/${yyyy}/${mm}/${dd}`);
+  const baseDir = path.join(os.homedir(), '.bdd-caisse');
+  const dir = path.join(baseDir, 'tickets', yyyy, mm, dd);
   fs.mkdirSync(dir, { recursive: true });
 
   const pdfPath = path.join(dir, `Cloture-${friendlyId}.pdf`);

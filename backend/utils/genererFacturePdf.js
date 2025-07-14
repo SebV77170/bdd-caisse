@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
@@ -20,7 +21,8 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
-      const dir = path.join(__dirname, `../../factures/${yyyy}/${mm}/${dd}`);
+      const baseDir = path.join(os.homedir(), '.bdd-caisse');
+      const dir = path.join(baseDir, 'factures', yyyy, mm, dd);
       fs.mkdirSync(dir, { recursive: true });
 
       const pdfPath = path.join(dir, `Facture-${raison_sociale}-${friendlyId}.pdf`);
@@ -29,7 +31,11 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
 
-      const logoPath = path.join(__dirname, '../../images/logo.png');
+      let logoPath = path.join(__dirname, '../../images/logo.png');
+      if (!fs.existsSync(logoPath) && process.resourcesPath) {
+        const alt = path.join(process.resourcesPath, 'images', 'logo.png');
+        if (fs.existsSync(alt)) logoPath = alt;
+      }
 
       // --- HEADER ---
       if (fs.existsSync(logoPath)) {
