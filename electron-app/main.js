@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
+const os = require('os');
 
 
 let mainWindow;
@@ -162,7 +163,8 @@ app.on('before-quit', (event) => {
 
 // 📂 Ouvre le PDF à la demande
 ipcMain.on('open-pdf', (event, relativePath) => {
-  const fullPath = path.resolve(__dirname, '..', relativePath);
+  const baseDir = path.join(os.homedir(), '.bdd-caisse');
+  const fullPath = path.join(baseDir, relativePath);
   if (fs.existsSync(fullPath)) {
     shell.openPath(fullPath);
   } else {

@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const path = require('path');
+const os = require('os');
 
 // Middlewares globaux
 app.use(cors());
@@ -55,7 +56,8 @@ app.use('/api/sync-config', syncConfigRoutes);
 app.use('/api/store-config', storeConfigRoutes);
 app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
-app.use('/factures', express.static(path.join(__dirname, '../factures')));
+const baseDir = path.join(os.homedir(), '.bdd-caisse');
+app.use('/factures', express.static(path.join(baseDir, 'factures')));
 
 
 

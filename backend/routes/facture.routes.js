@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const genererFacturePdf = require('../utils/genererFacturePdf');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const nodemailer = require('nodemailer');
 const logSync = require('../logsync');
 
@@ -52,7 +53,8 @@ router.post('/:uuid_ticket', async (req, res) => {
 
     // Envoi email si fourni
     if (email) {
-      const pdfPath = path.join(__dirname, '../../', lien);
+      const baseDir = path.join(os.homedir(), '.bdd-caisse');
+      const pdfPath = path.join(baseDir, lien);
       if (fs.existsSync(pdfPath)) {
         await transporter.sendMail({
           from: '"RessourceBrie" <magasin@ressourcebrie.fr>',

@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const router = express.Router();
 const { sqlite, getMysqlPool } = require('../db');
 
@@ -53,7 +54,8 @@ router.post('/', async (req, res) => {
     }
 
     // 🧹 Suppression des fichiers de tickets
-    const ticketDir = path.join(__dirname, '../../tickets');
+    const baseDir = path.join(os.homedir(), '.bdd-caisse');
+    const ticketDir = path.join(baseDir, 'tickets');
     if (fs.existsSync(ticketDir)) {
       const fichiers = fs.readdirSync(ticketDir);
       fichiers.forEach(f => {

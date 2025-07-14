@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
@@ -13,8 +14,9 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       if (!ticket) return reject(new Error('Ticket introuvable'));
 
       const articles = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(ticket.uuid_ticket);
-      const dir = path.join(__dirname, '../../factures');
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+      const baseDir = path.join(os.homedir(), '.bdd-caisse');
+      const dir = path.join(baseDir, 'factures');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const pdfPath = path.join(dir, `Facture-${friendlyId}.pdf`);
 
       const doc = new PDFDocument({ size: 'A4', margin: 50 });

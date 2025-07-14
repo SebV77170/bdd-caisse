@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
@@ -19,7 +20,8 @@ function genererTicketPdf(uuid_ticket) {
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
 
-      const dir = path.join(__dirname, `../../tickets/${yyyy}/${mm}/${dd}`);
+      const baseDir = path.join(os.homedir(), '.bdd-caisse');
+      const dir = path.join(baseDir, `tickets/${yyyy}/${mm}/${dd}`);
       fs.mkdirSync(dir, { recursive: true }); // ✅ Crée tous les dossiers si besoin
 
       const pdfPath = path.join(dir, `Ticket-${friendlyId}.pdf`);
@@ -107,7 +109,7 @@ function genererTicketPdf(uuid_ticket) {
 
       stream.on('finish', () => {
   // 🧠 On extrait un chemin relatif propre pour l'enregistrement
-  const relativePath = path.relative(path.join(__dirname, '../../'), pdfPath).replace(/\\/g, '/');
+  const relativePath = path.relative(baseDir, pdfPath).replace(/\\/g, '/');
 
   // 📦 Mise à jour du champ `lien` en base
   sqlite.prepare('UPDATE ticketdecaisse SET lien = ? WHERE uuid_ticket = ?')
