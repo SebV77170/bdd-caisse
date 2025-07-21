@@ -6,14 +6,16 @@ import AffichageEcarts from '../components/AffichageEcarts';
 import BilanSessionCaisse from '../components/BilanSessionCaisse';
 import BilanReductionsSession from '../components/BilanReductionsSession';
 import TactileInput from '../components/TactileInput';
-import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { set } from 'date-fns';
 import { euro } from '../utils/euro';
+import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 
 
 // Composant principal pour la fermeture de caisse
 function FermetureCaisse() {
   // États pour les différents champs du formulaire et données de la caisse
+  const activeSession = useActiveSession();
   const [fondInitial, setFondInitial] = useState(null);
   const [montantReel, setMontantReel] = useState('');
   const [attendu, setAttendu] = useState(null);
@@ -25,7 +27,8 @@ function FermetureCaisse() {
   const [motDePasse, setMotDePasse] = useState('');
   const [reductions, setReductions] = useState(null);
   const navigate = useNavigate();
-  const { uuidSessionCaisse, sessionCaisseOuverte,  refreshSessionCaisse } = useSessionCaisse();
+  const uuidSessionCaisse = activeSession?.uuid_session || null;
+  const sessionCaisseOuverte = activeSession;
 
   // Affiche l'UUID de la session caisse dans la console (debug)
   console.log("UUID session caisse en contexte :", uuidSessionCaisse);
@@ -53,11 +56,9 @@ function FermetureCaisse() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           montant_reel: euro(montantReel).intValue,
-
           montant_reel_carte: euro(montantReelCarte).intValue,
-montant_reel_cheque: euro(montantReelCheque).intValue,
-montant_reel_virement: euro(montantReelVirement).intValue,
-
+          montant_reel_cheque: euro(montantReelCheque).intValue,
+          montant_reel_virement: euro(montantReelVirement).intValue,
           commentaire,
           uuid_session_caisse: uuidSessionCaisse,
           responsable_pseudo: responsablePseudo,
@@ -71,7 +72,6 @@ montant_reel_virement: euro(montantReelVirement).intValue,
       if (data.success) {
         console.log(data.success);
 
-        refreshSessionCaisse();
     // On redirige et on transmet un message dans l’état de navigation
     navigate('/Bilan', {
       state: { toastMessage: 'Caisse fermée avec succès !' }
@@ -168,7 +168,8 @@ montant_reel_virement: euro(montantReelVirement).intValue,
           <BilanReductionsSession reductions={reductions} />
         )}
 
-        {/* Formulaire de fermeture de caisse */}
+       <SiCaissePrincipale>
+         {/* Formulaire de fermeture de caisse */}
         <form onSubmit={handleSubmit}>
           {/* ✅ Intégration du tableau des espèces */}
           <CompteEspeces onChangeTotal={(total) => setMontantReel(total)} />
@@ -255,6 +256,36 @@ montant_reel_virement: euro(montantReelVirement).intValue,
           </div>
           <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse</button>
         </form>
+        </SiCaissePrincipale>
+
+        {activeSession?.type === 'secondaire' && (
+  <button
+    type="button"
+    style={{ marginTop: 10, marginLeft: 10 }}
+    onClick={async () => {
+      try {
+        const res = await fetch('http://localhost:3001/api/sync/envoyer-secondaire-vers-principal', {
+          method: 'POST'
+        });
+
+        const result = await res.json();
+
+        if (result.success) {
+          toast.success('✅ Données envoyées à la caisse principale.');
+          console.log('🛜 Résultat de la synchronisation vers principale :', result);
+        } else {
+          toast.error('❌ Échec de l’envoi : ' + (result.message || 'Erreur inconnue.'));
+        }
+      } catch (err) {
+        console.error('Erreur d’envoi vers caisse principale :', err);
+        toast.error('❌ Erreur réseau.');
+      }
+    }}
+  >
+    🔁 Envoyer vers caisse principale
+  </button>
+)}
+
 
         {/* Affiche les notifications toast */}
         <ToastContainer position="top-center" autoClose={3000} />

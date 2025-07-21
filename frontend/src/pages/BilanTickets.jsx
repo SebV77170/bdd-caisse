@@ -11,6 +11,7 @@ import { Button } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import FactureModal from '../components/factureModal';
+import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 
 const socket = io('http://localhost:3001');
 
@@ -212,17 +213,20 @@ const BilanTickets = () => {
                           id_friendly_corrige={ticket.id_friendly_corrige}
                         />
                         {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&(
-                          <Button
-                            variant="outline-warning"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => {
-                              setTicketPourCorrection(details[ticket.uuid_ticket]);
-                              setShowCorrection(true);
-                            }}
-                          >
-                            Corriger
-                          </Button>
+                        
+                            <Button
+                              variant="outline-warning"
+                              size="sm"
+                              className="mt-2"
+                              onClick={() => {
+                                setTicketPourCorrection(details[ticket.uuid_ticket]);
+                                setShowCorrection(true);
+                              }}
+                            >
+                              Corriger
+                            </Button>
+                          
+
                         )}
                       </td>
                     </tr>

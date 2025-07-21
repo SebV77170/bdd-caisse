@@ -8,9 +8,11 @@ export const SessionProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Chargement initial au démarrage de l'app
+  // ✅ Chargement initial au démarrage de l'app
   useEffect(() => {
-    fetch('/api/session')
+    fetch('http://localhost:3001/api/session', {
+      credentials: 'include' // 🔑 Pour que le cookie soit envoyé
+    })
       .then(res => {
         if (!res.ok) throw new Error();
         return res.json();
@@ -20,25 +22,36 @@ export const SessionProvider = ({ children }) => {
       })
       .catch(() => {
         setUser(null);
-        localStorage.removeItem('vendeur');
         navigate('/login');
       })
       .finally(() => setLoading(false));
   }, []);
 
-  // Connexion manuelle (ex : après POST /api/session)
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem('vendeur', JSON.stringify(userData));
+  // ✅ Connexion manuelle (ex: après POST /api/session)
+  const login = async (credentials) => {
+    const res = await fetch('http://localhost:3001/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(credentials)
+    });
+
+    if (!res.ok) throw new Error('Échec de la connexion');
+
+    const data = await res.json();
+    setUser(data.user);
+    console.log('Utilisateur connecté:', data.user);
   };
 
-  // Déconnexion manuelle
+  // ✅ Déconnexion manuelle
   const logout = () => {
-    fetch('/api/session', { method: 'DELETE' })
-      .catch(() => {}) // Ignorer les erreurs
+    fetch('http://localhost:3001/api/session', {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+      .catch(() => {})
       .finally(() => {
         setUser(null);
-        localStorage.removeItem('vendeur');
         navigate('/login');
       });
   };

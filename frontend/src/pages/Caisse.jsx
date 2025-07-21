@@ -8,9 +8,11 @@ import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
 import { toast, ToastContainer } from 'react-toastify';
 import { useLocation, Link } from 'react-router-dom';
-import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+import { useActiveSession } from '../contexts/SessionCaisseContext';
+
 
 function Caisse() {
+  const activeSession = useActiveSession();
   const [boutons, setBoutons] = useState({});
   const [categorieActive, setCategorieActive] = useState('');
   const [ticketModif, setTicketModif] = useState([]);
@@ -18,7 +20,10 @@ function Caisse() {
   const [ventes, setVentes] = useState([]);
   const [venteActive, setVenteActive] = useState(null);
   const [ouvert, setOuvert] = useState(false);
-  const { sessionCaisseOuverte } = useSessionCaisse();
+  const sessionCaisseOuverte = activeSession;
+
+    console.log("🧪 activeSession:", activeSession);
+
 
   useEffect(() => {
     fetch('http://localhost:3001/api/produits/organises')
@@ -42,7 +47,7 @@ function Caisse() {
   }, [venteActive]);
 
   const chargerTicket = useCallback(() => {
-    console.log("📥 Ticket rechargé");
+    
 
     if (!venteActive) return;
     fetch(`http://localhost:3001/api/ticket/${venteActive}`)
@@ -127,8 +132,8 @@ function Caisse() {
   };
 
   const totalTicket = ticketModif.reduce((sum, item) => sum + item.prixt, 0);
-console.log(sessionCaisseOuverte, "Session caisse ouverte ?");
-  if (!sessionCaisseOuverte) {
+
+  /* if (!sessionCaisseOuverte) {
     return (
       <div className="d-flex flex-column justify-content-center align-items-center h-100">
         <h1 className="display-4 text-center">
@@ -139,7 +144,7 @@ console.log(sessionCaisseOuverte, "Session caisse ouverte ?");
         </Link>
       </div>
     );
-  }
+  } */
 
   return (
     <div className="container-fluid p-0 h-100 d-flex flex-column overflow-hidden">

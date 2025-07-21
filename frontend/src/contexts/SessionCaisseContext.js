@@ -1,15 +1,17 @@
-// src/contexts/SessionCaisseContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
 
 const SessionCaisseContext = createContext();
+const SessionCaisseSecondaireContext = createContext();
 
+// CONTEXTE PRINCIPAL
 export function SessionCaisseProvider({ children }) {
   const [uuidSessionCaisse, setUuidSessionCaisse] = useState(null);
   const [sessionCaisseOuverte, setSessionCaisseOuverte] = useState(false);
 
-  // Fonction pour rafraîchir manuellement la session caisse (utile après ouverture/fermeture)
   const refreshSessionCaisse = () => {
-    fetch('http://localhost:3001/api/session/etat-caisse')
+    fetch('/api/session/etat-caisse', {
+  credentials: 'include',
+})
       .then(res => res.json())
       .then(data => {
         if (data.ouverte) {
@@ -26,7 +28,6 @@ export function SessionCaisseProvider({ children }) {
       });
   };
 
-  // Initial fetch au chargement
   useEffect(() => {
     refreshSessionCaisse();
   }, []);
@@ -46,3 +47,78 @@ export function useSessionCaisse() {
   return useContext(SessionCaisseContext);
 }
 
+
+// CONTEXTE SECONDAIRE (mutuellement exclusif)
+export function SessionCaisseSecondaireProvider({ children }) {
+  const sessionCaisse = useSessionCaisse(); // peut être undefined
+  const sessionCaisseOuverte = sessionCaisse?.sessionCaisseOuverte || false;
+
+  const [uuidCaisseSecondaire, setUuidCaisseSecondaire] = useState(null);
+  const [caisseSecondaireActive, setCaisseSecondaireActive] = useState(false);
+
+  const refreshCaisseSecondaire = () => {
+    fetch('/api/session/etat-caisse-secondaire', {
+  credentials: 'include',
+})
+      
+
+      .then(res => res.json())
+      .then(data => {
+        if (data.ouverte && !sessionCaisseOuverte) {
+          setUuidCaisseSecondaire(data.id_session);
+          setCaisseSecondaireActive(true);
+        } else {
+          setUuidCaisseSecondaire(null);
+          setCaisseSecondaireActive(false);
+        }
+      })
+      .catch(() => {
+        setUuidCaisseSecondaire(null);
+        setCaisseSecondaireActive(false);
+      });
+  };
+
+  useEffect(() => {
+    refreshCaisseSecondaire();
+  }, [sessionCaisseOuverte]);
+
+  return (
+    <SessionCaisseSecondaireContext.Provider value={{
+      uuidCaisseSecondaire,
+      caisseSecondaireActive,
+      refreshCaisseSecondaire
+    }}>
+      {children}
+    </SessionCaisseSecondaireContext.Provider>
+  );
+}
+
+
+export function useSessionCaisseSecondaire() {
+  return useContext(SessionCaisseSecondaireContext);
+}
+
+
+
+export function useActiveSession() {
+  const principale = useSessionCaisse?.() || {};
+  const secondaire = useSessionCaisseSecondaire?.() || {};
+
+  if (principale?.sessionCaisseOuverte) {
+    return {
+      ...principale,
+      type: 'principale',
+      uuid_session: principale.uuidSessionCaisse
+    };
+  }
+
+  if (secondaire?.caisseSecondaireActive) {
+    return {
+      ...secondaire,
+      type: 'secondaire',
+      uuid_session: secondaire.uuidCaisseSecondaire
+    };
+  }
+
+  return null;
+}

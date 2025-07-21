@@ -26,26 +26,58 @@ router.post('/', (req, res) => {
     return res.status(403).json({ error: 'Mot de passe invalide' });
   }
 
-  session.setUser({ nom: user.nom, prenom: user.prenom, pseudo: user.pseudo, uuid_user: user.uuid_user });
-  res.json({ success: true, user: { nom: user.nom, prenom: user.prenom, pseudo: user.pseudo, uuid_user: user.uuid_user} });
-});
+  // Enregistrement de l'utilisateur dans la session HTTP
+  req.session.user = {
+    nom: user.nom,
+    prenom: user.prenom,
+    pseudo: user.pseudo,
+    uuid_user: user.uuid_user
+  };
+
+  res.json({ success: true, user: req.session.user });
+console.log(req.session.user);
+ });
+
 
 router.get('/', (req, res) => {
-  const user = session.getUser();
-  if (!user) return res.status(401).json({ error: 'Aucun utilisateur connecté' });
-  res.json({ user });
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Aucun utilisateur connecté' });
+  }
+
+  res.json({ user: req.session.user });
 });
+
 
 router.delete('/', (req, res) => {
-  session.clearUser();
-  res.json({ success: true });
+  req.session.destroy(() => {
+    res.json({ success: true });
+  });
 });
 
+
 router.get('/etat-caisse', (req, res) => {
-  const session = sqlite.prepare(`SELECT * FROM session_caisse WHERE date_fermeture IS NULL`).get();
+  const session = sqlite.prepare(`SELECT * FROM session_caisse WHERE date_fermeture IS NULL and issecondaire = 0`).get();
   
   if (session) {
     res.json({ ouverte: true, id_session: session.id_session, date_ouverture: session.date_ouverture });
+  } else {
+    res.json({ ouverte: false });
+  }
+});
+
+router.get('/etat-caisse-secondaire', (req, res) => {
+  const session = sqlite.prepare(`
+    SELECT * FROM session_caisse 
+    WHERE date_fermeture IS NULL AND issecondaire = 1
+  `).get();
+
+  if (session) {
+    res.json({ 
+      ouverte: true, 
+      id_session: session.id_session, 
+      date_ouverture: session.date_ouverture,
+      utilisateur_ouverture: session.utilisateur_ouverture
+    });
   } else {
     res.json({ ouverte: false });
   }

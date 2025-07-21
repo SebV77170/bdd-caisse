@@ -8,13 +8,17 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const logSync = require('../logsync');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
-
+const { getConfig } = require('../storeConfig');
 
 
 
 router.post('/ouverture', (req, res) => {
-  const { fond_initial, responsable_pseudo, mot_de_passe } = req.body;
+  const { fond_initial, responsable_pseudo, mot_de_passe, secondaire } = req.body;
+  const issecondaire = secondaire === true ? 1 : 0;
   const utilisateur = session.getUser();
+  const { registerNumber } = getConfig();
+
+
 
   if (!utilisateur) {
     return res.status(401).json({ error: 'Aucun utilisateur connecté' });
@@ -58,33 +62,38 @@ if (!motDePasseValide) {
   genererFriendlyIds(id_session, 'session');
   const caissiers = JSON.stringify([utilisateur.nom]);
 
-  sqlite.prepare(`
-    INSERT INTO session_caisse (
-      id_session, date_ouverture, heure_ouverture,
-      utilisateur_ouverture, responsable_ouverture,
-      fond_initial, caissiers
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id_session,
-    date_ouverture,
-    heure_ouverture,
-    utilisateur.nom,
-    responsable.nom,
-    fond_initial,
-    caissiers
-  );
+    sqlite.prepare(`
+  INSERT INTO session_caisse (
+    id_session, date_ouverture, heure_ouverture,
+    utilisateur_ouverture, responsable_ouverture,
+    fond_initial, caissiers, issecondaire, poste
+  )
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+`).run(
+  id_session,
+  date_ouverture,
+  heure_ouverture,
+  utilisateur.nom,
+  responsable.nom,
+  fond_initial,
+  caissiers,
+  issecondaire,
+  registerNumber
+);
+
+
 
   logSync('session_caisse', 'INSERT', {
-    id_session,
-    date_ouverture,
-    heure_ouverture,
-    utilisateur_ouverture: utilisateur.nom,
-    responsable_ouverture: responsable.nom,
-    fond_initial,
-    caissiers
-  });
-
+  id_session,
+  date_ouverture,
+  heure_ouverture,
+  utilisateur_ouverture: utilisateur.nom,
+  responsable_ouverture: responsable.nom,
+  fond_initial,
+  caissiers,
+  issecondaire,
+  poste: registerNumber
+});
 
   const io = req.app.get('socketio');
   if (io) io.emit('etatCaisseUpdated', { ouverte: true });

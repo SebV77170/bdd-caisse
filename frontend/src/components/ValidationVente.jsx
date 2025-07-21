@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import TactileInput from './TactileInput';
-import { useSessionCaisse } from '../contexts/SessionCaisseContext';
+import { useActiveSession } from '../contexts/SessionCaisseContext';
 
 function ValidationVente({ total, id_temp_vente, onValide }) {
+    const activeSession = useActiveSession();
+  
   const [reduction, setReduction] = useState('');
   const [reductionsDisponibles, setReductionsDisponibles] = useState([]);
   const [paiements, setPaiements] = useState([{ moyen: 'carte', montant: (total / 100).toFixed(2).replace('.', ',') }]);
   const [codePostal, setCodePostal] = useState('');
   const [email, setEmail] = useState('');
-  const { uuidSessionCaisse, sessionCaisseOuverte } = useSessionCaisse();
+  const uuidSessionCaisse = activeSession?.uuid_session || null;
 
   console.log("UUID session caisse en contexte :", uuidSessionCaisse);
 
@@ -109,7 +111,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   };
 
   const validerVente = () => {
-    if (!sessionCaisseOuverte || !uuidSessionCaisse) {
+    if (!activeSession || !uuidSessionCaisse) {
       alert("Aucune session caisse ouverte !");
       return;
     }
@@ -166,7 +168,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         <h5 className="me-3">Finaliser la vente</h5>
         <div className="d-flex gap-2">
           <TactileInput
-            type="number"
+            type="text"
+            isDecimal='true'
             className="form-control form-control-sm"
             style={{ maxWidth: '100px' }}
             placeholder="Code postal"
@@ -212,7 +215,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
               <option value="virement">Virement</option>
             </select>
             <TactileInput
-              type="number"
+              type="text"
+              isDecimal='true'
               className="form-control me-2"
               placeholder="Montant en euros"
               value={p.montant}

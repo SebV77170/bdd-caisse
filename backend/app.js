@@ -5,9 +5,30 @@ const app = express();
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const session = require('express-session');
+
+// Middleware de base
+app.use(cors({
+  origin: 'http://localhost:3000', // ou '*', selon ton frontend
+  credentials: true
+}));
+
+app.use(express.json());
+
+// ✅ Middleware express-session AVANT les routes
+require('dotenv').config();
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'secret_par_defaut_dev',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: false,
+    sameSite: 'lax'
+  }
+}));
 
 // Middlewares globaux
-app.use(cors());
 app.use(express.json());
 
 // Import des routes
@@ -29,6 +50,7 @@ const storeConfigRoutes = require('./routes/storeConfig.routes');
 const boutonsRoutes = require('./routes/boutons.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const factureRoutes = require('./routes/facture.routes');
+const envoyerSecondaireVersPrincipal = require('./routes/envoyer-secondaire-vers-principal');
 
 
 
@@ -57,9 +79,11 @@ app.use('/api/sync-config', syncConfigRoutes);
 app.use('/api/store-config', storeConfigRoutes);
 app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/sync/envoyer-secondaire-vers-principal', envoyerSecondaireVersPrincipal);
 const baseDir = path.join(os.homedir(), '.bdd-caisse');
 fs.mkdirSync(baseDir, { recursive: true });
 app.use('/factures', express.static(path.join(baseDir, 'factures')));
+
 
 
 
