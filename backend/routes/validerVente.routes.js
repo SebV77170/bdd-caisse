@@ -127,7 +127,8 @@ function sendTicketEmail(to, pdfPath, uuid_ticket) {
 
 // === ROUTE PRINCIPALE POUR VALIDER UNE VENTE ===
 router.post('/', async (req, res) => {
-  const user = session.getUser();
+// const user = session.getUser();
+const user = req.session.user;
   const { id_temp_vente, reductionType, paiements, uuid_session_caisse, email, code_postal } = req.body;
 
   // Vérification des données reçues

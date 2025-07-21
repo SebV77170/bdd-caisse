@@ -138,10 +138,12 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     fetch('http://localhost:3001/api/valider', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data)
     })
       .then(res => res.json())
       .then(result => {
+        console.log('Résultat serveur :', result);
         if (result.success) {
           alert('Vente validée avec succès');
           if (!reduction) {
