@@ -9,7 +9,8 @@ function RequireUserAndCaisseSession({ children }) {
   const activeSession = useActiveSession();
   const navigate = useNavigate();
   const location = useLocation();
-  console.log('RequireUserAndCaisseSession', { user, activeSession, location });
+console.log("USER:", user);
+console.log("ACTIVE SESSION:", activeSession);
 
   useEffect(() => {
     if (user === undefined || activeSession === undefined) return; // attente chargement

@@ -12,7 +12,11 @@ root.render(
   <HashRouter>
     <DevModeProvider>
       <SessionProvider>
-        <App />
+        <SessionCaisseProvider>
+          <SessionCaisseSecondaireProvider>
+            <App />
+          </SessionCaisseSecondaireProvider>
+        </SessionCaisseProvider>
       </SessionProvider>
     </DevModeProvider>
   </HashRouter>

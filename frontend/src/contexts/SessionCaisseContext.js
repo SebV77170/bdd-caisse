@@ -9,7 +9,7 @@ export function SessionCaisseProvider({ children }) {
   const [sessionCaisseOuverte, setSessionCaisseOuverte] = useState(false);
 
   const refreshSessionCaisse = () => {
-    fetch('/api/session/etat-caisse', {
+    fetch('http://localhost:3001/api/session/etat-caisse', {
   credentials: 'include',
 })
       .then(res => res.json())
@@ -57,7 +57,7 @@ export function SessionCaisseSecondaireProvider({ children }) {
   const [caisseSecondaireActive, setCaisseSecondaireActive] = useState(false);
 
   const refreshCaisseSecondaire = () => {
-    fetch('/api/session/etat-caisse-secondaire', {
+    fetch('http://localhost:3001/api/session/etat-caisse-secondaire', {
   credentials: 'include',
 })
       
@@ -103,6 +103,11 @@ export function useSessionCaisseSecondaire() {
 export function useActiveSession() {
   const principale = useSessionCaisse?.() || {};
   const secondaire = useSessionCaisseSecondaire?.() || {};
+
+  console.log("🧩 useActiveSession debug", {
+    principale,
+    secondaire
+  });
 
   if (principale?.sessionCaisseOuverte) {
     return {
