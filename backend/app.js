@@ -28,8 +28,6 @@ app.use(session({
   }
 }));
 
-// Middlewares globaux
-app.use(express.json());
 
 // Import des routes
 const validerVenteRoutes = require('./routes/validerVente.routes');
@@ -71,7 +69,7 @@ app.use('/api/reset', resetRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/envoieticket', envoiTicket);
 app.use('/api/facture', factureRoutes);
-app.use('/api/caisse', require('./routes/ouvertureCaisse.routes'));
+app.use('/api/caisse', require('./routes/OuvertureCaisse.routes'));
 app.use('/api/caisse/fermeture', require('./routes/FermetureCaisse.routes'));
 app.use('/api/compare-schemas', compareSchemasRoutes);
 app.use('/api/dbconfig', dbConfigRoutes);

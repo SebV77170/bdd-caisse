@@ -40,7 +40,6 @@ export const SessionProvider = ({ children }) => {
 
     const data = await res.json();
     setUser(data.user);
-    console.log('Utilisateur connecté:', data.user);
   };
 
   // ✅ Déconnexion manuelle

@@ -34,9 +34,11 @@ router.post('/', (req, res) => {
     uuid_user: user.uuid_user
   };
 
+ req.session.save(() => {
   res.json({ success: true, user: req.session.user });
-console.log(req.session.user);
- });
+});
+});
+
 
 
 router.get('/', (req, res) => {

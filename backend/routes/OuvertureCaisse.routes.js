@@ -3,7 +3,6 @@
 const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
-const session = require('../session');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const logSync = require('../logsync');
@@ -15,10 +14,8 @@ const { getConfig } = require('../storeConfig');
 router.post('/ouverture', (req, res) => {
   const { fond_initial, responsable_pseudo, mot_de_passe, secondaire } = req.body;
   const issecondaire = secondaire === true ? 1 : 0;
-  const utilisateur = session.getUser();
+  const utilisateur = req.session.user;
   const { registerNumber } = getConfig();
-
-
 
   if (!utilisateur) {
     return res.status(401).json({ error: 'Aucun utilisateur connecté' });

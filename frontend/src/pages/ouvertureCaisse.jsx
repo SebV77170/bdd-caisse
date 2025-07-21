@@ -55,7 +55,7 @@ const { refreshCaisseSecondaire } = useSessionCaisseSecondaire() || {};
     refreshSessionCaisse?.(); // sécurise l'appel
   }
 
-  navigate('/', {
+  navigate('/caisse', {
     state: {
       toastMessage: data.secondaire
         ? 'Caisse secondaire ouverte avec succès !'

@@ -80,7 +80,7 @@ function MainNavbar() {
           <div className="d-flex align-items-center justify-content-center flex-grow-1 text-white">
             {user && (
               <span className="text-center">
-                👤 <strong>Bonjour {user.prenom} {user.nom}</strong>
+                👤 <strong>Bonjour {user.prenom} {user.nom} </strong>
               </span>
             )}
           </div>
