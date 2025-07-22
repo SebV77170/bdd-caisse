@@ -14,7 +14,7 @@ const { log } = require('console');
 // Route principale pour corriger un ticket de caisse
 router.post('/', (req, res) => {
   // Récupère l'utilisateur courant depuis la session
-  const user = session.getUser();
+  const user = req.session.user;
   if (!user) return res.status(401).json({ error: 'Aucun utilisateur connecté' });
 
   // Récupération des données de la requête

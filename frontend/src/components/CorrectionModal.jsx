@@ -241,6 +241,7 @@ function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
       const res = await fetch('http://localhost:3001/api/correction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(body)
       });
       const result = await res.json();

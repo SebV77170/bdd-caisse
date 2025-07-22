@@ -23,7 +23,7 @@ router.post('/', (req, res) => {
   } = req.body;
 
   // Vérifie qu'un utilisateur est connecté
-  const utilisateur = session.getUser();
+  const utilisateur = req.session.user;
   if (!utilisateur) {
     return res.status(401).json({ error: 'Aucun utilisateur connecté' });
   }

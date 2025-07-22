@@ -54,6 +54,7 @@ function FermetureCaisse() {
       const res = await fetch('http://localhost:3001/api/caisse/fermeture', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           montant_reel: euro(montantReel).intValue,
           montant_reel_carte: euro(montantReelCarte).intValue,
@@ -104,7 +105,7 @@ function FermetureCaisse() {
   // Récupère les réductions appliquées sur la session
   useEffect(() => {
     if (!uuidSessionCaisse) return;
-    fetch('http://localhost:3001/api/bilan/reductions_session_caisse?uuid_session_caisse=' + uuidSessionCaisse)
+    fetch('http://localhost:3001/api/bilan/reductions_session_caisse?uuid_session_caisse=' + uuidSessionCaisse,{credentials: 'include',})
       .then(res => res.json())
       .then(data => {
         console.log('Réductions récupérées :', data); // 👈 Ici pour voir les résultats
@@ -120,7 +121,7 @@ function FermetureCaisse() {
   // Récupère les montants attendus pour la session de caisse en cours
   useEffect(() => {
     // Récupération des montants attendus depuis la table "bilan"
-    fetch('http://localhost:3001/api/bilan/bilan_session_caisse?uuid_session_caisse=' + uuidSessionCaisse)
+    fetch('http://localhost:3001/api/bilan/bilan_session_caisse?uuid_session_caisse=' + uuidSessionCaisse,{credentials: 'include'})
       .then(res => res.json())
       .then(data => {
         setAttendu({
