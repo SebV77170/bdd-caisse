@@ -36,6 +36,9 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Aucune session caisse ouverte' });
   }
 
+  const typeSession = sessionCaisse.issecondaire === 0 ? 'principale' : 'secondaire';
+
+
   // Vérifie que le responsable existe et a les droits nécessaires
   const responsable = sqlite.prepare(`
     SELECT * FROM users WHERE pseudo = ? AND admin >= 2
@@ -163,7 +166,12 @@ router.post('/', (req, res) => {
 
   // Notifie les clients via WebSocket que la caisse est fermée
   const io = req.app.get('socketio');
-  if (io) io.emit('etatCaisseUpdated', { ouverte: false });
+ if (io) {
+  io.emit('etatCaisseUpdated', {
+    ouverte: false,
+    type: typeSession
+  });
+}
 
   // Réponse au frontend
   res.json({ success: true });

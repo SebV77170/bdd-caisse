@@ -92,8 +92,17 @@ if (!motDePasseValide) {
   poste: registerNumber
 });
 
-  const io = req.app.get('socketio');
-  if (io) io.emit('etatCaisseUpdated', { ouverte: true });
+
+  /* const io = req.app.get('socketio');
+if (io) {
+  const typeSession = issecondaire === 0 ? 'principale' : 'secondaire';
+
+  io.emit('etatCaisseUpdated', {
+    ouverte: true,
+    type: typeSession
+  });
+} */
+
 
 
    res.json({ success: true, id_session });

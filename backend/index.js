@@ -6,7 +6,10 @@ const { startScheduler } = require('./syncScheduler');
 
 const server = http.createServer(app);
 const io = require('socket.io')(server, {
-  cors: { origin: '*' }
+  cors: {
+    origin: 'http://localhost:3000', // 👈 ton frontend React
+    credentials: true                // 👈 indispensable pour les cookies/session
+  }
 });
 
 

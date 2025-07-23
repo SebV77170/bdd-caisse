@@ -1,7 +1,21 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import socket from '../utils/socket'; // Assurez-vous que le chemin est correct
 
 const SessionCaisseContext = createContext();
 const SessionCaisseSecondaireContext = createContext();
+
+export function waitUntilSessionRefIsReady(ref, timeoutMs = 3000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const check = () => {
+      if (ref.current) return resolve();
+      if (Date.now() - start > timeoutMs) return reject(new Error("Session non active"));
+      setTimeout(check, 50);
+    };
+    check();
+  });
+}
+
 
 // CONTEXTE PRINCIPAL
 export function SessionCaisseProvider({ children }) {
@@ -10,7 +24,7 @@ export function SessionCaisseProvider({ children }) {
 
   const refreshSessionCaisse = () => {
     fetch('http://localhost:3001/api/session/etat-caisse', {
-  credentials: 'include',
+    credentials: 'include',
 })
       .then(res => res.json())
       .then(data => {
@@ -29,8 +43,22 @@ export function SessionCaisseProvider({ children }) {
   };
 
   useEffect(() => {
-    refreshSessionCaisse();
-  }, []);
+  refreshSessionCaisse();
+
+  const handler = (data) => {
+    if (data?.type === 'principale') {
+      console.log("🔄 [Socket] Mise à jour caisse principale détectée");
+      refreshSessionCaisse();
+    }
+  };
+
+  socket.on('etatCaisseUpdated', handler);
+
+  return () => {
+    socket.off('etatCaisseUpdated', handler);
+  };
+}, []);
+
 
   return (
     <SessionCaisseContext.Provider value={{
@@ -78,9 +106,23 @@ export function SessionCaisseSecondaireProvider({ children }) {
       });
   };
 
-  useEffect(() => {
-    refreshCaisseSecondaire();
-  }, [sessionCaisseOuverte]);
+ useEffect(() => {
+  refreshCaisseSecondaire();
+
+  const handler = (data) => {
+    if (data?.type === 'secondaire') {
+      console.log("🔄 [Socket] Mise à jour caisse secondaire détectée");
+      refreshCaisseSecondaire();
+    }
+  };
+
+  socket.on('etatCaisseUpdated', handler);
+
+  return () => {
+    socket.off('etatCaisseUpdated', handler);
+  };
+}, [sessionCaisseOuverte]);
+
 
   return (
     <SessionCaisseSecondaireContext.Provider value={{

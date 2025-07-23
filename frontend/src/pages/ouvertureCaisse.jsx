@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -6,6 +6,8 @@ import CompteEspeces from '../components/compteEspeces';
 import TactileInput from '../components/TactileInput';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import { useSessionCaisseSecondaire } from '../contexts/SessionCaisseContext';
+import { useActiveSession, waitUntilSessionRefIsReady } from '../contexts/SessionCaisseContext';
+
 
 
 function OuvertureCaisse() {
@@ -18,6 +20,14 @@ function OuvertureCaisse() {
   const { refreshSessionCaisse } = useSessionCaisse() || {};
 const { refreshCaisseSecondaire } = useSessionCaisseSecondaire() || {};
 
+const activeSession = useActiveSession();
+const activeSessionRef = useRef(activeSession);
+
+useEffect(() => {
+  activeSessionRef.current = activeSession; // ✅ on utilise la valeur déjà calculée
+}, [activeSession]);
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,49 +36,60 @@ const { refreshCaisseSecondaire } = useSessionCaisseSecondaire() || {};
       return;
     }
 
-    try {
-      const res = await fetch('http://localhost:3001/api/caisse/ouverture', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // ✅ AJOUT ICI
+try {
+  const res = await fetch('http://localhost:3001/api/caisse/ouverture', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      fond_initial: parseFloat(fondInitial) * 100,
+      responsable_pseudo: responsablePseudo,
+      mot_de_passe: motDePasse,
+      secondaire: isSecondaire
+    }),
+  });
 
-        body: JSON.stringify({
-          fond_initial: parseFloat(fondInitial) * 100,
-          responsable_pseudo: responsablePseudo,
-          mot_de_passe: motDePasse,
-          secondaire: isSecondaire // ✅ switch transmis
-        }),
-      });
+  console.log("🧪 Résultat brut fetch :", res);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMessage = data.error || 'Erreur inconnue lors de l’ouverture de caisse.';
-        setMessage(errorMessage);
-        return;
-      }
-
-      if (data.success) {
-  if (data.secondaire) {
-    refreshCaisseSecondaire?.(); // sécurise l'appel
-  } else {
-    refreshSessionCaisse?.(); // sécurise l'appel
+  let data;
+  try {
+    data = await res.json();
+  } catch (jsonErr) {
+    console.error("❌ Erreur parsing JSON :", jsonErr);
+    setMessage('Réponse invalide du serveur.');
+    return;
   }
 
-  navigate('/caisse', {
-    state: {
-      toastMessage: data.secondaire
-        ? 'Caisse secondaire ouverte avec succès !'
-        : 'Caisse principale ouverte avec succès !'
+  console.log("🔄 [OuvertureCaisse] Réponse serveur:", data);
+
+  if (!res.ok) {
+    setMessage(data.error || 'Erreur inconnue lors de l’ouverture de caisse.');
+    return;
+  }
+
+  if (data.success) {
+    if (data.secondaire) {
+      await refreshCaisseSecondaire?.();
+    } else {
+      await refreshSessionCaisse?.();
     }
-  });
+
+  await waitUntilSessionRefIsReady(activeSessionRef);
+
+    navigate('/caisse', {
+      state: {
+        toastMessage: data.secondaire
+          ? 'Caisse secondaire ouverte avec succès !'
+          : 'Caisse principale ouverte avec succès !'
+      }
+    });
+  }
+
+} catch (err) {
+  console.error("❌ Erreur générale :", err);
+  setMessage('Erreur de communication avec le serveur.');
 }
 
-
-    } catch (err) {
-      console.error(err);
-      setMessage('Erreur de communication avec le serveur.');
-    }
   };
 
   return (
