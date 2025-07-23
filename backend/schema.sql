@@ -189,7 +189,9 @@ CREATE TABLE IF NOT EXISTS session_caisse (
 	caissiers TEXT,
 	montant_reel_carte INTEGER,
 	montant_reel_cheque INTEGER,
-	montant_reel_virement INTEGER
+	montant_reel_virement INTEGER,
+	issecondaire INTEGER DEFAULT 0,
+	poste INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS uuid_mapping (

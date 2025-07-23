@@ -1,5 +1,3 @@
-// correction.test.js
-
 jest.mock('../session', () => ({
   getUser: () => ({ uuid_user: 1, nom: 'Testeur' })
 }));
@@ -83,12 +81,12 @@ function createInitialTicketWithReduction(reductionType = '') {
     case 'trueGrosPanierClient':
       reducFlags.reducgrospanierclient = 1;
       reductionNom = 'Réduction Gros panier client (-10%)';
-      reductionMontant = 1000; // simulé, à ajuster selon le prix initial
+      reductionMontant = 1000;
       break;
     case 'trueGrosPanierBene':
       reducFlags.reducgrospanierbene = 1;
       reductionNom = 'Réduction Gros panier bénévole (-20%)';
-      reductionMontant = 2000; // simulé, à ajuster selon le prix initial
+      reductionMontant = 2000;
       break;
     default:
       break;
@@ -96,7 +94,6 @@ function createInitialTicketWithReduction(reductionType = '') {
 
   const prixTotal = 2000 - reductionMontant;
 
-  // Insertion ticket
   const stmt = sqlite.prepare(`
     INSERT INTO ticketdecaisse (
       uuid_ticket, date_achat_dt, nom_vendeur, id_vendeur,
@@ -115,7 +112,6 @@ function createInitialTicketWithReduction(reductionType = '') {
   );
   const id_ticket = result.lastInsertRowid;
 
-  // Produit principal
   sqlite.prepare(`
     INSERT INTO objets_vendus (
       uuid_ticket, nom, prix, nbr, categorie,
@@ -123,7 +119,6 @@ function createInitialTicketWithReduction(reductionType = '') {
     ) VALUES (?, ?, ?, ?, ?, 'Testeur', 1, datetime('now'), strftime('%s','now'), ?)
   `).run(uuid_ticket, 'Produit A', 2000, 1, 'Test', uuid_objet);
 
-  // Ligne de réduction
   if (reductionType && reductionNom) {
     sqlite.prepare(`
       INSERT INTO objets_vendus (
@@ -133,7 +128,6 @@ function createInitialTicketWithReduction(reductionType = '') {
     `).run(uuid_ticket, reductionNom, reductionMontant, -1, uuid_reduc);
   }
 
-  // Mise à jour du bilan
   sqlite.prepare(`
     INSERT INTO bilan (
       date, timestamp, nombre_vente, poids,
@@ -146,18 +140,33 @@ function createInitialTicketWithReduction(reductionType = '') {
   return { uuid_ticket, id_ticket_original: id_ticket, uuid_objet, uuid_reduc };
 }
 
-beforeEach(() => {
+
+let cookie;
+
+beforeEach(async () => {
   initTables();
+  // Crée un utilisateur
+  const hash = require('bcrypt').hashSync('secret', 10);
+  sqlite.prepare(
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('user-1', 'Jean', 'Test', 'jtest', hash, 0);
+
+  // Se connecte pour récupérer le cookie
+  const loginRes = await request(app)
+    .post('/api/session')
+    .send({ pseudo: 'jtest', mot_de_passe: 'secret' });
+  cookie = loginRes.headers['set-cookie'][0];
+
   sqlite.prepare('DELETE FROM ticketdecaisse').run();
-  sqlite.prepare('DELETE FROM objets_vendus').run();
   sqlite.prepare('DELETE FROM bilan').run();
+  sqlite.prepare('DELETE FROM vente').run();
 });
 
 describe('Tests de correction de ticket', () => {
   test('Crée une correction sans réduction', async () => {
     createInitialTicket();
 
-    const res = await request(app).post('/api/correction').send({
+    const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
       id_ticket_original: 1,
       uuid_ticket_original: 'uuid-original',
       uuid_session_caisse: 'session-1',
@@ -191,7 +200,7 @@ describe('Tests de correction de ticket', () => {
   test('Correction avec réduction trueClient appliquée', async () => {
     createInitialTicket();
 
-    const res = await request(app).post('/api/correction').send({
+    const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
       id_ticket_original: 1,
       uuid_ticket_original: 'uuid-original',
       uuid_session_caisse: 'session-1',
@@ -231,7 +240,7 @@ describe('Tests de correction de ticket', () => {
   const { uuid_ticket, id_ticket_original } = createInitialTicketWithReduction('trueBene');
 
   // Envoie de la correction SANS réduction
-  const res = await request(app).post('/api/correction').send({
+  const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
     id_ticket_original,
     uuid_ticket_original: uuid_ticket,
     uuid_session_caisse: 'session-1',
@@ -267,7 +276,7 @@ describe('Tests de correction de ticket', () => {
 
 
   test('Échec de correction si ticket original introuvable', async () => {
-    const res = await request(app).post('/api/correction').send({
+    const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
       id_ticket_original: 999,
       uuid_ticket_original: 'uuid-invalide',
       uuid_session_caisse: 'session-1',
@@ -285,7 +294,7 @@ describe('Tests de correction de ticket', () => {
   test('Correction avec ajout d’un article', async () => {
     createInitialTicket();
 
-    const res = await request(app).post('/api/correction').send({
+    const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
       id_ticket_original: 1,
       uuid_ticket_original: 'uuid-original',
       uuid_session_caisse: 'session-1',
@@ -319,7 +328,7 @@ describe('Tests de correction de ticket', () => {
   test('Correction avec suppression d’un article', async () => {
     createInitialTicket();
 
-    const res = await request(app).post('/api/correction').send({
+    const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
       id_ticket_original: 1,
       uuid_ticket_original: 'uuid-original',
       uuid_session_caisse: 'session-1',
@@ -353,7 +362,7 @@ describe('Tests de correction de ticket', () => {
   test('Correction avec paiement mixte carte + espèces', async () => {
     createInitialTicket();
 
-    const res = await request(app).post('/api/correction').send({
+    const res = await request(app).post('/api/correction').set('Cookie', cookie).send({
       id_ticket_original: 1,
       uuid_ticket_original: 'uuid-original',
       uuid_session_caisse: 'session-1',

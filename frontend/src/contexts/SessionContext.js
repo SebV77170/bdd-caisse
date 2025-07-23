@@ -22,7 +22,6 @@ export const SessionProvider = ({ children }) => {
       })
       .catch(() => {
         setUser(null);
-        navigate('/login');
       })
       .finally(() => setLoading(false));
   }, []);

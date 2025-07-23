@@ -14,11 +14,6 @@ function initTables() {
   sqlite.exec(schema);
 }
 
-beforeEach(() => {
-  initTables();
-  sqlite.prepare('DELETE FROM ticketdecaisse').run();
-  sqlite.prepare('DELETE FROM bilan').run();
-});
 
 // Helper to create a simple temporary sale
 function createTempSale(id = '1') {
@@ -27,6 +22,28 @@ function createTempSale(id = '1') {
   ).run(id, 'Produit Test', 1000, 1000, 1, 'Test', 'Standard');
   sqlite.prepare('INSERT INTO vente (id_temp_vente) VALUES (?)').run(id);
 }
+
+let cookie;
+
+beforeEach(async () => {
+  initTables();
+  // Crée un utilisateur
+  const hash = require('bcrypt').hashSync('secret', 10);
+  sqlite.prepare(
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('user-1', 'Jean', 'Test', 'jtest', hash, 0);
+
+  // Se connecte pour récupérer le cookie
+  const loginRes = await request(app)
+    .post('/api/session')
+    .send({ pseudo: 'jtest', mot_de_passe: 'secret' });
+  cookie = loginRes.headers['set-cookie'][0];
+
+  sqlite.prepare('DELETE FROM ticketdecaisse').run();
+  sqlite.prepare('DELETE FROM bilan').run();
+  sqlite.prepare('DELETE FROM vente').run();
+});
+
 
 describe('Test de validation de la route validerVente.routes.js', () => {
   const moyens = [
@@ -42,7 +59,7 @@ describe('Test de validation de la route validerVente.routes.js', () => {
    
     createTempSale();
 
-    const res = await request(app).post('/api/valider').send({
+    const res = await request(app).post('/api/valider').set('Cookie', cookie).send({
       id_temp_vente: '1',
       reductionType: '',
       paiements: [{ moyen, montant: 1000 }]
@@ -62,7 +79,7 @@ describe('Test de validation de la route validerVente.routes.js', () => {
   test('Valide une vente avec paiement mixte', async () => {
    
     createTempSale();
-    const res = await request(app).post('/api/valider').send({
+    const res = await request(app).post('/api/valider').set('Cookie', cookie).send({
       id_temp_vente: '1',
       reductionType: '',
       paiements: [
@@ -92,7 +109,7 @@ describe('Test de validation de la route validerVente.routes.js', () => {
       
       createTempSale();
       const montant = 1000 - reduction;
-      const res = await request(app).post('/api/valider').send({
+      const res = await request(app).post('/api/valider').set('Cookie', cookie).send({
         id_temp_vente: '1',
         reductionType: type,
         paiements: [{ moyen: 'carte', montant }]
@@ -174,7 +191,7 @@ describe('Test de validation de la route validerVente.routes.js', () => {
         cumuls[m2] += half2;
       }
 
-      const res = await request(app).post('/api/valider').send({
+      const res = await request(app).post('/api/valider').set('Cookie', cookie).send({
         id_temp_vente: idVente,
         reductionType,
         paiements
@@ -211,7 +228,7 @@ describe('Test de validation de la route validerVente.routes.js', () => {
     return stmt;
   });
 
-  const res = await request(app).post('/api/valider').send({
+  const res = await request(app).post('/api/valider').set('Cookie', cookie).send({
     id_temp_vente,
     reductionType: '',
     paiements: [{ moyen: 'carte', montant: 1000 }]
@@ -234,7 +251,7 @@ describe('Test de validation de la route validerVente.routes.js', () => {
 
 
   test('Retourne une erreur si id_temp_vente manquant', async () => {
-    const res = await request(app).post('/api/valider').send({
+    const res = await request(app).post('/api/valider').set('Cookie', cookie).send({
       reductionType: '',
       paiements: [{ moyen: 'carte', montant: 500 }]
     });

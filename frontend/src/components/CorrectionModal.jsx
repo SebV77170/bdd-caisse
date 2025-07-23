@@ -4,10 +4,14 @@ import CategorieSelector from './CategorieSelector';
 import BoutonsCaisse from './BoutonsCaisse';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import TactileInput from './TactileInput';
+import { useActiveSession } from '../contexts/SessionCaisseContext';
 
 
 function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
-  const { uuidSessionCaisse, sessionCaisseOuverte } = useSessionCaisse();
+const activeSession = useActiveSession();
+
+const uuidSessionCaisse = activeSession?.uuid_session || null;
+const sessionCaisseOuverte = !!activeSession;
 
   const [corrections, setCorrections] = useState(
     (ticketOriginal.objets || []).map(obj => ({ ...obj }))

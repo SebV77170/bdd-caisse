@@ -53,9 +53,9 @@ export default function MainRoutes() {
 
       <Route path="/caisse" element={
         <RequireUserAndCaisseSession>
-          <SessionCaisseAutoProvider>
+          
             <Caisse />
-          </SessionCaisseAutoProvider>
+          
         </RequireUserAndCaisseSession>
             
       } />
