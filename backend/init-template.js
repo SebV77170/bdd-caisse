@@ -196,14 +196,20 @@ CREATE TABLE session_caisse (
   montant_reel INTEGER,
   commentaire TEXT,
   ecart INTEGER,
-  caissiers TEXT                        -- Chaine JSON, ex: '["alice", "bob", "julie"]'
-, montant_reel_carte INTEGER, montant_reel_cheque INTEGER, montant_reel_virement INTEGER);
+  caissiers TEXT,                      -- Chaine JSON, ex: '["alice", "bob", "julie"]'
+  montant_reel_carte INTEGER, 
+  montant_reel_cheque INTEGER,
+  montant_reel_virement INTEGER,
+  issecondaire INTEGER DEFAULT 0,
+  poste INTEGER
+);
 
 CREATE TABLE uuid_mapping (
   uuid TEXT PRIMARY KEY,         -- L'UUID unique (ex: 94dfb9fc-6c8d-4c9b-b4e0-0d0a68533a71)
   id_friendly TEXT UNIQUE,       -- L'identifiant lisible (ex: T00001, O00001, etc.)
-  type TEXT                      -- Optionnel : type d'élément (ex: 'ticket', 'objet', 'correction')
-);
+  type TEXT  
+);                    -- Optionnel : type d'élément (ex: 'ticket', 'objet', 'correction')
+
 
 `);
 
