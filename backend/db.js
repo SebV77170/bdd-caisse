@@ -69,8 +69,6 @@ function getMysqlPool() {
 
 
 
-const { app } = require('electron'); // uniquement si ce fichier est exécuté dans le main process Electron
-
 
 let db;
 

@@ -30,7 +30,7 @@
         "to": "backend/node_modules"
       },
       {
-        "from": "C:/Program Files/nodejs/node.exe",
+        "from": "vendor/node.exe",
         "to": "node.exe"
       },
       {
@@ -48,7 +48,11 @@
     {
       "from": "../images",
       "to": "images"
-    }
+    },
+    {
+    "from": "../frontend/build",
+    "to": "frontend_build"
+  }
     ],
     "directories": {
       "buildResources": "assets"

@@ -6,6 +6,8 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
+
 
 // Middleware de base
 app.use(cors({
@@ -16,15 +18,24 @@ app.use(cors({
 app.use(express.json());
 
 // ✅ Middleware express-session AVANT les routes
-require('dotenv').config();
+require('dotenv').config(); 
+
+const baseDir = path.join(os.homedir(), '.bdd-caisse');
+fs.mkdirSync(baseDir, { recursive: true }); // 🟢 crée le dossier si absent
 app.use(session({
+  store: new SQLiteStore({
+    db: 'sessions.sqlite',
+    dir: baseDir,
+    table: 'sessions'
+  }),
   secret: process.env.SESSION_SECRET || 'secret_par_defaut_dev',
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 24 * 60 * 60 * 1000,
     secure: false,
-    sameSite: 'lax'
+    sameSite: 'strict',
+    httpOnly: true
   }
 }));
 
@@ -34,7 +45,7 @@ const validerVenteRoutes = require('./routes/validerVente.routes');
 const ventesRoutes = require('./routes/ventes.routes');
 const produitsRoutes = require('./routes/produits');
 const ticketRoutes = require('./routes/ticket.routes');
-const bilanRoutes = require('./routes/bilan.routes');
+const bilanRoutes = require('./routes/bilan.routes')
 const correctionRoutes = require('./routes/correction.routes');
 const sessionRoutes = require('./routes/session.routes');
 const usersRoutes = require('./routes/users.routes');
@@ -78,11 +89,28 @@ app.use('/api/store-config', storeConfigRoutes);
 app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/sync/envoyer-secondaire-vers-principal', envoyerSecondaireVersPrincipal);
-const baseDir = path.join(os.homedir(), '.bdd-caisse');
+
 fs.mkdirSync(baseDir, { recursive: true });
 app.use('/factures', express.static(path.join(baseDir, 'factures')));
 
+const isProd = process.env.NODE_ENV === 'production';
 
+const frontendBuildPath = isProd
+  ? path.join(__dirname, '..', 'frontend_build')
+  : path.join(__dirname, '..', 'frontend', 'build');
+
+  console.log('📂 frontendBuildPath :', frontendBuildPath);
+console.log('📄 index.html exists ?', fs.existsSync(path.join(frontendBuildPath, 'index.html')));
+
+if (fs.existsSync(path.join(frontendBuildPath, 'index.html'))) {
+  app.use(express.static(frontendBuildPath));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+} else {
+  console.warn('⚠️ index.html introuvable dans le frontend build');
+}
 
 
 module.exports = app;

@@ -1,4 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { session: electronSession } = require('electron');
+
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -23,29 +25,26 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
   mainWindow.center();
-  //mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
   const isDev = !app.isPackaged;
 
 if (isDev) {
-  // ⚠️ S'assurer que le dev server est prêt avant de charger
   const devServerURL = 'http://localhost:3000';
-
   const tryLoadDevServer = () => {
     http.get(devServerURL, () => {
       mainWindow.loadURL(devServerURL);
-      mainWindow.webContents.openDevTools(); // Facultatif
+      mainWindow.webContents.openDevTools();
     }).on('error', () => {
       console.log('⏳ Attente du dev server React...');
       setTimeout(tryLoadDevServer, 500);
     });
   };
-
   tryLoadDevServer();
 } else {
-  const indexPath = path.resolve(__dirname, 'build', 'index.html');
-  mainWindow.loadURL(`file://${indexPath.replace(/\\/g, '/')}`);
+  mainWindow.loadURL('http://localhost:3001'); // ✅ frontend servi par backend
 }
+
 }
 
 // ✅ Lancement du backend
@@ -125,37 +124,50 @@ function verifierSessionUtilisateur() {
 let isQuitting = false;
 
 app.on('before-quit', (event) => {
-  // Évite de repasser dans cette logique plusieurs fois
   if (isQuitting) return;
   isQuitting = true;
+  event.preventDefault();
 
-  event.preventDefault(); // ⛔️ On bloque TEMPORAIREMENT la fermeture
+  // Accède aux cookies de la session Electron
+  electronSession.defaultSession.cookies.get({ name: 'connect.sid' })
+    .then((cookies) => {
+      const sessionCookie = cookies[0]?.value;
 
-  const options = {
-    hostname: 'localhost',
-    port: 3001,
-    path: '/api/session',
-    method: 'DELETE'
-  };
+      if (!sessionCookie) {
+        console.warn('⚠️ Aucun cookie de session trouvé, fermeture directe');
+        if (backendProcess) backendProcess.kill();
+        return app.exit();
+      }
 
-  const req = http.request(options, (res) => {
-    console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
+      const options = {
+        hostname: 'localhost',
+        port: 3001,
+        path: '/api/session',
+        method: 'DELETE',
+        headers: {
+          Cookie: `connect.sid=${sessionCookie}`
+        }
+      };
 
-    // 🔪 On tue proprement le backend si encore actif
-    if (backendProcess) backendProcess.kill();
+      const req = http.request(options, (res) => {
+        console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
+        if (backendProcess) backendProcess.kill();
+        app.exit();
+      });
 
-    // ✅ Maintenant qu'on a fini : on relance la fermeture
-    app.exit();
-  });
+      req.on('error', (err) => {
+        console.error('❌ Échec suppression session utilisateur :', err.message);
+        if (backendProcess) backendProcess.kill();
+        app.exit();
+      });
 
-  req.on('error', (err) => {
-    console.error('❌ Échec suppression session utilisateur :', err.message);
-
-    if (backendProcess) backendProcess.kill();
-    app.exit(); // Même en cas d'erreur, on quitte
-  });
-
-  req.end();
+      req.end();
+    })
+    .catch((err) => {
+      console.error('❌ Impossible de récupérer le cookie de session :', err.message);
+      if (backendProcess) backendProcess.kill();
+      app.exit();
+    });
 });
 
 
@@ -181,10 +193,38 @@ ipcMain.on('devtools-open', () => {
 // 🚀 Lancement global
 const isDev = !app.isPackaged;
 
+function waitForBackendReady(callback) {
+  const maxRetries = 50;
+  let retries = 0;
+
+  const tryConnect = () => {
+    http.get('http://localhost:3001', (res) => {
+      console.log('✅ Backend prêt, on charge la fenêtre');
+      callback();
+    }).on('error', () => {
+      if (retries >= maxRetries) {
+        console.error('❌ Backend toujours pas prêt après plusieurs essais');
+        return;
+      }
+      retries++;
+      setTimeout(tryConnect, 300); // réessaye après 300ms
+    });
+  };
+
+  tryConnect();
+}
+
+
 app.whenReady().then(() => {
   if (!isDev) {
-  launchBackend();   // ✅ Démarre le backend seulement en production
+    launchBackend();
+    waitForBackendReady(() => {
+      verifierSessionUtilisateur(); // optionnel mais logique ici
+      console.log('✅ Le backend a répondu, ouverture de la fenêtre Electron');
+
+      createWindow();               // seulement après que le backend est prêt
+    });
+  } else {
+    createWindow();
   }
-  verifierSessionUtilisateur(); // ✅ Vérifie la session utilisateur
-  createWindow();    // ✅ Puis ouvre la fenêtre
 });
