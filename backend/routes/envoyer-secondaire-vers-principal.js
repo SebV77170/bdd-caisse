@@ -14,7 +14,7 @@ router.post('/', async (req, res) => {
     }
 
     // 1. Demande d’autorisation à la caisse principale
-    const demande = await fetch('http://localhost:3001/api/sync/recevoir-de-secondaire/demande'/* 'http://192.168.0.101:3001/api/sync/recevoir-de-secondaire/demande' */, {
+    const demande = await fetch('http://192.168.0.101:3001/api/sync/recevoir-de-secondaire/demande', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logs: lignes })
@@ -27,7 +27,7 @@ router.post('/', async (req, res) => {
 
     // 2. Attente d’une réponse du /valider (idéalement websocket ou polling)
     // Ici on simplifie avec un delay de test (à remplacer par une vraie attente côté front)
-    const attenteValidation = await fetch('http://localhost:3001/api/sync/recevoir-de-secondaire/attente-validation'/* 'http://192.168.0.101:3001/api/sync/recevoir-de-secondaire/attente-validation' */, {
+    const attenteValidation = await fetch('http://192.168.0.101:3001/api/sync/recevoir-de-secondaire/attente-validation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
