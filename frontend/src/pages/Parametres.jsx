@@ -15,8 +15,15 @@ const Parametres = () => {
   const [message, setMessage] = useState('');
   const [localName, setLocalName] = useState('');
   const [registerNumber, setRegisterNumber] = useState('');
-  const [storeMessage, setStoreMessage] = useState('');
-  const [showBoutons, setShowBoutons] = useState(false);
+const [storeMessage, setStoreMessage] = useState('');
+const [showBoutons, setShowBoutons] = useState(false);
+
+  const [principalIp, setPrincipalIp] = useState('');
+  const [ipMessage, setIpMessage] = useState('');
+  const [localIp, setLocalIp] = useState('');
+  const [devices, setDevices] = useState([]);
+  const [scanned, setScanned] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
@@ -77,6 +84,38 @@ const Parametres = () => {
     }
   };
 
+  const saveIp = async () => {
+    setIpMessage('');
+    try {
+      const res = await fetch('http://localhost:3001/api/principal-ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: principalIp })
+      });
+      const data = await res.json();
+      if (data.success) setIpMessage('✅ IP sauvegardée');
+      else setIpMessage('❌ ' + (data.error || 'Erreur'));
+    } catch {
+      setIpMessage('❌ Erreur de sauvegarde');
+    }
+  };
+
+  const scanNetwork = async () => {
+    setScanMessage('');
+    setScanned(false);
+    try {
+      const res = await fetch('http://localhost:3001/api/network/scan');
+      const data = await res.json();
+      setDevices(data.devices || []);
+      setScanned(true);
+      if ((data.devices || []).length === 0) setScanMessage('Aucun appareil trouvé');
+    } catch {
+      setDevices([]);
+      setScanned(true);
+      setScanMessage('Erreur de scan');
+    }
+  };
+
   useEffect(() => {
   console.log('🧪 window.electron:', window.electron);
 }, []);
@@ -128,6 +167,33 @@ const Parametres = () => {
         </Form>
 
         {storeMessage && <div className="mt-2">{storeMessage}</div>}
+
+        <hr />
+
+        <h3>📡 Réseau</h3>
+        <Form>
+          <Form.Group className="mb-2">
+            <Form.Label>Adresse IP de la caisse principale</Form.Label>
+            <TactileInput value={principalIp} onChange={e => setPrincipalIp(e.target.value)} />
+          </Form.Group>
+          <Button onClick={saveIp}>💾 Sauvegarder</Button>
+        </Form>
+        {ipMessage && <div className="mt-2">{ipMessage}</div>}
+
+        <div className="mt-3">
+          <p>Mon adresse IP : {localIp || ' inconnue'}</p>
+          <Button variant="secondary" onClick={scanNetwork}>Scanner le réseau</Button>
+          {scanned && devices.length === 0 && (
+            <div className="mt-2">{scanMessage}</div>
+          )}
+          {devices.length > 0 && (
+            <ul className="mt-2">
+              {devices.map(d => (
+                <li key={d.ip}>{d.ip} {d.mac ? `(${d.mac})` : ''}</li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <hr />
 
