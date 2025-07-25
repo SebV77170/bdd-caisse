@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
 const fetch = require('node-fetch'); // npm i node-fetch
+const { getConfig } = require('../principalIpConfig');
 
 router.post('/', async (req, res) => {
   try {
@@ -14,7 +15,9 @@ router.post('/', async (req, res) => {
     }
 
     // 1. Demande d’autorisation à la caisse principale
-    const demande = await fetch('http://192.168.0.101:3001/api/sync/recevoir-de-secondaire/demande', {
+    const { ip } = getConfig();
+    const baseUrl = `http://${ip}:3001`;
+    const demande = await fetch(`${baseUrl}/api/sync/recevoir-de-secondaire/demande`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logs: lignes })
@@ -27,7 +30,7 @@ router.post('/', async (req, res) => {
 
     // 2. Attente d’une réponse du /valider (idéalement websocket ou polling)
     // Ici on simplifie avec un delay de test (à remplacer par une vraie attente côté front)
-    const attenteValidation = await fetch('http://192.168.0.101:3001/api/sync/recevoir-de-secondaire/attente-validation', {
+    const attenteValidation = await fetch(`${baseUrl}/api/sync/recevoir-de-secondaire/attente-validation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
