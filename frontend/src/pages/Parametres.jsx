@@ -22,6 +22,8 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [ipMessage, setIpMessage] = useState('');
   const [localIp, setLocalIp] = useState('');
   const [devices, setDevices] = useState([]);
+  const [scanned, setScanned] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
@@ -111,12 +113,18 @@ const [showBoutons, setShowBoutons] = useState(false);
   };
 
   const scanNetwork = async () => {
+    setScanMessage('');
+    setScanned(false);
     try {
       const res = await fetch('http://localhost:3001/api/network/scan');
       const data = await res.json();
       setDevices(data.devices || []);
+      setScanned(true);
+      if ((data.devices || []).length === 0) setScanMessage('Aucun appareil trouvé');
     } catch {
       setDevices([]);
+      setScanned(true);
+      setScanMessage('Erreur de scan');
     }
   };
 
@@ -187,6 +195,9 @@ const [showBoutons, setShowBoutons] = useState(false);
         <div className="mt-3">
           <p>Mon adresse IP : {localIp || ' inconnue'}</p>
           <Button variant="secondary" onClick={scanNetwork}>Scanner le réseau</Button>
+          {scanned && devices.length === 0 && (
+            <div className="mt-2">{scanMessage}</div>
+          )}
           {devices.length > 0 && (
             <ul className="mt-2">
               {devices.map(d => (
