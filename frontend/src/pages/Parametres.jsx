@@ -15,8 +15,13 @@ const Parametres = () => {
   const [message, setMessage] = useState('');
   const [localName, setLocalName] = useState('');
   const [registerNumber, setRegisterNumber] = useState('');
-  const [storeMessage, setStoreMessage] = useState('');
-  const [showBoutons, setShowBoutons] = useState(false);
+const [storeMessage, setStoreMessage] = useState('');
+const [showBoutons, setShowBoutons] = useState(false);
+
+  const [principalIp, setPrincipalIp] = useState('');
+  const [ipMessage, setIpMessage] = useState('');
+  const [localIp, setLocalIp] = useState('');
+  const [devices, setDevices] = useState([]);
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
@@ -36,6 +41,18 @@ const Parametres = () => {
         setLocalName(data.localName || '');
         setRegisterNumber(String(data.registerNumber || ''));
       })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/principal-ip')
+      .then(res => res.json())
+      .then(data => {
+        setPrincipalIp(data.ip || '');
+      })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/network/local-ip')
+      .then(res => res.json())
+      .then(data => setLocalIp(data.ip || ''))
       .catch(() => {});
   }, []);
 
@@ -74,6 +91,32 @@ const Parametres = () => {
       }
     } catch {
       setStoreMessage('❌ Erreur de sauvegarde');
+    }
+  };
+
+  const saveIp = async () => {
+    setIpMessage('');
+    try {
+      const res = await fetch('http://localhost:3001/api/principal-ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: principalIp })
+      });
+      const data = await res.json();
+      if (data.success) setIpMessage('✅ IP sauvegardée');
+      else setIpMessage('❌ ' + (data.error || 'Erreur'));
+    } catch {
+      setIpMessage('❌ Erreur de sauvegarde');
+    }
+  };
+
+  const scanNetwork = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/network/scan');
+      const data = await res.json();
+      setDevices(data.devices || []);
+    } catch {
+      setDevices([]);
     }
   };
 
@@ -128,6 +171,30 @@ const Parametres = () => {
         </Form>
 
         {storeMessage && <div className="mt-2">{storeMessage}</div>}
+
+        <hr />
+
+        <h3>📡 Réseau</h3>
+        <Form>
+          <Form.Group className="mb-2">
+            <Form.Label>Adresse IP de la caisse principale</Form.Label>
+            <TactileInput value={principalIp} onChange={e => setPrincipalIp(e.target.value)} />
+          </Form.Group>
+          <Button onClick={saveIp}>💾 Sauvegarder</Button>
+        </Form>
+        {ipMessage && <div className="mt-2">{ipMessage}</div>}
+
+        <div className="mt-3">
+          <p>Mon adresse IP : {localIp || ' inconnue'}</p>
+          <Button variant="secondary" onClick={scanNetwork}>Scanner le réseau</Button>
+          {devices.length > 0 && (
+            <ul className="mt-2">
+              {devices.map(d => (
+                <li key={d.ip}>{d.ip} {d.mac ? `(${d.mac})` : ''}</li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <hr />
 
