@@ -44,6 +44,18 @@ const [showBoutons, setShowBoutons] = useState(false);
         setRegisterNumber(String(data.registerNumber || ''));
       })
       .catch(() => {});
+
+    fetch('http://localhost:3001/api/principal-ip')
+      .then(res => res.json())
+      .then(data => {
+        setPrincipalIp(data.ip || '');
+      })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/network/local-ip')
+      .then(res => res.json())
+      .then(data => setLocalIp(data.ip || ''))
+      .catch(() => {});
   }, []);
 
   const save = async () => {

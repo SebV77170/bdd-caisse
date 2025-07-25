@@ -60,6 +60,8 @@ const boutonsRoutes = require('./routes/boutons.routes');
 const categoriesRoutes = require('./routes/categories.routes');
 const factureRoutes = require('./routes/facture.routes');
 const envoyerSecondaireVersPrincipal = require('./routes/envoyer-secondaire-vers-principal');
+const principalIpRoutes = require('./routes/principalIp.routes');
+const networkRoutes = require('./routes/network.routes');
 
 
 
@@ -86,6 +88,8 @@ app.use('/api/compare-schemas', compareSchemasRoutes);
 app.use('/api/dbconfig', dbConfigRoutes);
 app.use('/api/sync-config', syncConfigRoutes);
 app.use('/api/store-config', storeConfigRoutes);
+app.use('/api/principal-ip', principalIpRoutes);
+app.use('/api/network', networkRoutes);
 app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/sync/envoyer-secondaire-vers-principal', envoyerSecondaireVersPrincipal);
