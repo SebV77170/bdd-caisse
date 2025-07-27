@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
 const { v4: uuidv4 } = require('uuid');
-const bcrypt = require('bcrypt');
+const verifyAdmin = require('../utils/verifyAdmin');
 const logSync = require('../logsync');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const { getConfig } = require('../storeConfig');
@@ -32,24 +32,10 @@ router.post('/ouverture', (req, res) => {
   }
 
   // Vérifier mot de passe du responsable
-  const responsable = sqlite.prepare(`
-  SELECT * FROM users 
-  WHERE pseudo = ? AND admin >= 2
-`).get(responsable_pseudo);
-
-if (!responsable) {
-  return res.status(403).json({ error: 'Responsable introuvable' });
-}
-
-// ✅ Corriger le préfixe $2y$ en $2b$ si nécessaire
-const hashCorrige = responsable.password.replace(/^\$2y\$/, '$2b$');
-
-// ✅ Comparaison
-const motDePasseValide = bcrypt.compareSync(mot_de_passe.trim(), hashCorrige);
-
-if (!motDePasseValide) {
-  return res.status(403).json({ error: 'Mot de passe responsable invalide' });
-}
+  const { valid, user: responsable, error } = verifyAdmin(responsable_pseudo, mot_de_passe);
+  if (!valid) {
+    return res.status(403).json({ error });
+  }
 
   const now = new Date();
   const date_ouverture = now.toISOString().slice(0, 10);

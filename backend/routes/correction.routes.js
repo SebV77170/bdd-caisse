@@ -5,6 +5,7 @@ const { sqlite } = require('../db');
 const session = require('../session');
 const fs = require('fs');
 const path = require('path');
+const verifyAdmin = require('../utils/verifyAdmin');
 const logSync = require('../logsync');
 const { v4: uuidv4 } = require('uuid');
 const genererTicketPdf = require('../utils/genererTicketPdf');
@@ -26,8 +27,16 @@ router.post('/', (req, res) => {
     motif,
     uuid_session_caisse,
     reductionType,
+    responsable_pseudo,
+    mot_de_passe,
     paiements = []
   } = req.body;
+
+  // Vérifie que le responsable est un administrateur et que le mot de passe est valide
+  const { valid, user: responsable, error } = verifyAdmin(responsable_pseudo, mot_de_passe);
+  if (!valid) {
+    return res.status(403).json({ error });
+  }
 
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
