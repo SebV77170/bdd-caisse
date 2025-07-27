@@ -5,6 +5,7 @@ const { sqlite } = require('../db');
 const session = require('../session');
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcrypt');
 const logSync = require('../logsync');
 const { v4: uuidv4 } = require('uuid');
 const genererTicketPdf = require('../utils/genererTicketPdf');
@@ -26,8 +27,28 @@ router.post('/', (req, res) => {
     motif,
     uuid_session_caisse,
     reductionType,
+    responsable_pseudo,
+    mot_de_passe,
     paiements = []
   } = req.body;
+
+  // Vérifie que le responsable est un administrateur et que le mot de passe est valide
+  const responsable = sqlite
+    .prepare('SELECT * FROM users WHERE pseudo = ? AND admin >= 2')
+    .get(responsable_pseudo);
+
+  if (!responsable) {
+    return res.status(403).json({ error: 'Responsable introuvable' });
+  }
+
+  const motDePasseValide = bcrypt.compareSync(
+    mot_de_passe.trim(),
+    responsable.password.replace(/^\$2y\$/, '$2b$')
+  );
+
+  if (!motDePasseValide) {
+    return res.status(403).json({ error: 'Mot de passe responsable invalide' });
+  }
 
   const now = new Date().toISOString();
   const today = now.slice(0, 10);

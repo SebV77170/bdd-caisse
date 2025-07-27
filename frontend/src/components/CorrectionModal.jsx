@@ -22,6 +22,8 @@ const sessionCaisseOuverte = !!activeSession;
   const [articlesSupprimes, setArticlesSupprimes] = useState([]);
 
   const [motif, setMotif] = useState('');
+  const [responsablePseudo, setResponsablePseudo] = useState('');
+  const [motDePasse, setMotDePasse] = useState('');
   const [loading, setLoading] = useState(false);
   // Change moyenPaiement to an array of payment objects, similar to ValidationVente
   const [paiements, setPaiements] = useState(() => {
@@ -210,6 +212,10 @@ const sessionCaisseOuverte = !!activeSession;
     // Vérifie que le motif est renseigné
     if (!motif.trim()) return alert('Merci de préciser un motif.');
 
+    if (!responsablePseudo.trim() || !motDePasse.trim()) {
+      return alert('Pseudo ou mot de passe du responsable manquant.');
+    }
+
     // Check if at least one payment method is selected and amounts match
     if (paiements.length === 0) {
       return alert('Merci de spécifier au moins un mode de paiement.');
@@ -226,6 +232,8 @@ const sessionCaisseOuverte = !!activeSession;
       articles_origine: ticketOriginal.objets,
       articles_correction: corrections,
       motif,
+      responsable_pseudo: responsablePseudo,
+      mot_de_passe: motDePasse,
       uuid_session_caisse: uuidSessionCaisse,
       // Pass the array of payments
       paiements: paiements.map(p => ({
@@ -389,19 +397,35 @@ const sessionCaisseOuverte = !!activeSession;
           </Form.Group>
 
           <Form.Group className="mt-3">
-            
-            <Form.Group className="mt-3">
-  <Form.Label>Motif de correction</Form.Label>
-  <TactileInput
-    as="textarea"
-    rows={2}
-    className="form-control"
-    value={motif}
-    onChange={(e) => setMotif(e.target.value)}
-    placeholder="Exemple : erreur de quantité saisie par le caissier"
-  />
-</Form.Group>
+            <Form.Label>Motif de correction</Form.Label>
+            <TactileInput
+              as="textarea"
+              rows={2}
+              className="form-control"
+              value={motif}
+              onChange={(e) => setMotif(e.target.value)}
+              placeholder="Exemple : erreur de quantité saisie par le caissier"
+            />
+          </Form.Group>
 
+          <Form.Group className="mt-3">
+            <Form.Label>Pseudo du responsable</Form.Label>
+            <TactileInput
+              type="text"
+              className="form-control"
+              value={responsablePseudo}
+              onChange={(e) => setResponsablePseudo(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group className="mt-3">
+            <Form.Label>Mot de passe du responsable</Form.Label>
+            <TactileInput
+              type="password"
+              className="form-control"
+              value={motDePasse}
+              onChange={(e) => setMotDePasse(e.target.value)}
+            />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
