@@ -25,7 +25,7 @@ function createWindow() {
 
   Menu.setApplicationMenu(null);
   mainWindow.center();
-  mainWindow.webContents.openDevTools();
+  //mainWindow.webContents.openDevTools();
 
   const isDev = !app.isPackaged;
 
