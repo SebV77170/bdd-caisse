@@ -34,7 +34,7 @@ if (isDev) {
   const tryLoadDevServer = () => {
     http.get(devServerURL, () => {
       mainWindow.loadURL(devServerURL);
-      mainWindow.webContents.openDevTools();
+      //mainWindow.webContents.openDevTools();
     }).on('error', () => {
       console.log('⏳ Attente du dev server React...');
       setTimeout(tryLoadDevServer, 500);
