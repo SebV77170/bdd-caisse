@@ -145,17 +145,29 @@ let cookie;
 
 beforeEach(async () => {
   initTables();
-  // Crée un utilisateur
-  const hash = require('bcrypt').hashSync('secret', 10);
+
+  const bcrypt = require('bcrypt');
+  const hashUser = bcrypt.hashSync('secret', 10);
+  const hashAdmin = bcrypt.hashSync('adminSecret', 10);
+
+  
+  // user standard (celui qui se connecte)
   sqlite.prepare(
     'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run('user-1', 'Jean', 'Test', 'jtest', hash, 0);
+  ).run('user-1', 'Jean', 'Test', 'jtest', hashUser, 0);
 
-  // Se connecte pour récupérer le cookie
+
+  // admin (responsable pour valider la correction)
+  sqlite.prepare(
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('admin-1', 'Ada', 'Min', 'admin', hashAdmin, 2);
+
+  // login de l'utilisateur standard pour obtenir le cookie
   const loginRes = await request(app)
     .post('/api/session')
     .send({ pseudo: 'jtest', mot_de_passe: 'secret' });
-  cookie = loginRes.headers['set-cookie'][0];
+
+  cookie = loginRes.headers['set-cookie'].join(';');
 
   sqlite.prepare('DELETE FROM ticketdecaisse').run();
   sqlite.prepare('DELETE FROM bilan').run();
@@ -178,7 +190,9 @@ describe('Tests de correction de ticket', () => {
       ],
       reductionType: '',
       motif: 'Erreur prix',
-      paiements: [{ moyen: 'carte', montant: 900 }]
+      paiements: [{ moyen: 'carte', montant: 900 }],
+      responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
     });
 
     expect(res.status).toBe(200);
@@ -212,7 +226,9 @@ describe('Tests de correction de ticket', () => {
       ],
       reductionType: 'trueClient',
       motif: 'Remise client',
-      paiements: [{ moyen: 'carte', montant: 500 }]
+      paiements: [{ moyen: 'carte', montant: 500 }],
+      responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
     });
 
     expect(res.body.success).toBe(true);
@@ -253,7 +269,9 @@ describe('Tests de correction de ticket', () => {
     ],
     reductionType: '', // pas de réduction appliquée
     motif: 'Correction du prix et retrait de la réduction',
-    paiements: [{ moyen: 'carte', montant: 1800 }]
+    paiements: [{ moyen: 'carte', montant: 1800 }],
+    responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
   });
 
   expect(res.body.success).toBe(true);
@@ -284,7 +302,9 @@ describe('Tests de correction de ticket', () => {
       articles_correction: [],
       reductionType: '',
       motif: 'Test',
-      paiements: []
+      paiements: [],
+      responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
     });
 
     expect(res.status).toBe(500);
@@ -307,7 +327,9 @@ describe('Tests de correction de ticket', () => {
       ],
       reductionType: '',
       motif: 'Ajout article',
-      paiements: [{ moyen: 'carte', montant: 1200 }]
+      paiements: [{ moyen: 'carte', montant: 1200 }],
+      responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
     });
 
     expect(res.body.success).toBe(true);
@@ -341,7 +363,9 @@ describe('Tests de correction de ticket', () => {
       ],
       reductionType: '',
       motif: 'Suppression article',
-      paiements: [{ moyen: 'carte', montant: 500 }]
+      paiements: [{ moyen: 'carte', montant: 500 }],
+      responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
     });
 
     expect(res.body.success).toBe(true);
@@ -377,7 +401,9 @@ describe('Tests de correction de ticket', () => {
       paiements: [
         { moyen: 'carte', montant: 600 },
         { moyen: 'espece', montant: 400 }
-      ]
+      ],
+      responsable_pseudo: 'admin',
+  mot_de_passe: 'adminSecret'
     });
     
 
