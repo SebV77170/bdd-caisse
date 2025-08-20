@@ -6,6 +6,12 @@ const safe = (val) => (val === undefined || val === null ? 0 : val);
 
 const doublons = [];
 
+function formatDateToFR(isoDate) {
+  if (!isoDate) return null;
+  const [year, month, day] = isoDate.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 async function compareChampsAvecMysql(table, uuidField, payload, pool) {
   const champsParTable = {
     ticketdecaisse: [
@@ -113,7 +119,7 @@ router.post('/', async (req, res) => {
 
         else if (type === 'objets_vendus' && operation === 'INSERT') {
           await pool.query(`INSERT INTO objets_vendus (uuid_ticket, uuid_objet, nom, nom_vendeur, id_vendeur, categorie, souscat, date_achat, timestamp, prix, nbr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            payload.id_ticket, payload.uuid_objet, payload.nom, payload.nom_vendeur, payload.id_vendeur,
+            payload.uuid_ticket, payload.uuid_objet, payload.nom, payload.nom_vendeur, payload.id_vendeur,
             payload.categorie, payload.souscat, payload.date_achat, payload.timestamp,
             payload.prix, payload.nbr
           ]);
@@ -130,20 +136,39 @@ router.post('/', async (req, res) => {
 
         else if (type === 'bilan') {
           if (operation === 'INSERT') {
-            await pool.query(`INSERT INTO bilan (date, timestamp, nombre_vente, poids, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-              payload.date, safe(payload.timestamp), safe(payload.nombre_vente),
-              safe(payload.poids), safe(payload.prix_total), safe(payload.prix_total_espece),
-              safe(payload.prix_total_cheque), safe(payload.prix_total_carte),
-              safe(payload.prix_total_virement)
-            ]);
-            if (debugMode) debugLogs.push(`✅ INSERT bilan ${payload.date}`);
+            await pool.query(
+              `INSERT INTO bilan 
+              (date, timestamp, nombre_vente, poids, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [
+                formatDateToFR(payload.date),
+                safe(payload.timestamp), safe(payload.nombre_vente),
+                safe(payload.poids), safe(payload.prix_total), safe(payload.prix_total_espece),
+                safe(payload.prix_total_cheque), safe(payload.prix_total_carte),
+                safe(payload.prix_total_virement)
+              ]
+            );
+            if (debugMode) debugLogs.push(`✅ INSERT bilan ${formatDateToFR(payload.date)}`);
           } else if (operation === 'UPDATE') {
-            await pool.query(`UPDATE bilan SET timestamp = ?, nombre_vente = nombre_vente + ?, poids = poids + ?, prix_total = prix_total + ?, prix_total_espece = prix_total_espece + ?, prix_total_cheque = prix_total_cheque + ?, prix_total_carte = prix_total_carte + ?, prix_total_virement = prix_total_virement + ? WHERE date = ?`, [
-              safe(payload.timestamp), safe(payload.nombre_vente), safe(payload.poids),
-              safe(payload.prix_total), safe(payload.prix_total_espece),
-              safe(payload.prix_total_cheque), safe(payload.prix_total_carte),
-              safe(payload.prix_total_virement), payload.date
-            ]);
+            await pool.query(
+              `UPDATE bilan 
+              SET timestamp = ?, 
+                  nombre_vente = nombre_vente + ?, 
+                  poids = poids + ?, 
+                  prix_total = prix_total + ?, 
+                  prix_total_espece = prix_total_espece + ?, 
+                  prix_total_cheque = prix_total_cheque + ?, 
+                  prix_total_carte = prix_total_carte + ?, 
+                  prix_total_virement = prix_total_virement + ? 
+              WHERE date = ?`,
+              [
+                safe(payload.timestamp), safe(payload.nombre_vente), safe(payload.poids),
+                safe(payload.prix_total), safe(payload.espece),
+                safe(payload.cheque), safe(payload.carte),
+                safe(payload.virement),
+                formatDateToFR(payload.date)
+              ]
+            );
             if (debugMode) debugLogs.push(`✅ UPDATE bilan ${payload.date}`);
           }
         }
