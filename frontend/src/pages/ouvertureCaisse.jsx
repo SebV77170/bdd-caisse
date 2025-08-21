@@ -18,7 +18,8 @@ function OuvertureCaisse() {
   const [isSecondaire, setIsSecondaire] = useState(false); // ✅ nouveau state
   const navigate = useNavigate();
   const { refreshSessionCaisse } = useSessionCaisse() || {};
-const { refreshCaisseSecondaire } = useSessionCaisseSecondaire() || {};
+const { refreshCaisseSecondaire, markSecondaryOpen } = useSessionCaisseSecondaire() || {};
+
 
 const activeSession = useActiveSession();
 const activeSessionRef = useRef(activeSession);
@@ -68,27 +69,41 @@ try {
   }
 
   if (data.success) {
-    if (data.secondaire) {
-      await refreshCaisseSecondaire?.();
-    } else {
-      await refreshSessionCaisse?.();
-    }
+  const openedAsSecondary = !!isSecondaire; // ✅ ne pas se fier à data.secondaire
 
-  await waitUntilSessionRefIsReady(activeSessionRef);
-
-    navigate('/caisse', {
-      state: {
-        toastMessage: data.secondaire
-          ? 'Caisse secondaire ouverte avec succès !'
-          : 'Caisse principale ouverte avec succès !'
-      }
-    });
+  if (openedAsSecondary) {
+    // ✅ optimistic update immédiat
+    markSecondaryOpen?.(data.id_session);
   }
+
+  // ✅ sécurise la propagation dans les deux providers
+  await Promise.all([
+    refreshSessionCaisse?.(),
+    refreshCaisseSecondaire?.(),
+  ]);
+
+  // ⏳ attend que useActiveSession devienne truthy
+  await waitUntilSessionRefIsReady(() => activeSessionRef.current, 8000);
+
+  navigate('/caisse', {
+    state: {
+      toastMessage: openedAsSecondary
+        ? 'Caisse secondaire ouverte avec succès !'
+        : 'Caisse principale ouverte avec succès !',
+    },
+  });
+}
+
 
 } catch (err) {
   console.error("❌ Erreur générale :", err);
-  setMessage('Erreur de communication avec le serveur.');
+  if (String(err?.message || '').includes('Session non active')) {
+    setMessage("La caisse est ouverte mais l’état met un peu de temps à remonter… Réessaie dans un instant.");
+  } else {
+    setMessage('Erreur de communication avec le serveur.');
+  }
 }
+
 
   };
 

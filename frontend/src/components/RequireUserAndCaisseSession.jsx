@@ -13,16 +13,16 @@ console.log("USER:", user);
 console.log("ACTIVE SESSION:", activeSession);
 
   useEffect(() => {
-    if (user === undefined || activeSession === undefined) return; // attente chargement
-    if (!user) {
-      navigate('/login');
-    } else if (!activeSession) {
-      navigate('/caisse-non-ouverte');
-    }
-  }, [user, activeSession, navigate, location.pathname]);
+  if (user === undefined || activeSession === undefined) return; // ✅ on attend
+  if (!user) {
+    navigate('/login');
+  } else if (!activeSession) {
+    navigate('/caisse-non-ouverte');
+  }
+}, [user, activeSession, navigate, location.pathname]);
 
-  if (user === undefined || activeSession === undefined) return <div>Chargement...</div>;
-  if (!user || !activeSession) return null;
+if (user === undefined || activeSession === undefined) return <div>Chargement...</div>;
+if (!user || !activeSession) return null;
 
   return children;
 }
