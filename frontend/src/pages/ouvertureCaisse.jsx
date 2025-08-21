@@ -129,14 +129,14 @@ try {
           />
         </div>
 
-        {/* ✅ Switch caisse secondaire (désactivé) */}
+        {/* ✅ Switch caisse secondaire */}
         <div style={{ marginTop: 10, opacity: 0.5, pointerEvents: 'none' }}>
           <label>
             <input
               type="checkbox"
               checked={isSecondaire}
               onChange={(e) => setIsSecondaire(e.target.checked)}
-              disabled
+              //disabled
               style={{ marginRight: 5 }}
             />
             Ouvrir en tant que caisse secondaire
