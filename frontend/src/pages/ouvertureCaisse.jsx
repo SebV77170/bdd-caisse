@@ -130,7 +130,7 @@ try {
         </div>
 
         {/* ✅ Switch caisse secondaire */}
-        <div style={{ marginTop: 10, opacity: 0.5, pointerEvents: 'none' }}>
+        <div style={{ marginTop: 10 }}>
           <label>
             <input
               type="checkbox"
