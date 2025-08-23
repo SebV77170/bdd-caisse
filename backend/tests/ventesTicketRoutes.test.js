@@ -10,18 +10,19 @@ function initTables() {
   sqlite.exec(schema);
 }
 
+// ⚠️ Nouveau schéma: on ouvre une session avec opened_at_utc (UTC)
 function openSession(id = 'session-1') {
   sqlite.prepare(`
     INSERT INTO session_caisse (
-      id_session, date_ouverture, heure_ouverture, fond_initial
-    ) VALUES (?, date('now'), time('now'), 0)
+      id_session, opened_at_utc, fond_initial, issecondaire
+    ) VALUES (?, datetime('now'), 0, 0)
   `).run(id);
 }
 
 function deleteSession(id = 'session-1') {
-    sqlite.prepare(`
-    DELETE FROM session_caisse WHERE id_session = ?  
-    `).run(id);
+  sqlite.prepare(`
+    DELETE FROM session_caisse WHERE id_session = ?
+  `).run(id);
 }
 
 function createProduct() {
@@ -46,7 +47,6 @@ test('POST /api/ventes refuse sans session ouverte', async () => {
 });
 
 test('POST /api/ventes crée une vente avec session ouverte', async () => {
-    
   openSession();
   const res = await request(app).post('/api/ventes').send();
   expect(res.status).toBe(200);
@@ -55,8 +55,8 @@ test('POST /api/ventes crée une vente avec session ouverte', async () => {
   expect(row.id_temp_vente).toBe(1);
 });
 
-test('Ajout, modification et suppression d\'articles', async () => {
-    deleteSession();
+test("Ajout, modification et suppression d'articles", async () => {
+  deleteSession();
   openSession();
   createProduct();
   const { body } = await request(app).post('/api/ventes').send();
@@ -90,7 +90,7 @@ test('Ajout, modification et suppression d\'articles', async () => {
 });
 
 test('DELETE /api/ventes/:id_temp_vente vide ticketdecaissetemp', async () => {
-    deleteSession();
+  deleteSession();
   openSession();
   createProduct();
   const { body } = await request(app).post('/api/ventes').send();

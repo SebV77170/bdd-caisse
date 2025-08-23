@@ -9,8 +9,6 @@ const logSync = require('../logsync');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const { getConfig } = require('../storeConfig');
 
-
-
 router.post('/ouverture', (req, res) => {
   const { fond_initial, responsable_pseudo, mot_de_passe, secondaire } = req.body;
   const issecondaire = secondaire === true ? 1 : 0;
@@ -21,84 +19,69 @@ router.post('/ouverture', (req, res) => {
     return res.status(401).json({ error: 'Aucun utilisateur connecté' });
   }
 
-  // Vérifier qu'il n'existe pas déjà une session caisse ouverte
+  // 1) Vérifier qu'il n'existe pas déjà une session ouverte (fermée = closed_at_utc NON renseigné)
   const sessionExistante = sqlite.prepare(`
-    SELECT * FROM session_caisse 
-    WHERE date_fermeture IS NULL
+    SELECT 1 FROM session_caisse
+    WHERE closed_at_utc IS NULL
+    LIMIT 1
   `).get();
 
   if (sessionExistante) {
     return res.status(400).json({ error: 'Une session caisse est déjà ouverte' });
   }
 
-  // Vérifier mot de passe du responsable
+  // 2) Vérifier mot de passe du responsable
   const { valid, user: responsable, error } = verifyAdmin(responsable_pseudo, mot_de_passe);
   if (!valid) {
     return res.status(403).json({ error });
   }
 
-  const now = new Date();
-  const date_ouverture = now.toISOString().slice(0, 10);
-  const heure_ouverture = now.toTimeString().slice(0, 5);
-
+  // 3) Préparer l’insert (UTC + données)
+  const nowUtcIso = new Date().toISOString(); // opened_at_utc
   const id_session = uuidv4();
   genererFriendlyIds(id_session, 'session');
+
   const caissiers = JSON.stringify([utilisateur.nom]);
+  const fondInitialCents = Number.isFinite(+fond_initial) ? +fond_initial : 0;
 
-    sqlite.prepare(`
-  INSERT INTO session_caisse (
-    id_session, date_ouverture, heure_ouverture,
-    utilisateur_ouverture, responsable_ouverture,
-    fond_initial, caissiers, issecondaire, poste
-  )
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-`).run(
-  id_session,
-  date_ouverture,
-  heure_ouverture,
-  utilisateur.nom,
-  responsable.nom,
-  fond_initial,
-  caissiers,
-  issecondaire,
-  registerNumber
-);
+  // 4) Insertion
+  sqlite.prepare(`
+    INSERT INTO session_caisse (
+      id_session,
+      opened_at_utc,
+      utilisateur_ouverture, responsable_ouverture,
+      fond_initial, caissiers, issecondaire, poste
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id_session,
+    nowUtcIso,
+    utilisateur.nom, responsable.nom,
+    fondInitialCents, caissiers, issecondaire, registerNumber
+  );
 
-
-
+  // 5) Log de sync
   logSync('session_caisse', 'INSERT', {
-  id_session,
-  date_ouverture,
-  heure_ouverture,
-  utilisateur_ouverture: utilisateur.nom,
-  responsable_ouverture: responsable.nom,
-  fond_initial,
-  caissiers,
-  issecondaire,
-  poste: registerNumber
-});
-
-
-  /* const io = req.app.get('socketio');
-if (io) {
-  const typeSession = issecondaire === 0 ? 'principale' : 'secondaire';
-
-  io.emit('etatCaisseUpdated', {
-    ouverte: true,
-    type: typeSession
+    id_session,
+    opened_at_utc: nowUtcIso,
+    utilisateur_ouverture: utilisateur.nom,
+    responsable_ouverture: responsable.nom,
+    fond_initial: fondInitialCents,
+    caissiers,
+    issecondaire,
+    poste: registerNumber
   });
-} */
 
-
-
-   res.json({ success: true, id_session });
+  // 6) Réponse
+  res.json({ success: true, id_session });
 });
 
+// Journal : tri décroissant par opened_at_utc (UTC), puis closed_at_utc
 router.get('/journal', (req, res) => {
   try {
     const sessions = sqlite.prepare(`
-      SELECT * FROM session_caisse
-      ORDER BY date_ouverture DESC, heure_ouverture DESC
+      SELECT *
+      FROM session_caisse
+      ORDER BY opened_at_utc DESC, closed_at_utc DESC
     `).all();
     res.json(sessions);
   } catch (err) {
@@ -107,7 +90,7 @@ router.get('/journal', (req, res) => {
   }
 });
 
-// Nouveau endpoint pour récupérer les modifications de tickets liées à une session caisse
+// Modifications liées à une session (inchangé : basé sur uuid_session_caisse des tickets)
 router.get('/modifications', (req, res) => {
   const sessionId = req.query.uuid_session_caisse;
   if (!sessionId) {

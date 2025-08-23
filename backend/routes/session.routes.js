@@ -1,3 +1,5 @@
+// fichier: routes/auth.routes.js (ou celui où tu as collé ce code)
+
 const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
@@ -5,8 +7,19 @@ const bcrypt = require('bcrypt');
 const session = require('../session');
 const logSync = require('../logsync');
 
+// util: renvoie 'YYYY-MM-DD' depuis un ISO
+const toYMD = (iso) => {
+  try {
+    if (!iso) return null;
+    return new Date(iso).toISOString().slice(0, 10);
+  } catch {
+    return null;
+  }
+};
 
-// Connexion avec vérification du mot de passe
+// ----------------------
+// Connexion
+// ----------------------
 router.post('/', (req, res) => {
   const { pseudo, mot_de_passe } = req.body;
 
@@ -19,6 +32,7 @@ router.post('/', (req, res) => {
     return res.status(404).json({ error: 'Utilisateur non trouvé' });
   }
 
+  // compat bcrypt $2y$ -> $2b$
   const hashCorrige = user.password.replace(/^\$2y\$/, '$2b$');
   const motDePasseValide = bcrypt.compareSync(mot_de_passe.trim(), hashCorrige);
 
@@ -34,13 +48,14 @@ router.post('/', (req, res) => {
     uuid_user: user.uuid_user
   };
 
- req.session.save(() => {
-  res.json({ success: true, user: req.session.user });
+  req.session.save(() => {
+    res.json({ success: true, user: req.session.user });
+  });
 });
-});
 
-
-
+// ----------------------
+// Qui est connecté
+// ----------------------
 router.get('/', (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Aucun utilisateur connecté' });
@@ -49,43 +64,70 @@ router.get('/', (req, res) => {
   res.json({ user: req.session.user });
 });
 
-
+// ----------------------
+// Déconnexion
+// ----------------------
 router.delete('/', (req, res) => {
   req.session.destroy(() => {
     res.json({ success: true });
   });
 });
 
-
+// ----------------------
+// État caisse PRINCIPALE
+// ----------------------
+// Avant: SELECT ... WHERE date_fermeture IS NULL AND issecondaire = 0
+// Maintenant: closed_at_utc IS NULL
 router.get('/etat-caisse', (req, res) => {
-  const session = sqlite.prepare(`SELECT * FROM session_caisse WHERE date_fermeture IS NULL and issecondaire = 0`).get();
-  
-  if (session) {
-    res.json({ ouverte: true, id_session: session.id_session, date_ouverture: session.date_ouverture });
-  } else {
-    res.json({ ouverte: false });
-  }
-});
-
-router.get('/etat-caisse-secondaire', (req, res) => {
-  const session = sqlite.prepare(`
-    SELECT * FROM session_caisse 
-    WHERE date_fermeture IS NULL AND issecondaire = 1
+  const s = sqlite.prepare(`
+    SELECT *
+    FROM session_caisse
+    WHERE closed_at_utc IS NULL AND issecondaire = 0
+    LIMIT 1
   `).get();
 
-  if (session) {
-    res.json({ 
-      ouverte: true, 
-      id_session: session.id_session, 
-      date_ouverture: session.date_ouverture,
-      utilisateur_ouverture: session.utilisateur_ouverture
+  if (s) {
+    // rétro-compat: expose encore "date_ouverture"
+    res.json({
+      ouverte: true,
+      id_session: s.id_session,
+      opened_at_utc: s.opened_at_utc,
+      date_ouverture: toYMD(s.opened_at_utc) // pour l’UI actuelle
     });
   } else {
     res.json({ ouverte: false });
   }
 });
 
-// Ajoute un caissier à la session caisse ouverte
+// ----------------------
+// État caisse SECONDAIRE
+// ----------------------
+router.get('/etat-caisse-secondaire', (req, res) => {
+  const s = sqlite.prepare(`
+    SELECT *
+    FROM session_caisse
+    WHERE closed_at_utc IS NULL AND issecondaire = 1
+    LIMIT 1
+  `).get();
+
+  if (s) {
+    res.json({
+      ouverte: true,
+      id_session: s.id_session,
+      opened_at_utc: s.opened_at_utc,
+      date_ouverture: toYMD(s.opened_at_utc),     // compat front
+      utilisateur_ouverture: s.utilisateur_ouverture
+    });
+  } else {
+    res.json({ ouverte: false });
+  }
+});
+
+// ----------------------
+// Ajouter un caissier à la session OUVERTE (principale ou secondaire)
+// ----------------------
+// Avant: WHERE date_fermeture IS NULL
+// Maintenant: WHERE closed_at_utc IS NULL
 router.post('/ajouter-caissier', (req, res) => {
   const { nom } = req.body;
   if (!nom) {
@@ -93,7 +135,7 @@ router.post('/ajouter-caissier', (req, res) => {
   }
 
   const sessionCaisse = sqlite
-    .prepare('SELECT id_session, caissiers FROM session_caisse WHERE date_fermeture IS NULL')
+    .prepare('SELECT id_session, caissiers FROM session_caisse WHERE closed_at_utc IS NULL')
     .get();
 
   if (!sessionCaisse) {
@@ -103,7 +145,7 @@ router.post('/ajouter-caissier', (req, res) => {
   let caissiers = [];
   try {
     caissiers = sessionCaisse.caissiers ? JSON.parse(sessionCaisse.caissiers) : [];
-  } catch (err) {
+  } catch {
     caissiers = [];
   }
 
@@ -121,6 +163,5 @@ router.post('/ajouter-caissier', (req, res) => {
 
   res.json({ success: true, caissiers });
 });
-
 
 module.exports = router;

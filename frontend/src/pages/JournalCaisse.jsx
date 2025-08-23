@@ -9,9 +9,19 @@ function formatEuros(val) {
   return val != null ? `${(val / 100).toFixed(2)} €` : '—';
 }
 
-// "YYYY-MM-DD", "HH:mm" -> "YYYY-MM-DDTHH:mm:00"
-const toIso = (dateStr, timeStr) =>
-  `${dateStr}T${(timeStr || '00:00').padStart(5, '0')}:00`;
+// Helpers d'affichage local depuis un ISO UTC
+const toLocalParts = (utcIso) => {
+  if (!utcIso) return null;
+  const d = new Date(utcIso);
+  const date = d.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' });
+  const time = d.toLocaleTimeString('fr-FR', {
+    timeZone: 'Europe/Paris',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  return { date, time };
+};
 
 const JournalCaisse = () => {
   const [sessions, setSessions] = useState([]);
@@ -56,7 +66,7 @@ const JournalCaisse = () => {
 
   // --- ouvrir le modal pour une session secondaire fermée ---
   const openResendModal = (s) => {
-    if (!s.date_fermeture || !s.heure_fermeture) {
+    if (!s.closed_at_utc) {
       return alert("La session n'est pas fermée : impossible de borner la fenêtre d'envoi.");
     }
     setModalSession(s);
@@ -86,8 +96,10 @@ const JournalCaisse = () => {
     }
 
     const s = modalSession;
-    const startISO = toIso(s.date_ouverture, s.heure_ouverture);
-    const endISO   = toIso(s.date_fermeture, s.heure_fermeture);
+    // On utilise la fenêtre UTC directement depuis la DB
+    // (Si besoin, ajoute un buffer ±60s côté back)
+    const startISO = s.opened_at_utc;
+    const endISO = s.closed_at_utc;
 
     setSending(true);
     setModalMsg('Envoi en cours…');
@@ -109,7 +121,7 @@ const JournalCaisse = () => {
       const json = await res.json();
       if (res.ok && json.success) {
         setModalMsg(`✅ Envoi effectué. Lignes validées : ${json.ids?.length || 0}`);
-        // optionnel : rafraîchir le journal si besoin
+        // Optionnel : rafraîchir la liste
         // const refreshed = await fetch('http://localhost:3001/api/caisse/journal').then(r=>r.json());
         // setSessions(refreshed);
       } else {
@@ -139,42 +151,46 @@ const JournalCaisse = () => {
             </tr>
           </thead>
           <tbody>
-            {sessions.map(s => (
-              <React.Fragment key={s.id_session}>
-                <tr
-                  onClick={() => chargerDetails(s)}
-                  style={{ cursor: 'pointer' }}
-                  className={active === s.id_session ? 'table-active' : ''}
-                >
-                  <td>{s.date_ouverture} {s.heure_ouverture}</td>
-                  <td>{s.date_fermeture ? `${s.date_fermeture} ${s.heure_fermeture}` : '—'}</td>
-                  <td>{s.responsable_ouverture || '—'}</td>
-                  <td>{s.responsable_fermeture || '—'}</td>
-                  <td>{s.ecart != null ? formatEuros(s.ecart) : '—'}</td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    {(s.issecondaire === 1 || s.type === 'secondaire') ? (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-primary"
-                        disabled={!s.date_fermeture}
-                        title={s.date_fermeture ? 'Renvoyer vers la caisse principale' : 'Session non fermée'}
-                        onClick={() => openResendModal(s)}
-                      >
-                        ↗ Envoyer à la principale
-                      </button>
-                    ) : '—'}
-                  </td>
-                </tr>
-                {active === s.id_session && details[s.id_session] && (
-                  <tr>
-                    <td colSpan="6">
-                      <SessionDetails session={s} bilan={details[s.id_session]} />
-                      <ModificationDetails modifications={modifs[s.id_session]} />
+            {sessions.map(s => {
+              const o = toLocalParts(s.opened_at_utc);
+              const c = toLocalParts(s.closed_at_utc);
+              return (
+                <React.Fragment key={s.id_session}>
+                  <tr
+                    onClick={() => chargerDetails(s)}
+                    style={{ cursor: 'pointer' }}
+                    className={active === s.id_session ? 'table-active' : ''}
+                  >
+                    <td>{o ? `${o.date} ${o.time}` : '—'}</td>
+                    <td>{c ? `${c.date} ${c.time}` : '—'}</td>
+                    <td>{s.responsable_ouverture || '—'}</td>
+                    <td>{s.responsable_fermeture || '—'}</td>
+                    <td>{s.ecart != null ? formatEuros(s.ecart) : '—'}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      {(s.issecondaire === 1 || s.type === 'secondaire') ? (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary"
+                          disabled={!s.closed_at_utc}
+                          title={s.closed_at_utc ? 'Renvoyer vers la caisse principale' : 'Session non fermée'}
+                          onClick={() => openResendModal(s)}
+                        >
+                          ↗ Envoyer à la principale
+                        </button>
+                      ) : '—'}
                     </td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+                  {active === s.id_session && details[s.id_session] && (
+                    <tr>
+                      <td colSpan="6">
+                        <SessionDetails session={s} bilan={details[s.id_session]} />
+                        <ModificationDetails modifications={modifs[s.id_session]} />
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -203,8 +219,12 @@ const JournalCaisse = () => {
                   {modalSession && (
                     <p className="mb-2">
                       Session <code>{modalSession.id_session}</code> ·{' '}
-                      <strong>{modalSession.date_ouverture} {modalSession.heure_ouverture}</strong> →{' '}
-                      <strong>{modalSession.date_fermeture} {modalSession.heure_fermeture}</strong>
+                      <strong>
+                        {toLocalParts(modalSession.opened_at_utc)?.date} {toLocalParts(modalSession.opened_at_utc)?.time}
+                      </strong> →{' '}
+                      <strong>
+                        {toLocalParts(modalSession.closed_at_utc)?.date} {toLocalParts(modalSession.closed_at_utc)?.time}
+                      </strong>
                     </p>
                   )}
 

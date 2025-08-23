@@ -1,3 +1,5 @@
+// tests/session.routes.test.js
+
 const request = require('supertest');
 const bcrypt = require('bcrypt');
 const path = require('path');
@@ -21,16 +23,18 @@ describe('Routes /api/session', () => {
     sqlite.prepare('DELETE FROM sync_log').run();
 
     const hash = bcrypt.hashSync('secret', 10);
-    sqlite.prepare(
-      'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?,?,?,?,?,0)'
-    ).run(1, 'John', 'Doe', 'jdoe', hash);
+    sqlite
+      .prepare(
+        'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?,?,?,?,?,0)'
+      )
+      .run(1, 'John', 'Doe', 'jdoe', hash);
 
     // Login pour récupérer le cookie utilisé dans les tests
     const loginRes = await request(app)
       .post('/api/session')
       .send({ pseudo: 'jdoe', mot_de_passe: 'secret' });
 
-    cookie = loginRes.headers['set-cookie'][0];
+    cookie = loginRes.headers['set-cookie']?.[0];
   });
 
   test('POST /api/session success', async () => {
@@ -83,20 +87,28 @@ describe('Routes /api/session', () => {
   });
 
   test('GET /api/session/etat-caisse true when open', async () => {
-    sqlite.prepare(
-      'INSERT INTO session_caisse (id_session, date_ouverture, heure_ouverture, fond_initial) VALUES (?,?,?,?)'
-    ).run('sess-1', '2024-01-01', '08:00', 0);
+    // ⚠️ Nouveau schéma: on insère avec opened_at_utc (UTC) et issecondaire=0
+    sqlite
+      .prepare(
+        'INSERT INTO session_caisse (id_session, opened_at_utc, fond_initial, issecondaire) VALUES (?,?,?,?)'
+      )
+      .run('sess-1', new Date().toISOString(), 0, 0);
 
     const res = await request(app).get('/api/session/etat-caisse');
     expect(res.status).toBe(200);
     expect(res.body.ouverte).toBe(true);
     expect(res.body.id_session).toBe('sess-1');
+    // On peut aussi vérifier que opened_at_utc est renvoyé
+    expect(res.body.opened_at_utc).toBeDefined();
   });
 
   test('POST /api/session/ajouter-caissier adds caissier', async () => {
-    sqlite.prepare(
-      'INSERT INTO session_caisse (id_session, date_ouverture, heure_ouverture, fond_initial, caissiers) VALUES (?,?,?,?,?)'
-    ).run('sess-1', '2024-01-01', '08:00', 0, JSON.stringify(['Alice']));
+    // Session ouverte (closed_at_utc NULL) avec caissiers existants
+    sqlite
+      .prepare(
+        'INSERT INTO session_caisse (id_session, opened_at_utc, fond_initial, caissiers) VALUES (?,?,?,?)'
+      )
+      .run('sess-1', new Date().toISOString(), 0, JSON.stringify(['Alice']));
 
     const res = await request(app)
       .post('/api/session/ajouter-caissier')
@@ -121,9 +133,12 @@ describe('Routes /api/session', () => {
   });
 
   test('POST /api/session/ajouter-caissier missing name', async () => {
-    sqlite.prepare(
-      'INSERT INTO session_caisse (id_session, date_ouverture, heure_ouverture, fond_initial) VALUES (?,?,?,?)'
-    ).run('sess-1', '2024-01-01', '08:00', 0);
+    // Crée une session ouverte (closed_at_utc NULL)
+    sqlite
+      .prepare(
+        'INSERT INTO session_caisse (id_session, opened_at_utc, fond_initial) VALUES (?,?,?)'
+      )
+      .run('sess-1', new Date().toISOString(), 0);
 
     const res = await request(app)
       .post('/api/session/ajouter-caissier')
