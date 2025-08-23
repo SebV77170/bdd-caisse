@@ -73,7 +73,7 @@ module.exports = function (io) {
           total: safe(data.prix_total ?? 0),
           espece: safe(data.prix_total_espece ?? data.espece ?? 0),
           cheque: safe(data.prix_total_cheque ?? data.cheque ?? 0),
-          carte: safe(data.prix_total_carte ?? data.carte ?? 0),
+          carte:  safe(data.prix_total_carte  ?? data.carte  ?? 0),
           virement: safe(data.prix_total_virement ?? data.virement ?? 0),
         });
 
@@ -85,16 +85,17 @@ module.exports = function (io) {
             prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
+        // ⬇️ Version "hard" comme MySQL: timestamp est écrasé, colonnes additionnées
         const updateBilanAdd = db.prepare(`
           UPDATE bilan SET
-            timestamp = CASE WHEN ? > IFNULL(timestamp, 0) THEN ? ELSE timestamp END,
-            nombre_vente = nombre_vente + ?,
-            poids = poids + ?,
-            prix_total = prix_total + ?,
-            prix_total_espece = prix_total_espece + ?,
-            prix_total_cheque = prix_total_cheque + ?,
-            prix_total_carte = prix_total_carte + ?,
-            prix_total_virement = prix_total_virement + ?
+            timestamp = ?, 
+            nombre_vente = COALESCE(nombre_vente, 0) + ?,
+            poids        = COALESCE(poids, 0) + ?,
+            prix_total   = COALESCE(prix_total, 0) + ?,
+            prix_total_espece   = COALESCE(prix_total_espece, 0) + ?,
+            prix_total_cheque   = COALESCE(prix_total_cheque, 0) + ?,
+            prix_total_carte    = COALESCE(prix_total_carte, 0) + ?,
+            prix_total_virement = COALESCE(prix_total_virement, 0) + ?
           WHERE date = ?
         `);
 
@@ -137,19 +138,19 @@ module.exports = function (io) {
               const exists = selectBilanByDate.get(data.date);
               if (exists) {
                 updateBilanAdd.run(
-                  data.timestamp, data.timestamp,
+                  safe(data.timestamp),
                   a.nv, a.poids, a.total, a.espece, a.cheque, a.carte, a.virement,
                   data.date
                 );
               } else {
                 insertBilan.run(
-                  data.date, data.timestamp,
+                  data.date, safe(data.timestamp),
                   a.nv, a.poids, a.total, a.espece, a.cheque, a.carte, a.virement
                 );
               }
             } else if (operation === 'UPDATE') {
               updateBilanAdd.run(
-                data.timestamp, data.timestamp,
+                safe(data.timestamp),
                 a.nv, a.poids, a.total, a.espece, a.cheque, a.carte, a.virement,
                 data.date
               );
@@ -242,6 +243,7 @@ module.exports = function (io) {
         type: 'SUCCES_SYNC',
         message: 'Les données ont bien été intégrées depuis la caisse secondaire.'
       });
+      io.emit('bilanUpdated');
       res.json({ success: true });
 
     } catch (err) {

@@ -97,6 +97,12 @@ router.post('/', async (req, res) => {
     if (!resendWindow) {
       try {
         fermerCaisseSecondaireAvantEnvoiUTC(req);
+
+        // 🔔 Émettre l’état "caisse fermée" côté front (only mode normal)
+        const io = req.app.get('socketio');
+        if (io) {
+          io.emit('etatCaisseUpdated', { ouverte: false, type: 'secondaire' });
+        }
       } catch (e) {
         // On échoue tôt si la fermeture est impossible
         return res.status(400).json({ success: false, message: e.message });
