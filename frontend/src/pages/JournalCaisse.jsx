@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 
-
-
 import SessionDetails from '../components/SessionDetails';
 import ModificationDetails from '../components/ModificationDetails';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './BilanTickets.css';
 
-
 function formatEuros(val) {
   return val != null ? `${(val / 100).toFixed(2)} €` : '—';
 }
+
+// "YYYY-MM-DD", "HH:mm" -> "YYYY-MM-DDTHH:mm:00"
+const toIso = (dateStr, timeStr) =>
+  `${dateStr}T${(timeStr || '00:00').padStart(5, '0')}:00`;
 
 const JournalCaisse = () => {
   const [sessions, setSessions] = useState([]);
@@ -18,8 +19,13 @@ const JournalCaisse = () => {
   const [modifs, setModifs] = useState({});
   const [active, setActive] = useState(null);
 
-
-
+  // ---- état du modal de rattrapage ----
+  const [showModal, setShowModal] = useState(false);
+  const [modalSession, setModalSession] = useState(null);
+  const [respPseudo, setRespPseudo] = useState('');
+  const [respPassword, setRespPassword] = useState('');
+  const [sending, setSending] = useState(false);
+  const [modalMsg, setModalMsg] = useState('');
 
   useEffect(() => {
     fetch('http://localhost:3001/api/caisse/journal')
@@ -27,7 +33,6 @@ const JournalCaisse = () => {
       .then(setSessions)
       .catch(err => console.error('Erreur chargement journal caisse:', err));
   }, []);
-
 
   const chargerDetails = (session) => {
     const id = session.id_session;
@@ -48,7 +53,76 @@ const JournalCaisse = () => {
       })
       .catch(err => console.error('Erreur chargement bilan/modifs session:', err));
   };
-console.log(sessions, details, modifs);
+
+  // --- ouvrir le modal pour une session secondaire fermée ---
+  const openResendModal = (s) => {
+    if (!s.date_fermeture || !s.heure_fermeture) {
+      return alert("La session n'est pas fermée : impossible de borner la fenêtre d'envoi.");
+    }
+    setModalSession(s);
+    setRespPseudo('');
+    setRespPassword('');
+    setModalMsg('');
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    if (sending) return;
+    setShowModal(false);
+    setModalSession(null);
+    setRespPseudo('');
+    setRespPassword('');
+    setModalMsg('');
+  };
+
+  // --- submit modal: envoi vers principale (mode resendWindow) ---
+  const submitResend = async (e) => {
+    e?.preventDefault?.();
+    if (!modalSession) return;
+
+    if (!respPseudo || !respPassword) {
+      setModalMsg('Pseudo et mot de passe responsables requis.');
+      return;
+    }
+
+    const s = modalSession;
+    const startISO = toIso(s.date_ouverture, s.heure_ouverture);
+    const endISO   = toIso(s.date_fermeture, s.heure_fermeture);
+
+    setSending(true);
+    setModalMsg('Envoi en cours…');
+
+    try {
+      const res = await fetch('http://localhost:3001/api/sync/envoyer-secondaire-vers-principal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mode: 'resendWindow',
+          uuid_session_caisse: s.id_session, // trace côté serveur
+          responsable_pseudo: respPseudo,
+          mot_de_passe: respPassword,
+          window: { startISO, endISO }
+        })
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setModalMsg(`✅ Envoi effectué. Lignes validées : ${json.ids?.length || 0}`);
+        // optionnel : rafraîchir le journal si besoin
+        // const refreshed = await fetch('http://localhost:3001/api/caisse/journal').then(r=>r.json());
+        // setSessions(refreshed);
+      } else {
+        setModalMsg(`❌ Échec : ${json.message || json.error || 'Erreur inconnue'}`);
+      }
+    } catch (err) {
+      console.error('Erreur renvoi vers principale:', err);
+      setModalMsg('❌ Erreur réseau.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="bilan-scroll-container">
       <div className="container">
@@ -61,6 +135,7 @@ console.log(sessions, details, modifs);
               <th>Resp. ouverture</th>
               <th>Resp. fermeture</th>
               <th>Écart total</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -76,10 +151,23 @@ console.log(sessions, details, modifs);
                   <td>{s.responsable_ouverture || '—'}</td>
                   <td>{s.responsable_fermeture || '—'}</td>
                   <td>{s.ecart != null ? formatEuros(s.ecart) : '—'}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {(s.issecondaire === 1 || s.type === 'secondaire') ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={!s.date_fermeture}
+                        title={s.date_fermeture ? 'Renvoyer vers la caisse principale' : 'Session non fermée'}
+                        onClick={() => openResendModal(s)}
+                      >
+                        ↗ Envoyer à la principale
+                      </button>
+                    ) : '—'}
+                  </td>
                 </tr>
                 {active === s.id_session && details[s.id_session] && (
                   <tr>
-                    <td colSpan="5">
+                    <td colSpan="6">
                       <SessionDetails session={s} bilan={details[s.id_session]} />
                       <ModificationDetails modifications={modifs[s.id_session]} />
                     </td>
@@ -91,6 +179,79 @@ console.log(sessions, details, modifs);
         </table>
       </div>
 
+      {/* ------- Modal simple (sans JS Bootstrap) ------- */}
+      {showModal && (
+        <div
+          className="modal d-block"
+          tabIndex="-1"
+          role="dialog"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={closeModal}
+        >
+          <div
+            className="modal-dialog"
+            role="document"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <form onSubmit={submitResend}>
+                <div className="modal-header">
+                  <h5 className="modal-title">Envoyer à la caisse principale</h5>
+                  <button type="button" className="btn-close" onClick={closeModal} disabled={sending} />
+                </div>
+                <div className="modal-body">
+                  {modalSession && (
+                    <p className="mb-2">
+                      Session <code>{modalSession.id_session}</code> ·{' '}
+                      <strong>{modalSession.date_ouverture} {modalSession.heure_ouverture}</strong> →{' '}
+                      <strong>{modalSession.date_fermeture} {modalSession.heure_fermeture}</strong>
+                    </p>
+                  )}
+
+                  <div className="mb-3">
+                    <label className="form-label">Pseudo du responsable</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={respPseudo}
+                      onChange={(e) => setRespPseudo(e.target.value)}
+                      required
+                      disabled={sending}
+                    />
+                  </div>
+
+                  <div className="mb-2">
+                    <label className="form-label">Mot de passe du responsable</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      value={respPassword}
+                      onChange={(e) => setRespPassword(e.target.value)}
+                      required
+                      disabled={sending}
+                    />
+                  </div>
+
+                  {!!modalMsg && (
+                    <div className="small mt-2">
+                      {modalMsg}
+                    </div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-outline-secondary" onClick={closeModal} disabled={sending}>
+                    Annuler
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={sending}>
+                    {sending ? 'Envoi…' : 'Envoyer maintenant'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ------- Fin modal ------- */}
     </div>
   );
 };
