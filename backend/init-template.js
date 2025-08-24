@@ -16,12 +16,12 @@ console.log('🆕 Création du template de base :', outputPath);
 // Exécution des instructions CREATE TABLE extraites
 db.exec(`
 CREATE TABLE boutons_ventes (
-  id_bouton int NOT NULL,
-  sous_categorie varchar(34),
-  nom varchar(66),
-  id_cat varchar(6),
-  id_souscat int,
-  prix varchar(4)
+  id_bouton INTEGER PRIMARY KEY AUTOINCREMENT,
+  nom        TEXT    NOT NULL,
+  prix       INTEGER NOT NULL,   -- centimes
+  id_cat     INTEGER,
+  id_souscat INTEGER,
+  sous_categorie VARCHAR
 );
 
 CREATE TABLE categories (
