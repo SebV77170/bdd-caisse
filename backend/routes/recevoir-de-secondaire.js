@@ -283,7 +283,7 @@ module.exports = function (io) {
         type: 'SUCCES_SYNC',
         message: 'Les données ont bien été intégrées depuis la caisse secondaire.'
       });
-
+      io.emit('bilanUpdated');
       return res.json({ success: true });
 
     } catch (err) {
