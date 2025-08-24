@@ -1,21 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
-const fetch = require('node-fetch'); // npm i node-fetch
+const fetch = require('node-fetch');
 const { getConfig } = require('../principalIpConfig');
 const verifyAdmin = require('../utils/verifyAdmin');
 const logSync = require('../logsync');
-// const genererTicketCloturePdf = require('../utils/genererTicketCloturePdf'); // si besoin
-// const { v4: uuidv4 } = require('uuid');
-// const getBilanSession = require('../utils/bilanSession');
 
 // --- helper: ferme officiellement la caisse secondaire (UTC) + log UPDATE
 function fermerCaisseSecondaireAvantEnvoiUTC(req) {
-  const {
-    commentaire,
-    responsable_pseudo,
-    mot_de_passe,
-  } = req.body || {};
+  const { commentaire, responsable_pseudo, mot_de_passe } = req.body || {};
 
   const utilisateur = req.session.user;
   if (!utilisateur) {
@@ -40,8 +33,8 @@ function fermerCaisseSecondaireAvantEnvoiUTC(req) {
     throw new Error(error || 'Responsable invalide');
   }
 
-  // Fermeture en UTC
-  const nowUtcIso = new Date().toISOString(); // ex: "2025-08-23T10:15:00.000Z"
+  // Fermeture UTC
+  const nowUtcIso = new Date().toISOString();
 
   sqlite.prepare(`
     UPDATE session_caisse SET
@@ -63,14 +56,11 @@ function fermerCaisseSecondaireAvantEnvoiUTC(req) {
     sessionCaisse.id_session
   );
 
-  // Log sync UPDATE session_caisse (UTC)
   logSync('session_caisse', 'UPDATE', {
     id_session: sessionCaisse.id_session,
     closed_at_utc: nowUtcIso,
     utilisateur_fermeture: utilisateur.nom,
     responsable_fermeture: responsable.nom,
-    // Les montants sont laissés tels quels (déjà en base si tu as calculé avant),
-    // sinon 0 par défaut :
     montant_reel: 0,
     commentaire: commentaire ?? '',
     ecart: 0,
@@ -82,15 +72,39 @@ function fermerCaisseSecondaireAvantEnvoiUTC(req) {
   return { id_session: sessionCaisse.id_session };
 }
 
+// --- util: poll /attente-validation avec backoff
+async function pollValidation(baseUrl, { totalMs = 30000, intervalMs = 1200, maxIntervalMs = 3000 }) {
+  const deadline = Date.now() + totalMs;
+  let wait = intervalMs;
+
+  while (Date.now() < deadline) {
+    const resp = await fetch(`${baseUrl}/api/sync/recevoir-de-secondaire/attente-validation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // 200 => décision prête (success true/false)
+    // 202 => toujours en attente
+    const json = await resp.json().catch(() => ({}));
+
+    if (resp.status === 200) {
+      // résultat final
+      return json;
+    }
+
+    // en attente -> on attend et on backoff un peu
+    await new Promise(r => setTimeout(r, wait));
+    wait = Math.min(Math.floor(wait * 1.35), maxIntervalMs);
+  }
+
+  // Timeout global
+  return { success: false, pending: true, message: 'Timeout en attendant la validation de la caisse principale.' };
+}
+
 // POST /api/sync/envoyer-secondaire-vers-principal
 router.post('/', async (req, res) => {
   try {
-    const {
-      mode,
-      window: wnd,
-      responsable_pseudo,
-      mot_de_passe,
-    } = req.body || {};
+    const { mode, window: wnd, responsable_pseudo, mot_de_passe } = req.body || {};
     const resendWindow = mode === 'resendWindow';
 
     // 1) Fermer la secondaire si mode normal
@@ -98,13 +112,10 @@ router.post('/', async (req, res) => {
       try {
         fermerCaisseSecondaireAvantEnvoiUTC(req);
 
-        // 🔔 Émettre l’état "caisse fermée" côté front (only mode normal)
+        // 🔔 émettre l’état fermé immédiatement (même si la principale refuse ensuite)
         const io = req.app.get('socketio');
-        if (io) {
-          io.emit('etatCaisseUpdated', { ouverte: false, type: 'secondaire' });
-        }
+        if (io) io.emit('etatCaisseUpdated', { ouverte: false, type: 'secondaire' });
       } catch (e) {
-        // On échoue tôt si la fermeture est impossible
         return res.status(400).json({ success: false, message: e.message });
       }
     } else {
@@ -121,7 +132,6 @@ router.post('/', async (req, res) => {
       if (!wnd?.startISO || !wnd?.endISO) {
         return res.status(400).json({ success: false, message: 'Fenêtre temporelle manquante.' });
       }
-      // created_at (UTC via CURRENT_TIMESTAMP)
       lignes = sqlite.prepare(`
         SELECT * FROM sync_log
         WHERE senttoprincipal = 0
@@ -133,9 +143,7 @@ router.post('/', async (req, res) => {
         return res.json({ success: true, message: 'Aucune donnée à envoyer dans cette fenêtre.' });
       }
     } else {
-      lignes = sqlite
-        .prepare(`SELECT * FROM sync_log WHERE senttoprincipal = 0 ORDER BY id`)
-        .all();
+      lignes = sqlite.prepare(`SELECT * FROM sync_log WHERE senttoprincipal = 0 ORDER BY id`).all();
       if (!lignes.length) {
         return res.json({ success: true, message: 'Aucune donnée à envoyer.' });
       }
@@ -150,7 +158,7 @@ router.post('/', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logs: lignes }),
     });
-    const reponseDemande = await demande.json();
+    const reponseDemande = await demande.json().catch(() => null);
 
     if (!demande.ok) {
       return res.status(502).json({
@@ -160,27 +168,26 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 4) Attente validation (simplifiée)
-    const attenteValidation = await fetch(`${baseUrl}/api/sync/recevoir-de-secondaire/attente-validation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    const resultatValidation = await attenteValidation.json();
+    // 4) VRAIE attente de validation via long-poll (poll côté secondaire)
+    const result = await pollValidation(baseUrl, { totalMs: 35000, intervalMs: 1200, maxIntervalMs: 3000 });
 
-    if (!resultatValidation.success) {
-      return res.status(400).json({ success: false, message: 'Validation refusée par la principale.' });
+    if (!result || !result.success) {
+      // refus, erreur, ou timeout
+      const msg = result?.message || 'Validation refusée par la principale.';
+      return res.status(result?.pending ? 504 : 400).json({
+        success: false,
+        message: msg,
+      });
     }
 
-    const idsValides = resultatValidation.ids || [];
+    const idsValides = result.ids || [];
 
-    // 5) Marquer comme envoyées
+    // 5) Marquer comme envoyées en local
     const update = sqlite.prepare('UPDATE sync_log SET senttoprincipal = 1 WHERE id = ?');
-    const tx = sqlite.transaction((ids) => {
-      for (const id of ids) update.run(id);
-    });
+    const tx = sqlite.transaction((ids) => { for (const id of ids) update.run(id); });
     tx(idsValides);
 
-    // 6) Réponse OK
+    // 6) Réponse OK au front
     res.json({ success: true, message: `${idsValides.length} lignes envoyées et validées.`, ids: idsValides });
 
   } catch (err) {

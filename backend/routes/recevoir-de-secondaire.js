@@ -1,4 +1,4 @@
-// routes/recevoir-de-secondaire.js (ou le nom de ton fichier actuel)
+// routes/recevoir-de-secondaire.js
 
 const express = require('express');
 
@@ -14,7 +14,10 @@ module.exports = function (io) {
   const { sqlite } = require('../db');
 
   const safe = (val) => (val === undefined || val === null ? 0 : val);
-  let pendingLogs = null;
+
+  // État en mémoire (process principal)
+  let pendingLogs = null;        // tableau de logs à traiter
+  let validationResult = null;   // null | { success:true, ids } | { success:false, message }
 
   // util: combine "YYYY-MM-DD" + "HH:mm[:ss]" en ISO UTC
   const combineUTC = (d, t) => {
@@ -24,11 +27,16 @@ module.exports = function (io) {
     return `${d}T${hhmmss}Z`;
   };
 
+  // === 1) La secondaire demande l’autorisation d’envoyer ===
   router.post('/demande', (req, res) => {
     const logs = req.body.logs;
-    if (!Array.isArray(logs)) return res.status(400).json({ error: 'Payload invalide : tableau attendu' });
+    if (!Array.isArray(logs)) {
+      return res.status(400).json({ error: 'Payload invalide : tableau attendu' });
+    }
 
+    // reset de l’état
     pendingLogs = logs;
+    validationResult = null;
 
     io.emit('demande-sync-secondaire', {
       type: 'DEMANDE_SYNC',
@@ -38,30 +46,58 @@ module.exports = function (io) {
     res.json({ message: 'Demande de synchronisation reçue. En attente de validation sur la caisse principale.' });
   });
 
-  router.post('/attente-validation', (req, res) => {
-    if (!pendingLogs) {
+  // === 2) La secondaire attend la décision EFFECTIVE (long-poll) ===
+  router.post('/attente-validation', async (req, res) => {
+    // si rien en attente
+    if (!pendingLogs && !validationResult) {
       return res.status(400).json({ success: false, message: 'Aucune synchronisation en attente.' });
     }
-    const ids = pendingLogs.map(log => log.id);
-    res.json({ success: true, ids });
-    console.log('Réponse de validation envoyée à la caisse secondaire avec les IDs :', ids);
+
+    const maxMs = 25_000;     // durée max d’attente
+    const interval = 500;     // pas de polling
+    const start = Date.now();
+
+    // boucle d’attente jusqu’à ce que validationResult soit fixé par /valider
+    while (validationResult === null && (Date.now() - start) < maxMs) {
+      await new Promise(r => setTimeout(r, interval));
+    }
+
+    if (validationResult === null) {
+      // Toujours pas de décision : on signale "en attente"
+      // 202 Accepted = traitement asynchrone en cours
+      return res.status(202).json({
+        success: false,
+        pending: true,
+        message: 'Toujours en attente de validation de la caisse principale.'
+      });
+    }
+
+    // Décision prête : on la renvoie telle quelle
+    return res.json(validationResult);
   });
 
+  // === 3) Le caissier principal clique "valider" (ou refuse) ===
   router.post('/valider', (req, res) => {
     const { decision } = req.body;
-    if (!pendingLogs) return res.status(400).json({ error: 'Aucune demande de synchronisation en attente' });
+    if (!pendingLogs) {
+      return res.status(400).json({ error: 'Aucune demande de synchronisation en attente' });
+    }
 
     if (decision !== 'accepter') {
+      // REFUS immédiat
+      validationResult = { success: false, message: 'Synchronisation refusée par la caisse principale.' };
       pendingLogs = null;
+
       io.emit('demande-sync-secondaire', {
         type: 'REFUS_SYNC',
         message: 'La synchronisation a été refusée par la caisse principale.'
       });
+
       return res.json({ message: 'Synchronisation refusée par la caisse principale' });
     }
 
+    // DECISION = ACCEPTER → on applique les logs en base
     const logs = pendingLogs;
-    pendingLogs = null;
     const db = sqlite;
 
     try {
@@ -85,10 +121,10 @@ module.exports = function (io) {
             prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        // ⬇️ Version "hard" comme MySQL: timestamp est écrasé, colonnes additionnées
+        // Update additif (timestamp écrasé comme en MySQL)
         const updateBilanAdd = db.prepare(`
           UPDATE bilan SET
-            timestamp = ?, 
+            timestamp = ?,
             nombre_vente = COALESCE(nombre_vente, 0) + ?,
             poids        = COALESCE(poids, 0) + ?,
             prix_total   = COALESCE(prix_total, 0) + ?,
@@ -157,7 +193,7 @@ module.exports = function (io) {
             }
 
           } else if (type === 'session_caisse') {
-            // ⚙️ Nouvelle logique UTC (rétro-compatible)
+            // Nouveau schéma UTC, rétro-compatible
             if (operation === 'INSERT') {
               const opened_at_utc =
                 data.opened_at_utc ||
@@ -238,21 +274,32 @@ module.exports = function (io) {
         });
       })();
 
-      console.log('Synchronisation appliquée avec succès pour les logs :', logs.map(log => log.id));
+      // Succès : on fixe le résultat pour /attente-validation et on notifie
+      const ids = logs.map(log => log.id);
+      validationResult = { success: true, ids };
+      pendingLogs = null;
+
       io.emit('demande-sync-secondaire', {
         type: 'SUCCES_SYNC',
         message: 'Les données ont bien été intégrées depuis la caisse secondaire.'
       });
-      io.emit('bilanUpdated');
-      res.json({ success: true });
+
+      return res.json({ success: true });
 
     } catch (err) {
       console.error('Erreur application des opérations sync_log :', err);
+      validationResult = {
+        success: false,
+        message: 'Échec de la synchronisation pendant le traitement.'
+      };
+      pendingLogs = null;
+
       io.emit('demande-sync-secondaire', {
         type: 'ECHEC_SYNC',
         message: 'Échec de la synchronisation.'
       });
-      res.status(500).json({ error: 'Erreur lors de l’application des données', details: err.message });
+
+      return res.status(500).json({ error: 'Erreur lors de l’application des données', details: err.message });
     }
   });
 
