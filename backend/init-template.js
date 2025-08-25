@@ -216,7 +216,8 @@ CREATE TABLE session_caisse (
 
   -- Métadonnées
   issecondaire INTEGER DEFAULT 0,
-  poste        INTEGER
+  poste        INTEGER,
+  uuid_caisse_principale_si_secondaire TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_session_caisse_opened_at_utc ON session_caisse (opened_at_utc);
