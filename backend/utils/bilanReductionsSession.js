@@ -1,19 +1,48 @@
 const { sqlite } = require('../db');
 
-// Fonction utilitaire : retrouve le dernier ticket de la chaîne de corrections
-function getDernierTicketCorrection(db, idTicketDepart) {
+// --- Utilitaire : remonter à la session principale si on reçoit une secondaire
+function getPrincipalUuid(uuid_session_caisse) {
+  const row = sqlite.prepare(`
+    SELECT
+      CASE
+        WHEN IFNULL(uuid_caisse_principale_si_secondaire, '') <> ''
+          THEN uuid_caisse_principale_si_secondaire  -- on est sur une secondaire
+        ELSE id_session                               -- on est déjà sur la principale
+      END AS principal_uuid
+    FROM session_caisse
+    WHERE id_session = ?
+  `).get(uuid_session_caisse);
+
+  return row?.principal_uuid || uuid_session_caisse;
+}
+
+// --- Utilitaire : CTE réutilisable pour englober la principale + toutes ses secondaires
+function sessionsCte() {
+  return `
+    WITH sessions(uuid) AS (
+      SELECT ?                                 -- principale
+      UNION
+      SELECT id_session
+      FROM session_caisse
+      WHERE uuid_caisse_principale_si_secondaire = ?  -- secondaires rattachées
+    )
+  `;
+}
+
+// --- Utilitaire : retrouve le dernier ticket de la chaîne de corrections
+function getDernierTicketCorrection(idTicketDepart) {
   let currentId = idTicketDepart;
   let next;
 
   do {
-    const row = db.prepare(`
+    const row = sqlite.prepare(`
       SELECT uuid_ticket_correction
       FROM journal_corrections
       WHERE uuid_ticket_original = ?
     `).get(currentId);
 
-    if (row && row.id_ticket_correction) {
-      next = row.id_ticket_correction;
+    if (row && row.uuid_ticket_correction) {
+      next = row.uuid_ticket_correction;
       currentId = next;
     } else {
       next = null;
@@ -23,26 +52,32 @@ function getDernierTicketCorrection(db, idTicketDepart) {
   return currentId;
 }
 
-// Fonction principale : calcul des réductions de session
+// --- Fonction principale : calcul des réductions de session (principale + secondaires)
 function getBilanReductionsSession(uuid_session_caisse) {
-  // 1. Tous les tickets de la session qui ne sont pas annulés
-  const allTickets = sqlite.prepare(`
-    SELECT uuid_ticket
-    FROM ticketdecaisse
-    WHERE uuid_session_caisse = ?
-      AND (flag_annulation IS NULL OR flag_annulation = 0)
-  `).all(uuid_session_caisse).map(row => row.uuid_ticket);
+  const principalUuid = getPrincipalUuid(uuid_session_caisse);
 
-  // 2. Liste des tickets corrigés (tickets initiaux de la chaîne)
-  const corrections = sqlite.prepare(`SELECT uuid_ticket_original FROM journal_corrections`).all();
+  // 1) Tous les tickets des sessions (principale + secondaires) qui ne sont pas annulés
+  const allTickets = sqlite.prepare(`
+    ${sessionsCte()}
+    SELECT t.uuid_ticket
+    FROM ticketdecaisse t
+    WHERE t.uuid_session_caisse IN (SELECT uuid FROM sessions)
+      AND (t.flag_annulation IS NULL OR t.flag_annulation = 0)
+  `).all(principalUuid, principalUuid).map(r => r.uuid_ticket);
+
+  // 2) Tickets initiaux (ayant été corrigés) pour les exclure des "finaux"
+  const corrections = sqlite.prepare(`
+    SELECT uuid_ticket_original
+    FROM journal_corrections
+  `).all();
   const ticketsCorriges = new Set(corrections.map(c => c.uuid_ticket_original));
 
-  // 3. On garde uniquement les tickets "définitifs" (ceux qui ne sont pas corrigés par un autre)
+  // 3) Conserver uniquement les tickets finaux (non remplacés par une correction ultérieure)
   const ticketsFinaux = allTickets
-    .filter(t => !ticketsCorriges.has(t)) // on ne garde pas les tickets d'origine
-    .map(uuid => getDernierTicketCorrection(sqlite, uuid)); // on suit jusqu'au dernier ticket
+    .filter(uuid => !ticketsCorriges.has(uuid))
+    .map(uuid => getDernierTicketCorrection(uuid));
 
-  // 4. Initialisation du total
+  // 4) Accumulateur
   const total = {
     nb_reduc_client: 0,
     montant_reduc_client: 0,
@@ -51,21 +86,29 @@ function getBilanReductionsSession(uuid_session_caisse) {
     nb_reduc_gros_panier_client: 0,
     montant_reduc_gros_panier_client: 0,
     nb_reduc_gros_panier_bene: 0,
-    montant_reduc_gros_panier_bene: 0
+    montant_reduc_gros_panier_bene: 0,
   };
 
-  // 5. Parcours des tickets finaux pour additionner les réductions
+  // 5) Additionner les lignes "Réduction" des tickets finaux
   for (const uuidTicket of ticketsFinaux) {
-    const ticket = sqlite.prepare(`SELECT * FROM ticketdecaisse WHERE uuid_ticket = ?`).get(uuidTicket);
+    const ticket = sqlite.prepare(`
+      SELECT reducclient, reducbene, reducgrospanierclient, reducgrospanierbene
+      FROM ticketdecaisse
+      WHERE uuid_ticket = ?
+    `).get(uuidTicket);
+
+    if (!ticket) continue;
 
     const objets = sqlite.prepare(`
-      SELECT * FROM objets_vendus
-      WHERE uuid_ticket = ? AND categorie = 'Réduction'
+      SELECT nbr, prix
+      FROM objets_vendus
+      WHERE uuid_ticket = ?
+        AND categorie = 'Réduction'
     `).all(uuidTicket);
 
     for (const obj of objets) {
-      const nombre = Math.abs(obj.nbr); // toujours positif
-      const montant = Math.abs(obj.nbr * obj.prix); // toujours positif
+      const nombre = Math.abs(obj.nbr) || 0;                 // positif
+      const montant = Math.abs((obj.nbr || 0) * (obj.prix || 0)); // positif
 
       if (ticket.reducclient) {
         total.nb_reduc_client += nombre;
