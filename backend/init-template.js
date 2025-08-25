@@ -180,7 +180,8 @@ CREATE TABLE sync_log (
   operation TEXT NOT NULL,
   payload TEXT NOT NULL,
   synced INTEGER DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  senttoprincipal INTEGER DEFAULT 0
 );
 
 CREATE TABLE code_postal (
