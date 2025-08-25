@@ -78,7 +78,7 @@ module.exports = function (io) {
 
   // === 3) Le caissier principal clique "valider" (ou refuse) ===
   router.post('/valider', (req, res) => {
-    const { decision } = req.body;
+    const { decision, uuid_session_caisse_principale } = req.body;
     if (!pendingLogs) {
       return res.status(400).json({ error: 'Aucune demande de synchronisation en attente' });
     }
@@ -206,15 +206,15 @@ module.exports = function (io) {
                   utilisateur_ouverture, responsable_ouverture,
                   fond_initial, commentaire, ecart, caissiers,
                   montant_reel, montant_reel_carte, montant_reel_cheque, montant_reel_virement,
-                  issecondaire, poste
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  issecondaire, poste, uuid_caisse_principale_si_secondaire
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
               `).run(
                 data.id_session,
                 opened_at_utc,
                 data.utilisateur_ouverture, data.responsable_ouverture,
                 safe(data.fond_initial), data.commentaire ?? null, safe(data.ecart), data.caissiers ?? null,
                 safe(data.montant_reel), safe(data.montant_reel_carte), safe(data.montant_reel_cheque), safe(data.montant_reel_virement),
-                safe(data.issecondaire), data.poste ?? null
+                safe(data.issecondaire), data.poste ?? null, uuid_session_caisse_principale
               );
 
             } else if (operation === 'UPDATE') {
@@ -233,6 +233,7 @@ module.exports = function (io) {
                   montant_reel_carte = ?,
                   montant_reel_cheque = ?,
                   montant_reel_virement = ?
+                  uuid_caisse_principale_si_secondaire = ?
                 WHERE id_session = ?
               `).run(
                 closed_at_utc,
@@ -244,6 +245,7 @@ module.exports = function (io) {
                 safe(data.montant_reel_carte),
                 safe(data.montant_reel_cheque),
                 safe(data.montant_reel_virement),
+                uuid_session_caisse_principale,
                 data.id_session
               );
             }
