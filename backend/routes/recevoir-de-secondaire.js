@@ -232,7 +232,7 @@ module.exports = function (io) {
                   ecart = ?,
                   montant_reel_carte = ?,
                   montant_reel_cheque = ?,
-                  montant_reel_virement = ?
+                  montant_reel_virement = ?,
                   uuid_caisse_principale_si_secondaire = ?
                 WHERE id_session = ?
               `).run(
