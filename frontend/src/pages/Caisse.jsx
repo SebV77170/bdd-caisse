@@ -6,7 +6,7 @@ import CategorieSelector from '../components/CategorieSelector';
 import BoutonsCaisse from '../components/BoutonsCaisse';
 import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import { useLocation, Link } from 'react-router-dom';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 
@@ -242,7 +242,6 @@ function Caisse() {
           </div>
         </div>
       </div>
-      <ToastContainer position="top-center" autoClose={3000} /> {/* ✅ Ici */}
     </div>
   );
 }

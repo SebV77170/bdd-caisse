@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import CompteEspeces from '../components/compteEspeces';
 import AffichageEcarts from '../components/AffichageEcarts';
 import BilanSessionCaisse from '../components/BilanSessionCaisse';
@@ -332,8 +332,6 @@ function FermetureCaisse() {
         </form>
         </SiCaisseSecondaire>
 
-        {/* Affiche les notifications toast */}
-        <ToastContainer position="top-center" autoClose={3000} />
       </div>
     </div>
   );

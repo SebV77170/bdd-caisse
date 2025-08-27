@@ -9,7 +9,7 @@ import CorrectionModal from '../components/CorrectionModal';
 import TactileInput from '../components/TactileInput';
 import { Button } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import FactureModal from '../components/factureModal';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 
@@ -248,13 +248,14 @@ const BilanTickets = () => {
           />
         )}
       </div>
-      {ticketPourEmail && (
-        <div className={`modal fade ${showEmailModal ? 'show d-block' : ''}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {showEmailModal && ticketPourEmail && (
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true"
+         style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Envoyer le ticket #{ticketPourEmail.id_ticket}</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEmailModal(false)}></button>
+                <button type="button" className="btn-close" onClick={() => { setShowEmailModal(false); setTicketPourEmail(null); }}></button>
               </div>
               <div className="modal-body">
                 <label className="form-label">Adresse e-mail :</label>
@@ -289,6 +290,7 @@ const BilanTickets = () => {
                       if (result.success) {
                         alert('Ticket envoyé !');
                         setShowEmailModal(false);
+                        setTicketPourEmail(null);
                       } else {
                         alert('Échec de l\'envoi');
                       }
@@ -306,7 +308,6 @@ const BilanTickets = () => {
         </div>
         // Fin de la modale d'envoi d'email
       )}
-      <ToastContainer position="top-center" autoClose={3000} />
       <FactureModal
         show={showFactureModal}
         onClose={() => setShowFactureModal(false)}

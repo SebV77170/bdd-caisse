@@ -2,8 +2,10 @@ import { io } from 'socket.io-client';
 import { useEffect, useState, createContext, useContext } from 'react';
 import MainRoutes from './components/MainRoutes';
 import MainNavbar from './components/MainNavBar';
-import './styles/App.scss';
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import './styles/App.scss';
+
 import BilanJour from './components/BilanJour';
 import { SyncModalProvider } from './contexts/SyncModalContext';
 import ModalSyncSecondaire from './components/ModalSyncSecondaire';
@@ -32,6 +34,15 @@ function App() {
         </SyncModalProvider>
         
       </div>
+      <ToastContainer
+        position="top-center"
+        autoClose={3000}
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss={false}
+        draggable={false}
+        limit={3}
+      />
     </ModeTactileContext.Provider>
   );
 }
