@@ -153,7 +153,18 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
           if (email) {
             alert(`Un ticket sera envoyé à : ${email}`);
           }
+
+  window.electron?.ensureInteractiveLight?.();
+
+          
           onValide();
+
+          requestAnimationFrame(() => {
+    window.electron?.ensureInteractiveRaise?.();
+    // Évite window.focus() ici si tu as encore DevTools : ça peut voler/renvoyer le focus
+    // window.focus();
+  });
+          
         } else {
           alert('Erreur pendant validation');
         }

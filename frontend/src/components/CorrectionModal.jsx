@@ -357,9 +357,14 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
       });
       const result = await res.json();
       if (result.success) {
+         window.electron?.ensureInteractiveLight?.();
         alert('Correction enregistrée.');
         onSuccess();
         onHide();
+
+         requestAnimationFrame(() => {
+    window.electron?.ensureInteractiveRaise?.();
+  });
       } else {
         alert('Erreur lors de la correction.');
       }
