@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef, useContext } from 'react';
 import { Table, Button, Form, Spinner } from 'react-bootstrap';
 import TactileInput from '../components/TactileInput';
-import { ModeTactileContext } from '../App';
+import { ModeTactileContext } from '../contexts/ModeTactileContext';
 
 const api = 'http://localhost:3001';
 

@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import ClavierNumeriqueModal from './clavierNumeriqueModal';
 import ClavierTexteModal from './ClavierTexteModal';
-import { ModeTactileContext } from '../App';
+import { ModeTactileContext } from '../contexts/ModeTactileContext';
 
 function TactileInput({
   value,
