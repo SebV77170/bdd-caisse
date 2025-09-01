@@ -288,14 +288,14 @@ const BilanTickets = () => {
                       );
                       const result = await res.json();
                       if (result.success) {
-                        alert('Ticket envoyé !');
+                        toast.success('Ticket envoyé !');
                         setShowEmailModal(false);
                         setTicketPourEmail(null);
                       } else {
-                        alert('Échec de l\'envoi');
+                        toast.error('Échec de l\'envoi');
                       }
                     } catch (err) {
-                      alert('Erreur de communication');
+                      toast.error('Erreur de communication');
                       console.error(err);
                     }
                   }}

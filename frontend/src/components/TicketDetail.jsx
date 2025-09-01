@@ -40,16 +40,22 @@ if (!data.ticket) {
       <p><strong>Date :</strong> {ticket.date_achat_dt}</p>
       <p><strong>Vendeur :</strong> {ticket.nom_vendeur}</p>
 
-      {(ticket.reducbene || ticket.reducclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene) && (
+   {(ticket.reducbene || ticket.reducclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene) ? (
   <p className="text-success">
     <strong>Réduction appliquée :</strong>{' '}
     {ticket.reducbene ? 'Fidélité Bénévole' :
       ticket.reducclient ? 'Fidélité Client' :
       ticket.reducgrospanierclient ? 'Gros Panier Client (-10%)' :
       ticket.reducgrospanierbene ? 'Gros Panier Bénévole (-20%)' :
-      'Aucune'}
+      ''}
+  </p>
+) : (
+  <p className="text-muted">
+    <strong>Aucune réduction appliquée</strong>
   </p>
 )}
+
+
 
       <p><strong>Total :</strong> {(ticket.prix_total / 100).toFixed(2)} €</p>
       <p><strong>Mode de paiement :</strong> {ticket.moyen_paiement}</p>
