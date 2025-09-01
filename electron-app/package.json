@@ -34,19 +34,19 @@
         "to": "node.exe"
       },
       {
-      "from": "backend/database/ressourcebrie-sqlite-template.db",
+      "from": "../backend/database/ressourcebrie-sqlite-template.db",
       "to": "database"
     },
     {
-      "from": "backend/inserts_categories_boutons.sql",
+      "from": "../backend/inserts_categories_boutons.sql",
       "to": "."
     },
     {
-      "from": "backend/inserts_users.sql",
+      "from": "../backend/inserts_users.sql",
       "to": "."
     },
     {
-      "from": "../images",
+      "from": "../frontend/src/images",
       "to": "images"
     },
     {
