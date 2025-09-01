@@ -225,7 +225,7 @@ function FermetureCaisse() {
           <div>
             <label>Montant réel des transactions Sumup (€) :</label><br />
             <TactileInput
-              type="text"
+              type="number"
               value={montantReelCarte}
               isDecimal={true}
               onChange={(e) => setMontantReelCarte(e.target.value)}
