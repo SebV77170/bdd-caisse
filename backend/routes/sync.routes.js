@@ -181,38 +181,82 @@ router.post('/', async (req, res) => {
           );
           if (debugMode) debugLogs.push(`✅ INSERT paiement_mixte ${payload.uuid_ticket}`);
         }
-
         // -----------------------
         // BILAN
         // -----------------------
         else if (type === 'bilan') {
           if (operation === 'INSERT') {
-            await pool.query(
-              `INSERT INTO bilan 
-                 (date, timestamp, nombre_vente, poids, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
-                formatDateToFR(payload.date),
-                safe(payload.timestamp), safe(payload.nombre_vente),
-                safe(payload.poids), safe(payload.prix_total), safe(payload.prix_total_espece),
-                safe(payload.prix_total_cheque), safe(payload.prix_total_carte),
-                safe(payload.prix_total_virement)
-              ]
-            );
-            if (debugMode) debugLogs.push(`✅ INSERT bilan ${formatDateToFR(payload.date)}`);
+            const dateKey = formatDateToFR(payload.date);
+
+            // Harmonisation pour supporter tes deux conventions de payload
+            const nv       = safe(payload.nombre_vente ?? payload.nv);
+            const poids    = safe(payload.poids);
+            const total    = safe(payload.prix_total ?? payload.total);
+            const espece   = safe(payload.prix_total_espece ?? payload.espece);
+            const cheque   = safe(payload.prix_total_cheque ?? payload.cheque);
+            const carte    = safe(payload.prix_total_carte  ?? payload.carte);
+            const virement = safe(payload.prix_total_virement ?? payload.virement);
+            const ts       = safe(payload.timestamp);
+
+            const conn = await pool.getConnection();
+            try {
+              await conn.beginTransaction();
+
+              // Verrouille la ligne de ce jour si elle existe (évite les courses)
+              const [rows] = await conn.query(
+                `SELECT 1 FROM bilan WHERE date = ? FOR UPDATE`,
+                [dateKey]
+              );
+
+              if (rows.length === 0) {
+                // Pas de ligne -> INSERT
+                await conn.query(
+                  `INSERT INTO bilan (
+                    date, timestamp, nombre_vente, poids, prix_total,
+                    prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  [dateKey, ts, nv, poids, total, espece, cheque, carte, virement]
+                );
+                if (debugMode) debugLogs.push(`✅ INSERT bilan ${dateKey}`);
+              } else {
+                // Ligne existante -> cumul (on rejoue l'activité)
+                await conn.query(
+                  `UPDATE bilan SET
+                    timestamp            = ?,                             
+                    nombre_vente         = IFNULL(nombre_vente, 0)         + ?,
+                    poids                = IFNULL(poids, 0)                + ?,
+                    prix_total           = IFNULL(prix_total, 0)           + ?,
+                    prix_total_espece    = IFNULL(prix_total_espece, 0)    + ?,
+                    prix_total_cheque    = IFNULL(prix_total_cheque, 0)    + ?,
+                    prix_total_carte     = IFNULL(prix_total_carte, 0)     + ?,
+                    prix_total_virement  = IFNULL(prix_total_virement, 0)  + ?
+                  WHERE date = ?`,
+                  [ts, nv, poids, total, espece, cheque, carte, virement, dateKey]
+                );
+                if (debugMode) debugLogs.push(`✅ UPDATE (from INSERT) bilan ${dateKey}`);
+              }
+
+              await conn.commit();
+            } catch (e) {
+              await conn.rollback();
+              throw e;
+            } finally {
+              conn.release();
+            }
 
           } else if (operation === 'UPDATE') {
+            // ✅ Ta logique existante conservée telle quelle
             await pool.query(
               `UPDATE bilan 
-               SET timestamp = ?, 
-                   nombre_vente = nombre_vente + ?, 
-                   poids = poids + ?, 
-                   prix_total = prix_total + ?, 
-                   prix_total_espece = prix_total_espece + ?, 
-                   prix_total_cheque = prix_total_cheque + ?, 
-                   prix_total_carte = prix_total_carte + ?, 
-                   prix_total_virement = prix_total_virement + ? 
-               WHERE date = ?`,
+              SET timestamp = ?, 
+                  nombre_vente = nombre_vente + ?, 
+                  poids = poids + ?, 
+                  prix_total = prix_total + ?, 
+                  prix_total_espece = prix_total_espece + ?, 
+                  prix_total_cheque = prix_total_cheque + ?, 
+                  prix_total_carte = prix_total_carte + ?, 
+                  prix_total_virement = prix_total_virement + ? 
+              WHERE date = ?`,
               [
                 safe(payload.timestamp), safe(payload.nombre_vente), safe(payload.poids),
                 safe(payload.prix_total), safe(payload.espece),
