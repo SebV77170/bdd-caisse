@@ -79,7 +79,7 @@ export default function SiCaisseOuverte({
     return null;
   }
 console.log(activeSession);
-  const activeUuid = activeSession.uuidSessionCaisse;
+  const activeUuid = activeSession.uuidSessionCaisse || activeSession.uuidCaisseSecondaire;
   const activeEstFermee = Boolean(activeSession.closed_at || activeSession.closed_at_utc);
   const activeEstOuverte = !activeEstFermee;
 
