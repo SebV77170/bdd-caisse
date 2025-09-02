@@ -31,6 +31,75 @@ const BilanTickets = () => {
   const [ticketPourFacture, setTicketPourFacture] = useState(null);
   const [raisonSociale, setRaisonSociale] = useState('');
   const [adresseFacturation, setAdresseFacturation] = useState('');
+  const [triPaiement, setTriPaiement] = useState('none'); 
+  const [triTotal, setTriTotal] = useState('none'); 
+  const [triDate, setTriDate] = useState('none'); 
+
+
+  const normalizeMoyen = (raw) => {
+  if (!raw) return 'autre';
+  const s = String(raw).trim().toLowerCase();
+  if (['espece', 'espèces', 'especes', 'espèce', 'cash', 'liquide', 'liquides'].includes(s)) return 'especes';
+  if (['carte', 'cb', 'cb bancaire', 'cb bancaire (visa/mastercard)', 'credit card', 'debit card'].includes(s)) return 'carte';
+  if (['cheque', 'chèque', 'cheques', 'chèques'].includes(s)) return 'cheque';
+  if (['virement', 'transfert', 'transfer', 'sepa'].includes(s)) return 'virement';
+  if (['mixte', 'mix', 'multiple', 'multi', 'multi-pay', 'paiement mixte'].includes(s)) return 'mixte';
+  return s || 'autre';
+};
+
+const labelMoyen = (norm) => {
+  switch (norm) {
+    case 'especes': return 'Espèces';
+    case 'carte': return 'Carte';
+    case 'cheque': return 'Chèque';
+    case 'virement': return 'Virement';
+    case 'mixte': return 'Mixte';
+    default: return 'Autre';
+  }
+};
+
+// Ordre "caisse" : ce qui sert le plus remonte en premier
+const ordreCaisse = ['especes', 'carte', 'cheque', 'virement', 'mixte', 'autre'];
+
+const compareTickets = (a, b) => {
+  // --- helpers ---
+  const tsA = new Date(a.date_achat_dt).getTime() || 0;
+  const tsB = new Date(b.date_achat_dt).getTime() || 0;
+
+  // --- TRI PAR MOYEN DE PAIEMENT ---
+  if (triPaiement !== 'none') {
+    const A = normalizeMoyen(a.moyen_paiement);
+    const B = normalizeMoyen(b.moyen_paiement);
+
+    if (triPaiement === 'az') {
+      const cmp = labelMoyen(A).localeCompare(labelMoyen(B), 'fr');
+      if (cmp !== 0) return cmp;
+    } else if (triPaiement === 'za') {
+      const cmp = labelMoyen(B).localeCompare(labelMoyen(A), 'fr');
+      if (cmp !== 0) return cmp;
+    } else if (triPaiement === 'ordre') {
+      const ia = ordreCaisse.indexOf(A) === -1 ? ordreCaisse.length : ordreCaisse.indexOf(A);
+      const ib = ordreCaisse.indexOf(B) === -1 ? ordreCaisse.length : ordreCaisse.indexOf(B);
+      if (ia !== ib) return ia - ib;
+    }
+  }
+
+  // --- TRI PAR TOTAL ---
+  if (triTotal !== 'none') {
+    const A = a.prix_total ?? 0;
+    const B = b.prix_total ?? 0;
+    if (A !== B) return triTotal === 'asc' ? A - B : B - A;
+  }
+
+  // --- TRI PAR DATE ---
+  if (triDate !== 'none') {
+    if (tsA !== tsB) return triDate === 'asc' ? tsA - tsB : tsB - tsA;
+  }
+
+  // --- fallback stable : par #id friendly (ou timestamp) pour éviter des sauts visuels
+  return tsA - tsB;
+};
+
 
   useEffect(() => {
     const fetchBilan = () => {
@@ -67,9 +136,12 @@ const BilanTickets = () => {
     d1.getMonth() === d2.getMonth() &&
     d1.getDate() === d2.getDate();
 
-  const ticketsFiltres = tickets.filter(ticket =>
-    isSameDay(new Date(ticket.date_achat_dt), filtreDate)
-  );
+  const ticketsFiltres = tickets
+  .filter(ticket => isSameDay(new Date(ticket.date_achat_dt), filtreDate))
+  .sort(compareTickets);
+
+
+
 
   const chargerObjets = (uuid_ticket) => {
     if (details[uuid_ticket]) {
@@ -117,6 +189,47 @@ const BilanTickets = () => {
             />
           </div>
         </div>
+        <div className="d-flex align-items-center gap-2 mt-3">
+          <label className="form-label mb-0">Trier par paiement :</label>
+          <select
+            className="form-select"
+            style={{ maxWidth: 320 }}
+            value={triPaiement}
+            onChange={(e) => setTriPaiement(e.target.value)}
+          >
+            <option value="none">Aucun</option>
+            <option value="az">Moyen de paiement (A → Z)</option>
+            <option value="za">Moyen de paiement (Z → A)</option>
+            <option value="ordre">Ordre caisse (Espèces, Carte, Chèque, Virement, Mixte)</option>
+          </select>
+        </div>
+        <div className="d-flex align-items-center gap-2 mt-3">
+          <label className="form-label mb-0">Trier par total :</label>
+          <select
+            className="form-select"
+            style={{ maxWidth: 200 }}
+            value={triTotal}
+            onChange={(e) => setTriTotal(e.target.value)}
+          >
+            <option value="none">Aucun</option>
+            <option value="asc">Montant (croissant)</option>
+            <option value="desc">Montant (décroissant)</option>
+          </select>
+        </div>
+        <div className="d-flex align-items-center gap-2 mt-3">
+          <label className="form-label mb-0">Trier par date :</label>
+          <select
+            className="form-select"
+            style={{ maxWidth: 220 }}
+            value={triDate}
+            onChange={(e) => setTriDate(e.target.value)}
+          >
+            <option value="none">Aucun</option>
+            <option value="asc">Ancien → Récent</option>
+            <option value="desc">Récent → Ancien</option>
+          </select>
+        </div>
+
         {ticketsFiltres.length === 0 ? (
           <div className="alert alert-info mt-4">Aucun ticket pour la date sélectionnée.</div>
         ) : (
@@ -125,9 +238,28 @@ const BilanTickets = () => {
               <tr>
                 <th>#</th>
                 <th>Vendeur</th>
-                <th>Date</th>
-                <th>Mode Paiement</th>
-                <th>Total</th>
+                <th
+                  role="button"
+                  onClick={() => setTriDate(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                  title="Cliquer pour trier par date"
+                >
+                  Date {triDate === 'asc' ? '↑' : triDate === 'desc' ? '↓' : ''}
+                </th>
+                <th
+                  role="button"
+                  onClick={() => setTriPaiement(prev => (prev === 'az' ? 'za' : 'az'))}
+                  title="Cliquer pour trier A→Z / Z→A"
+                >
+                  Mode Paiement {triPaiement === 'az' ? '↑' : triPaiement === 'za' ? '↓' : ''}
+                </th>
+
+                <th
+                  role="button"
+                  onClick={() => setTriTotal(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                  title="Cliquer pour trier par montant"
+                >
+                  Total {triTotal === 'asc' ? '↑' : triTotal === 'desc' ? '↓' : ''}
+                </th>
                 <th>Réduction</th>
                 <th>Type</th>
                 <th></th>
@@ -143,8 +275,8 @@ const BilanTickets = () => {
                   >
                     <td>{ticket.id_friendly}</td>
                     <td>{ticket.nom_vendeur || '—'}</td>
-                    <td>{new Date(ticket.date_achat_dt).toLocaleString()}</td>
-                    <td>{ticket.moyen_paiement || '—'}</td>
+                    <td>{new Date(ticket.date_achat_dt).toLocaleString('fr-FR')}</td>                    
+                    <td>{labelMoyen(normalizeMoyen(ticket.moyen_paiement))}</td>
                     <td>
                       {typeof ticket.prix_total === 'number'
                         ? `${(ticket.prix_total / 100).toFixed(2)} €`
