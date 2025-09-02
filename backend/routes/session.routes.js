@@ -164,34 +164,35 @@ router.post('/ajouter-caissier', (req, res) => {
   res.json({ success: true, caissiers });
 });
 
-// ----------------------
-// Sessions CAISSE fermées du jour
-// ----------------------
+
+// Sessions CAISSE fermées du jour (jour local)
 router.get('/closed', (req, res) => {
   try {
-    // Récupération de la date passée en query (YYYY-MM-DD) ou date du jour
-    const date = req.query.date || toYMD(new Date());
+    const ymd = req.query.date || toYMD(new Date()); // 'YYYY-MM-DD' (jour local souhaité)
+    const startLocal = `${ymd} 00:00:00`;
 
-    // Sélection des sessions fermées correspondant à la date (UTC)
     const rows = sqlite.prepare(`
-      SELECT uuid_session_caisse,
-             uuid_caisse_principale_si_secondaire,
-             opened_at_utc,
-             closed_at_utc,
-             caissiers,
-             issecondaire
+      SELECT
+        id_session,  -- ⚠️ c’est ton "uuid" de session
+        uuid_caisse_principale_si_secondaire,
+        opened_at_utc,
+        closed_at_utc,
+        caissiers,
+        issecondaire
       FROM session_caisse
       WHERE closed_at_utc IS NOT NULL
-        AND date(closed_at_utc) = ?
+        AND closed_at_utc >= datetime(?, 'localtime')
+        AND closed_at_utc <  datetime(?, 'localtime', '+1 day')
       ORDER BY closed_at_utc DESC
-    `).all(date);
+    `).all(startLocal, startLocal);
 
     res.json(rows);
   } catch (err) {
-    console.error('Erreur route /closed:', err);
+    console.error('Erreur /api/session/closed:', err);
     res.status(500).json({ error: 'Impossible de récupérer les sessions fermées' });
   }
 });
+
 
 
 module.exports = router;

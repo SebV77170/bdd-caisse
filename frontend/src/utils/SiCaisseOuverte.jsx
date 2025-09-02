@@ -16,7 +16,7 @@ function formatLocalYYYYMMDD(d = new Date()) {
  * - endpoint: ex. "/api/sessions/closed"
  * - renvoie { data, loading, error }
  */
-function useClosedSessionsToday(endpoint = "/api/sessions/closed") {
+function useClosedSessionsToday(endpoint = "http://localhost:3001/api/session/closed") {
   const [data, setData] = useState(null);   // null | Array
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null); // null | Error
@@ -32,10 +32,12 @@ function useClosedSessionsToday(endpoint = "/api/sessions/closed") {
       try {
         const url = `${endpoint}?date=${encodeURIComponent(today)}`;
         const res = await fetch(url, { signal: ac.signal });
+        
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
         const json = await res.json();
+       
         // On tolère que l’API renvoie autre chose que [] en le normalisant
         const arr = Array.isArray(json) ? json : (Array.isArray(json?.sessions) ? json.sessions : []);
         setData(arr);
@@ -55,6 +57,7 @@ function useClosedSessionsToday(endpoint = "/api/sessions/closed") {
   return { data, loading, error };
 }
 
+
 /**
  * Affiche les enfants uniquement si le ticket est corrigeable :
  * - Case A : session active == session du ticket ET session active ouverte
@@ -68,7 +71,7 @@ function useClosedSessionsToday(endpoint = "/api/sessions/closed") {
  */
 export default function SiCaisseOuverte({
   uuidSessionCaisseTicket,
-  endpoint = "/api/session/closed",
+  endpoint = "http://localhost:3001/api/session/closed",
   children,
 }) {
   const activeSession = useActiveSession();
@@ -78,7 +81,7 @@ export default function SiCaisseOuverte({
   if (!activeSession) {
     return null;
   }
-console.log(activeSession);
+
   const activeUuid = activeSession.uuidSessionCaisse || activeSession.uuidCaisseSecondaire;
   const activeEstFermee = Boolean(activeSession.closed_at || activeSession.closed_at_utc);
   const activeEstOuverte = !activeEstFermee;
@@ -99,7 +102,7 @@ console.log(activeSession);
   // Case B : session du ticket fermée aujourd'hui ET rattachée à la session active -> afficher si active ouverte
   if (Array.isArray(closedSessions)) {
     const sessionTicketFermee = closedSessions.find(
-      (s) => s && s.uuid_session_caisse === uuidSessionCaisseTicket
+      (s) => s && s.id_session === uuidSessionCaisseTicket
     );
 
     if (sessionTicketFermee) {
