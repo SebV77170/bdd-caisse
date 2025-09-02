@@ -63,7 +63,7 @@ function useClosedSessionsToday(endpoint = "/api/sessions/closed") {
  *
  * @param {object} props
  * @param {string} props.uuidSessionCaisseTicket - UUID de la session liée au ticket
- * @param {string} [props.endpoint="/api/sessions/closed"] - Endpoint pour récupérer les sessions fermées du jour
+ * @param {string} [props.endpoint="/api/session/closed"] - Endpoint pour récupérer les sessions fermées du jour
  * @param {React.ReactNode} props.children
  */
 export default function SiCaisseOuverte({
