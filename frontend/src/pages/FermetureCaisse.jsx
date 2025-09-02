@@ -30,6 +30,8 @@ function FermetureCaisse() {
   const navigate = useNavigate();
   const uuidSessionCaisse = activeSession?.uuid_session || null;
   const sessionCaisseOuverte = activeSession;
+  const [useCompteEspeces, setUseCompteEspeces] = useState(false); // ✅ NEW
+
 
   // Affiche l'UUID de la session caisse dans la console (debug)
   console.log("UUID session caisse en contexte :", uuidSessionCaisse);
@@ -208,20 +210,49 @@ function FermetureCaisse() {
         )}
 
        <SiCaissePrincipale>
-         {/* Formulaire de fermeture de caisse */}
-        <form onSubmit={handleSubmitPrincipal}>
-          {/* ✅ Intégration du tableau des espèces */}
-          <CompteEspeces onChangeTotal={(total) => setMontantReel(total)} />
-          <div></div>
-          <div>
-            <label>Montant réel dans la caisse (€) :</label><br />
-            <TactileInput
-              type="number"
-              value={montantReel}
-              onChange={(e) => setMontantReel(e.target.value)}
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmitPrincipal}>
+            {/* ✅ Toggle d'utilisation du calculateur espèces */}
+            <div style={{ margin: '12px 0' }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={useCompteEspeces}
+                  onChange={(e) => {
+                    setUseCompteEspeces(e.target.checked);
+                    // Optionnel : si on désactive, on garde la valeur actuelle dans le champ manuel.
+                    // Si tu préfères réinitialiser : setMontantReel('');
+                  }}
+                />
+                Utiliser le calculateur d'espèces
+              </label>
+              <small style={{ opacity: 0.8 }}>
+                Coche pour compter les espèces billet/pièce. Décoche pour saisir le montant total à la main.
+              </small>
+            </div>
+
+            {/* ✅ Affichage conditionnel du composant espèces */}
+            {useCompteEspeces && (
+              <>
+                <CompteEspeces onChangeTotal={(total) => setMontantReel(total)} />
+                <div style={{ marginTop: 8 }}>
+                  <strong>Montant réel (calculé) :</strong>{' '}
+                  {montantReel || '0'}
+                </div>
+              </>
+            )}
+
+            {/* ✅ Saisie manuelle uniquement si le calculateur n'est pas utilisé */}
+            {!useCompteEspeces && (
+              <div style={{ marginTop: 10 }}>
+                <label>Montant réel dans la caisse (€) :</label><br />
+                <TactileInput
+                  type="number"
+                  value={montantReel}
+                  onChange={(e) => setMontantReel(e.target.value)}
+                  required={!useCompteEspeces}     // requis seulement en mode manuel
+                />
+              </div>
+            )}
           <div>
             <label>Montant réel des transactions Sumup (€) :</label><br />
             <TactileInput

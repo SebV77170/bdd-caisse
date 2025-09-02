@@ -12,6 +12,8 @@ function OuvertureCaisse() {
   const [motDePasse, setMotDePasse] = useState('');
   const [message, setMessage] = useState('');
   const [isSecondaire, setIsSecondaire] = useState(false);
+  const [useCompteEspeces, setUseCompteEspeces] = useState(false); // ✅ NEW
+  
 
   const navigate = useNavigate();
   const { refreshSessionCaisse } = useSessionCaisse() || {};
@@ -145,17 +147,47 @@ function OuvertureCaisse() {
           {/* Masqué si secondaire */}
           {!isSecondaire && (
             <>
-              <CompteEspeces onChangeTotal={handleEspecesChange} />
+              <div style={{ margin: '12px 0' }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={useCompteEspeces}
+                  onChange={(e) => {
+                    setUseCompteEspeces(e.target.checked);
+                    // Optionnel : si on désactive, on garde la valeur actuelle dans le champ manuel.
+                    // Si tu préfères réinitialiser : setMontantReel('');
+                  }}
+                />
+                Utiliser le calculateur d'espèces
+              </label>
+              <small style={{ opacity: 0.8 }}>
+                Coche pour compter les espèces billet/pièce. Décoche pour saisir le montant total à la main.
+              </small>
+            </div>
 
-              <div>
+            {/* ✅ Affichage conditionnel du composant espèces */}
+            {useCompteEspeces && (
+              <>
+                <CompteEspeces onChangeTotal={(total) => setFondInitial(total)} />
+                <div style={{ marginTop: 8 }}>
+                  <strong>Fond de caisse (calculé) :</strong>{' '}
+                  {fondInitial || '0'}
+                </div>
+              </>
+            )}
+
+              {/* ✅ Saisie manuelle uniquement si le calculateur n'est pas utilisé */}
+            {!useCompteEspeces && (
+              <div style={{ marginTop: 10 }}>
                 <label>Fond de caisse initial (€) :</label><br />
                 <TactileInput
                   type="number"
                   value={fondInitial}
                   onChange={(e) => setFondInitial(e.target.value)}
-                  required={!isSecondaire}
+                  required={!useCompteEspeces}     // requis seulement en mode manuel
                 />
               </div>
+            )}
             </>
           )}
 

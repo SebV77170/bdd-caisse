@@ -154,7 +154,7 @@ const user = req.session.user;
     uuid_ticket = uuidv4();
     genererFriendlyIds(uuid_ticket, 'vente');
 
-    const date_achat = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const date_achat = new Date().toISOString();
     const vendeur = user.nom;
     const id_vendeur = user.uuid_user;
 
