@@ -249,12 +249,12 @@ const [showBoutons, setShowBoutons] = useState(false);
           onSuccess={() => setDevMode(true)}
         />
 
-        {devMode && (
+       {/*  {devMode && (
           <>
             <p>Reset les bases de données</p>
             <ResetButton />
           </> 
-        )}
+        )} */}
 
         {devMode && window.electron && (
           <>
