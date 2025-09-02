@@ -307,12 +307,13 @@ function FermetureCaisse() {
               placeholder="Votre message"
             />
           </div>
-          <ResponsableForm
-        responsablePseudo={responsablePseudo}
-        setResponsablePseudo={setResponsablePseudo}
-        motDePasse={motDePasse}
-        setMotDePasse={setMotDePasse}
-      />
+          <ResponsableForm title = "Identification du responsable"
+            responsablePseudo={responsablePseudo}
+            setResponsablePseudo={setResponsablePseudo}
+            motDePasse={motDePasse}
+            setMotDePasse={setMotDePasse}
+            onSubmit={handleSubmitPrincipal}
+          />
       
           <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse</button>
         </form>
@@ -331,24 +332,13 @@ function FermetureCaisse() {
               placeholder="Votre message"
             />
           </div>
-          <div>
-            <label>Pseudo du responsable :</label><br />
-            <TactileInput
-              type="text"
-              value={responsablePseudo}
-              onChange={(e) => setResponsablePseudo(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label>Mot de passe du responsable :</label><br />
-            <TactileInput
-              type="password"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-              required
-            />
-          </div>
+          <ResponsableForm title = "Identification du responsable"
+            responsablePseudo={responsablePseudo}
+            setResponsablePseudo={setResponsablePseudo}
+            motDePasse={motDePasse}
+            setMotDePasse={setMotDePasse}
+            onSubmit={handleSubmitSecondaire}
+          />
           <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse et envoyer à la caisse principale</button>
         </form>
         </SiCaisseSecondaire>
