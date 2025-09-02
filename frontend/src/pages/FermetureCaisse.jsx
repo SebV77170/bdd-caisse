@@ -11,6 +11,7 @@ import { set } from 'date-fns';
 import { euro } from '../utils/euro';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 import SiCaisseSecondaire from '../utils/SiCaisseSecondaire';
+import ResponsableForm from "../components/ResponsableForm";
 
 
 // Composant principal pour la fermeture de caisse
@@ -306,24 +307,13 @@ function FermetureCaisse() {
               placeholder="Votre message"
             />
           </div>
-          <div>
-            <label>Pseudo du responsable :</label><br />
-            <TactileInput
-              type="text"
-              value={responsablePseudo}
-              onChange={(e) => setResponsablePseudo(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label>Mot de passe du responsable :</label><br />
-            <TactileInput
-              type="password"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-              required
-            />
-          </div>
+          <ResponsableForm
+        responsablePseudo={responsablePseudo}
+        setResponsablePseudo={setResponsablePseudo}
+        motDePasse={motDePasse}
+        setMotDePasse={setMotDePasse}
+      />
+      
           <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse</button>
         </form>
         </SiCaissePrincipale>

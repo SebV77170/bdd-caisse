@@ -5,6 +5,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import CompteEspeces from '../components/compteEspeces';
 import TactileInput from '../components/TactileInput';
 import { useSessionCaisse, useSessionCaisseSecondaire, useActiveSession, waitUntilSessionRefIsReady } from '../contexts/SessionCaisseContext';
+import ResponsableForm from "../components/ResponsableForm";
+
 
 function OuvertureCaisse() {
   const [fondInitial, setFondInitial] = useState('');      // € (string)
@@ -191,25 +193,13 @@ function OuvertureCaisse() {
             </>
           )}
 
-          <div>
-            <label>Pseudo du responsable :</label><br />
-            <TactileInput
-              type="text"
-              value={responsablePseudo}
-              onChange={(e) => setResponsablePseudo(e.target.value)}
-              required
-            />
-          </div>
-
-          <div>
-            <label>Mot de passe du responsable :</label><br />
-            <TactileInput
-              type="password"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-              required
-            />
-          </div>
+          <ResponsableForm
+        responsablePseudo={responsablePseudo}
+        setResponsablePseudo={setResponsablePseudo}
+        motDePasse={motDePasse}
+        setMotDePasse={setMotDePasse}
+      />
+      
 
           <button type="submit" style={{ marginTop: 15 }}>
             {isSecondaire ? 'Ouvrir la caisse secondaire' : 'Ouvrir la caisse principale'}

@@ -5,6 +5,7 @@ import BoutonsCaisse from './BoutonsCaisse';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
+import ResponsableForm from "./ResponsableForm";
 
 // --- Helpers paiements (placer avant function CorrectionModal)
 const MOYENS = ['espece', 'carte', 'cheque', 'virement'];
@@ -505,35 +506,24 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
 
           <Form.Group className="mt-3">
             <Form.Label>Motif de correction</Form.Label>
-            <TactileInput
+            <Form.Control
               as="textarea"
               rows={2}
               className="form-control"
               value={motif}
               onChange={(e) => setMotif(e.target.value)}
               placeholder="Exemple : erreur de quantité saisie par le caissier"
+              required
             />
           </Form.Group>
 
-          <Form.Group className="mt-3">
-            <Form.Label>Pseudo du responsable</Form.Label>
-            <TactileInput
-              type="text"
-              className="form-control"
-              value={responsablePseudo}
-              onChange={(e) => setResponsablePseudo(e.target.value)}
-            />
-          </Form.Group>
-
-          <Form.Group className="mt-3">
-            <Form.Label>Mot de passe du responsable</Form.Label>
-            <TactileInput
-              type="password"
-              className="form-control"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-            />
-          </Form.Group>
+          <ResponsableForm
+            responsablePseudo={responsablePseudo}
+            setResponsablePseudo={setResponsablePseudo}
+            motDePasse={motDePasse}
+            setMotDePasse={setMotDePasse}
+          />
+      
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onHide}>Annuler</Button>

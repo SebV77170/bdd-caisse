@@ -12,6 +12,7 @@ import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import FactureModal from '../components/factureModal';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
+import SiCaisseOuverte from '../utils/SiCaisseOuverte';
 
 const socket = io('http://localhost:3001');
 
@@ -303,6 +304,7 @@ const compareTickets = (a, b) => {
                     </td>
                     <td>
                       {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&  (
+                        <SiCaisseOuverte uuidSessionCaisseTicket={ticket.uuid_session_caisse}>
                         <Button
                           variant="outline-danger"
                           size="sm"
@@ -313,6 +315,7 @@ const compareTickets = (a, b) => {
                         >
                           ✖
                         </Button>
+                        </SiCaisseOuverte>
                       )}
                       <Button
                         variant="outline-secondary"
@@ -350,7 +353,7 @@ const compareTickets = (a, b) => {
                           id_friendly_corrige={ticket.id_friendly_corrige}
                         />
                         {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&(
-                        
+                          <SiCaisseOuverte uuidSessionCaisseTicket={ticket.uuid_session_caisse}>
                             <Button
                               variant="outline-warning"
                               size="sm"
@@ -362,7 +365,7 @@ const compareTickets = (a, b) => {
                             >
                               Corriger
                             </Button>
-                          
+                          </SiCaisseOuverte>
 
                         )}
                       </td>

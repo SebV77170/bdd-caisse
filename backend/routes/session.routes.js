@@ -164,4 +164,34 @@ router.post('/ajouter-caissier', (req, res) => {
   res.json({ success: true, caissiers });
 });
 
+// ----------------------
+// Sessions CAISSE fermées du jour
+// ----------------------
+router.get('/closed', (req, res) => {
+  try {
+    // Récupération de la date passée en query (YYYY-MM-DD) ou date du jour
+    const date = req.query.date || toYMD(new Date());
+
+    // Sélection des sessions fermées correspondant à la date (UTC)
+    const rows = sqlite.prepare(`
+      SELECT uuid_session_caisse,
+             uuid_caisse_principale_si_secondaire,
+             opened_at_utc,
+             closed_at_utc,
+             caissiers,
+             issecondaire
+      FROM session_caisse
+      WHERE closed_at_utc IS NOT NULL
+        AND date(closed_at_utc) = ?
+      ORDER BY closed_at_utc DESC
+    `).all(date);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Erreur route /closed:', err);
+    res.status(500).json({ error: 'Impossible de récupérer les sessions fermées' });
+  }
+});
+
+
 module.exports = router;
