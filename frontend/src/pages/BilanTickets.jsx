@@ -189,46 +189,51 @@ const compareTickets = (a, b) => {
             />
           </div>
         </div>
-        <div className="d-flex align-items-center gap-2 mt-3">
-          <label className="form-label mb-0">Trier par paiement :</label>
-          <select
-            className="form-select"
-            style={{ maxWidth: 320 }}
-            value={triPaiement}
-            onChange={(e) => setTriPaiement(e.target.value)}
-          >
-            <option value="none">Aucun</option>
-            <option value="az">Moyen de paiement (A → Z)</option>
-            <option value="za">Moyen de paiement (Z → A)</option>
-            <option value="ordre">Ordre caisse (Espèces, Carte, Chèque, Virement, Mixte)</option>
-          </select>
-        </div>
-        <div className="d-flex align-items-center gap-2 mt-3">
-          <label className="form-label mb-0">Trier par total :</label>
-          <select
-            className="form-select"
-            style={{ maxWidth: 200 }}
-            value={triTotal}
-            onChange={(e) => setTriTotal(e.target.value)}
-          >
-            <option value="none">Aucun</option>
-            <option value="asc">Montant (croissant)</option>
-            <option value="desc">Montant (décroissant)</option>
-          </select>
-        </div>
-        <div className="d-flex align-items-center gap-2 mt-3">
-          <label className="form-label mb-0">Trier par date :</label>
-          <select
-            className="form-select"
-            style={{ maxWidth: 220 }}
-            value={triDate}
-            onChange={(e) => setTriDate(e.target.value)}
-          >
-            <option value="none">Aucun</option>
-            <option value="asc">Ancien → Récent</option>
-            <option value="desc">Récent → Ancien</option>
-          </select>
-        </div>
+        <div className="d-flex flex-wrap align-items-center gap-3 mt-3">
+  <div className="d-flex align-items-center gap-2">
+    <label className="form-label mb-0">Paiement</label>
+    <select
+      className="form-select"
+      style={{ maxWidth: 200 }}
+      value={triPaiement}
+      onChange={(e) => setTriPaiement(e.target.value)}
+    >
+      <option value="none">Aucun</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+      <option value="ordre">Ordre caisse</option>
+    </select>
+  </div>
+
+  <div className="d-flex align-items-center gap-2">
+    <label className="form-label mb-0">Total</label>
+    <select
+      className="form-select"
+      style={{ maxWidth: 160 }}
+      value={triTotal}
+      onChange={(e) => setTriTotal(e.target.value)}
+    >
+      <option value="none">Aucun</option>
+      <option value="asc">↑</option>
+      <option value="desc">↓</option>
+    </select>
+  </div>
+
+  <div className="d-flex align-items-center gap-2">
+    <label className="form-label mb-0">Date</label>
+    <select
+      className="form-select"
+      style={{ maxWidth: 180 }}
+      value={triDate}
+      onChange={(e) => setTriDate(e.target.value)}
+    >
+      <option value="none">Aucun</option>
+      <option value="asc">Ancien → Récent</option>
+      <option value="desc">Récent → Ancien</option>
+    </select>
+  </div>
+</div>
+
 
         {ticketsFiltres.length === 0 ? (
           <div className="alert alert-info mt-4">Aucun ticket pour la date sélectionnée.</div>
