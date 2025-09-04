@@ -488,10 +488,10 @@ router.post('/:uuid/supprimer', (req, res) => {
         date: today,
         timestamp,
         prix_total: totalAnnulation,
-        prix_total_espece: -pmAnnul.espece,
-        prix_total_carte: -pmAnnul.carte,
-        prix_total_cheque: -pmAnnul.cheque,
-        prix_total_virement: -pmAnnul.virement
+        espece: -pmAnnul.espece,
+        carte: -pmAnnul.carte,
+        cheque: -pmAnnul.cheque,
+        virement: -pmAnnul.virement
       });
     }
 
