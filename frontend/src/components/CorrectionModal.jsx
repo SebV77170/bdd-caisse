@@ -517,11 +517,12 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
             />
           </Form.Group>
 
-          <ResponsableForm
+          <ResponsableForm title = "Identification du responsable"
             responsablePseudo={responsablePseudo}
             setResponsablePseudo={setResponsablePseudo}
             motDePasse={motDePasse}
             setMotDePasse={setMotDePasse}
+            onSubmit={envoyerCorrection}
           />
       
         </Modal.Body>

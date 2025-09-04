@@ -133,16 +133,39 @@ router.post('/', async (req, res) => {
 
           } else if (operation === 'UPDATE') {
             await pool.query(
-              `UPDATE ticketdecaisse 
-               SET nom_vendeur = ?, id_vendeur = ?, date_achat_dt = ?, nbr_objet = ?, moyen_paiement = ?, prix_total = ?, lien = ?, reducbene = ?, reducclient = ?, reducgrospanierclient = ?, reducgrospanierbene = ?, uuid_session_caisse = ?
-               WHERE uuid_ticket = ?`,
+              `UPDATE ticketdecaisse
+              SET
+                nom_vendeur           = COALESCE(?, nom_vendeur),
+                id_vendeur            = COALESCE(?, id_vendeur),
+                date_achat_dt         = COALESCE(?, date_achat_dt),
+                nbr_objet             = COALESCE(?, nbr_objet),
+                moyen_paiement        = COALESCE(?, moyen_paiement),
+                prix_total            = COALESCE(?, prix_total),
+                lien                  = COALESCE(?, lien),
+                reducbene             = COALESCE(?, reducbene),
+                reducclient           = COALESCE(?, reducclient),
+                reducgrospanierclient = COALESCE(?, reducgrospanierclient),
+                reducgrospanierbene   = COALESCE(?, reducgrospanierbene),
+                uuid_session_caisse   = COALESCE(?, uuid_session_caisse)
+              WHERE uuid_ticket = ?`,
               [
-                payload.nom_vendeur, payload.id_vendeur, payload.date_achat_dt, payload.nbr_objet,
-                payload.moyen_paiement, payload.prix_total, payload.lien,
-                payload.reducbene, payload.reducclient, payload.reducgrospanierclient, payload.reducgrospanierbene,
-                payload.uuid_session_caisse, payload.uuid_ticket
+                payload.nom_vendeur ?? null,
+                payload.id_vendeur ?? null,
+                payload.date_achat_dt ?? null,
+                payload.nbr_objet ?? null,
+                payload.moyen_paiement ?? null,
+                payload.prix_total ?? null,
+                payload.lien ?? null,
+                payload.reducbene ?? null,
+                payload.reducclient ?? null,
+                payload.reducgrospanierclient ?? null,
+                payload.reducgrospanierbene ?? null,
+                payload.uuid_session_caisse ?? null,
+                payload.uuid_ticket
               ]
             );
+          
+
             if (debugMode) debugLogs.push(`✅ UPDATE ticketdecaisse ${payload.uuid_ticket}`);
 
           } else if (operation === 'DELETE') {

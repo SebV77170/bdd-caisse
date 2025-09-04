@@ -193,11 +193,12 @@ function OuvertureCaisse() {
             </>
           )}
 
-          <ResponsableForm
+          <ResponsableForm title = "Identification du responsable"
         responsablePseudo={responsablePseudo}
         setResponsablePseudo={setResponsablePseudo}
         motDePasse={motDePasse}
         setMotDePasse={setMotDePasse}
+        onSubmit={handleSubmit}
       />
       
 
