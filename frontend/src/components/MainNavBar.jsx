@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DevModeContext } from '../contexts/DevModeContext';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useSession } from '../contexts/SessionContext';
+import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 const socket = io('http://localhost:3001');
 
@@ -108,19 +109,19 @@ function MainNavbar() {
             .map(d => `• ${d.type} (${d.uuid})`)
             .join('\n');
 
-          alert(`✅ Synchronisation réussie avec des doublons ignorés :\n\n${doublonsMsg}`);
+          toast.warn(`✅ Synchronisation réussie avec des doublons ignorés :\n\n${doublonsMsg}`);
         } else {
-          alert('✅ Synchronisation réussie sans doublons.');
+          toast.success('✅ Synchronisation réussie sans doublons.');
         }
 
       } else {
         setSyncStatus('error');
-        alert('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
+        toast.error('❌ Échec : ' + (result.message || result.error || 'Erreur inconnue'));
       }
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
-      alert('❌ Erreur de synchronisation.');
+      toast.error('❌ Erreur de synchronisation.');
     }
   }}
 >

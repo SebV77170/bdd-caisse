@@ -4,6 +4,7 @@ import SignupModal from '../components/SignupModal';
 import { useSession } from '../contexts/SessionContext'; // ✅
 import { useActiveSession } from '../contexts/SessionCaisseContext'; // ✅ pour vérifier si une caisse est ouverte
 import ResponsableForm from "../components/ResponsableForm";
+import { toast } from 'react-toastify';
 
 
 function LoginPage() {
@@ -59,7 +60,7 @@ function LoginPage() {
   }
 
 } catch (err) {
-  alert('Erreur de connexion : ' + err.message);
+  toast.error('Erreur de connexion : ' + err.message);
 }
   };
 

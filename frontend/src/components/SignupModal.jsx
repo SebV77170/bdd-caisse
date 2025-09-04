@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import TactileInput from './TactileInput';
+import { toast } from 'react-toastify';
 
 function SignupModal({ show, onHide }) {
   const [prenom, setPrenom] = useState('');
@@ -41,7 +42,7 @@ function SignupModal({ show, onHide }) {
       const data = await res.json();
       if (data.success) {
         handleClose();
-        alert('Compte créé !');
+        toast.success('Compte créé !');
       } else {
         setMessage(data.error || 'Erreur');
       }

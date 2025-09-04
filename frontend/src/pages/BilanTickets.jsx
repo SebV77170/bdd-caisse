@@ -169,7 +169,7 @@ const compareTickets = (a, b) => {
       const result = await res.json();
       if (!result.success) throw new Error('Échec suppression');
     } catch (err) {
-      alert('Erreur lors de la suppression.');
+      toast.error('Erreur lors de la suppression.');
       console.error(err);
     }
   };

@@ -6,6 +6,7 @@ import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import ResponsableForm from "./ResponsableForm";
+import { toast } from 'react-toastify';
 
 // --- Helpers paiements (placer avant function CorrectionModal)
 const MOYENS = ['espece', 'carte', 'cheque', 'virement'];
@@ -310,19 +311,19 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
   // Envoie la correction au backend après vérifications
   const envoyerCorrection = async () => {
     // Vérifie que le motif est renseigné
-    if (!motif.trim()) return alert('Merci de préciser un motif.');
+    if (!motif.trim()) return toast.error('Merci de préciser un motif.');
 
     if (!responsablePseudo.trim() || !motDePasse.trim()) {
-      return alert('Pseudo ou mot de passe du responsable manquant.');
+      return toast.error('Pseudo ou mot de passe du responsable manquant.');
     }
 
     // Check if at least one payment method is selected and amounts match
     if (paiements.length === 0) {
-      return alert('Merci de spécifier au moins un mode de paiement.');
+      return toast.error('Merci de spécifier au moins un mode de paiement.');
     }
 
     if (totalPaiements !== totalCorrige) {
-      return alert(
+      return toast.error(
         `Le total des paiements (${(totalPaiements / 100).toFixed(2)} €) ne correspond pas au total corrigé du ticket (${(totalCorrige / 100).toFixed(2)} €).`
       );
     }
@@ -344,7 +345,7 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
     };
 
     if (!sessionCaisseOuverte || !uuidSessionCaisse) {
-      alert("Aucune session caisse ouverte !");
+      toast.error("Aucune session caisse ouverte !");
       return;
     }
 
@@ -359,7 +360,7 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
       const result = await res.json();
       if (result.success) {
          window.electron?.ensureInteractiveLight?.();
-        alert('Correction enregistrée.');
+        toast.success('Correction enregistrée.');
         onSuccess();
         onHide();
 
@@ -367,11 +368,11 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
     window.electron?.ensureInteractiveRaise?.();
   });
       } else {
-        alert('Erreur lors de la correction.');
+        toast.error('Erreur lors de la correction.');
       }
     } catch (err) {
       console.error(err);
-      alert('Erreur réseau.');
+      toast.error('Erreur réseau.');
     } finally {
       setLoading(false);
     }
