@@ -8,7 +8,7 @@ const genererTicketCloturePdf = require('../utils/genererTicketCloturePdf');
 const { v4: uuidv4 } = require('uuid');
 const getBilanSession = require('../utils/bilanSession');
 
-// Route POST pour fermer la caisse
+// Route POST pour fermer la caisse (UTC)
 router.post('/', (req, res) => {
   // Récupération des données envoyées par le frontend
   const {
@@ -28,16 +28,16 @@ router.post('/', (req, res) => {
     return res.status(401).json({ error: 'Aucun utilisateur connecté' });
   }
 
-  // Récupère la session de caisse ouverte
+  // Récupère la session de caisse ouverte (schéma UTC)
   const sessionCaisse = sqlite.prepare(`
-    SELECT * FROM session_caisse WHERE date_fermeture IS NULL
+    SELECT * FROM session_caisse WHERE closed_at_utc IS NULL
   `).get();
+
   if (!sessionCaisse) {
     return res.status(400).json({ error: 'Aucune session caisse ouverte' });
   }
 
   const typeSession = sessionCaisse.issecondaire === 0 ? 'principale' : 'secondaire';
-
 
   // Vérifie que le responsable existe et a les droits nécessaires
   const { valid, user: responsable, error } = verifyAdmin(responsable_pseudo, mot_de_passe);
@@ -45,34 +45,35 @@ router.post('/', (req, res) => {
     return res.status(403).json({ error });
   }
 
-  // Préparation des données de fermeture
-  const now = new Date();
-  const date_fermeture = now.toISOString().slice(0, 10);
-  const heure_fermeture = now.toTimeString().slice(0, 5);
+  // Horodatage UTC pour la fermeture
+  const closed_at_utc = new Date().toISOString();
 
-  // Récupère le bilan de la session de caisse
+  // Récupère le bilan de la session de caisse (en centimes)
   const ventesJour = getBilanSession(uuid_session_caisse);
 
-  // Calcul des montants attendus et des écarts
-  const fond_de_caisse = sessionCaisse.fond_initial || 0;
-  const attendu_espece = ventesJour.prix_total_espece ?? 0;
-  const attendu_carte = ventesJour.prix_total_carte ?? 0;
-  const attendu_cheque = ventesJour.prix_total_cheque ?? 0;
-  const attendu_virement = ventesJour.prix_total_virement ?? 0;
-  const ecart_espece = montant_reel - attendu_espece - fond_de_caisse;
-  const ecart_carte = montant_reel_carte - attendu_carte;
-  const ecart_cheque = montant_reel_cheque - attendu_cheque;
-  const ecart_virement = montant_reel_virement - attendu_virement;
-  const ecart = ecart_espece + ecart_carte + ecart_cheque + ecart_virement;
+  // Calcul des montants attendus et des écarts (tous en centimes)
+  const fond_de_caisse      = sessionCaisse.fond_initial || 0;
+  const attendu_espece      = ventesJour.prix_total_espece ?? 0;
+  const attendu_carte       = ventesJour.prix_total_carte ?? 0;
+  const attendu_cheque      = ventesJour.prix_total_cheque ?? 0;
+  const attendu_virement    = ventesJour.prix_total_virement ?? 0;
 
-  console.log(attendu_carte, attendu_cheque, attendu_virement);
+  const _mr        = Number(montant_reel ?? 0);
+  const _mrCarte   = Number(montant_reel_carte ?? 0);
+  const _mrCheque  = Number(montant_reel_cheque ?? 0);
+  const _mrVir     = Number(montant_reel_virement ?? 0);
 
-  // Mise à jour de la session caisse en base de données
+  const ecart_espece   = _mr      - attendu_espece - fond_de_caisse;
+  const ecart_carte    = _mrCarte - attendu_carte;
+  const ecart_cheque   = _mrCheque - attendu_cheque;
+  const ecart_virement = _mrVir    - attendu_virement;
+  const ecart          = ecart_espece + ecart_carte + ecart_cheque + ecart_virement;
+
+  // Mise à jour de la session caisse en base (fermeture UTC)
   sqlite.prepare(`
     UPDATE session_caisse
     SET 
-      date_fermeture = ?,
-      heure_fermeture = ?,
+      closed_at_utc = ?,
       utilisateur_fermeture = ?,
       responsable_fermeture = ?,
       montant_reel = ?,
@@ -83,38 +84,36 @@ router.post('/', (req, res) => {
       montant_reel_virement = ?
     WHERE id_session = ?
   `).run(
-    date_fermeture,
-    heure_fermeture,
+    closed_at_utc,
     utilisateur.nom,
     responsable.nom,
-    montant_reel,
-    commentaire,
+    _mr,
+    commentaire ?? '',
     ecart,
-    montant_reel_carte,
-    montant_reel_cheque,
-    montant_reel_virement,
+    _mrCarte,
+    _mrCheque,
+    _mrVir,
     sessionCaisse.id_session
   );
 
-  // Log de la modification de la session caisse
+  // Log de la modification de la session caisse (UTC)
   logSync('session_caisse', 'UPDATE', {
     id_session: sessionCaisse.id_session,
-    date_fermeture,
-    heure_fermeture,
+    closed_at_utc,
     utilisateur_fermeture: utilisateur.nom,
     responsable_fermeture: responsable.nom,
-    montant_reel,
-    commentaire,
+    montant_reel: _mr,
+    commentaire: commentaire ?? '',
     ecart,
-    montant_reel_carte,
-    montant_reel_cheque,
-    montant_reel_virement
+    montant_reel_carte: _mrCarte,
+    montant_reel_cheque: _mrCheque,
+    montant_reel_virement: _mrVir
   });
 
   // Création d'un ticket de clôture (ticket de caisse spécial)
   const vendeur = utilisateur.nom;
   const id_vendeur = utilisateur.uuid_user;
-  const date_achat = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const date_achat_dt = new Date().toISOString().slice(0, 19).replace('T', ' '); // conserve ton format
   const uuid_ticket = uuidv4();
 
   const result = sqlite.prepare(`
@@ -122,11 +121,11 @@ router.post('/', (req, res) => {
       uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt,
       nbr_objet, moyen_paiement, prix_total, lien,
       reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, cloture, uuid_session_caisse
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    uuid_ticket, vendeur, id_vendeur, date_achat,
-    0, "---", ecart, '',
-    0, 0, 0, 0, 1,uuid_session_caisse
+    uuid_ticket, vendeur, id_vendeur, date_achat_dt,
+    0, '---', ecart, '',
+    0, 0, 0, 0, 1, uuid_session_caisse
   );
 
   const id_ticket = result.lastInsertRowid;
@@ -137,41 +136,42 @@ router.post('/', (req, res) => {
     id_ticket,
     nom_vendeur: vendeur,
     id_vendeur,
-    date_achat_dt: date_achat,
+    date_achat_dt,
     nbr_objet: 0,
-    moyen_paiement: "---",
+    moyen_paiement: '---',
     prix_total: ecart,
     reducbene: 0,
     reducclient: 0,
     reducgrospanierclient: 0,
     reducgrospanierbene: 0,
-    cloture: 1
+    cloture: 1,
+    uuid_session_caisse
   });
 
-  // Génération du PDF de clôture
+  // Génération du PDF de clôture (optionnel, async)
   genererTicketCloturePdf(sessionCaisse.id_session, uuid_ticket)
     .then(() => console.log('✅ PDF de clôture généré'))
     .catch(err => console.error('❌ Erreur PDF clôture :', err));
 
   // Notifie les clients via WebSocket que la caisse est fermée
   const io = req.app.get('socketio');
- if (io) {
-  io.emit('etatCaisseUpdated', {
-    ouverte: false,
-    type: typeSession
-  });
-}
+  if (io) {
+    io.emit('etatCaisseUpdated', {
+      ouverte: false,
+      type: typeSession
+    });
+  }
 
   // Réponse au frontend
   res.json({ success: true });
 });
 
-// Route GET pour récupérer le fond initial de la session caisse ouverte
+// Route GET pour récupérer le fond initial de la session caisse ouverte (UTC)
 router.get('/fond_initial', (req, res) => {
   try {
     const sessionCaisse = sqlite.prepare(`
       SELECT fond_initial FROM session_caisse 
-      WHERE date_fermeture IS NULL
+      WHERE closed_at_utc IS NULL
     `).get();
 
     if (!sessionCaisse) {

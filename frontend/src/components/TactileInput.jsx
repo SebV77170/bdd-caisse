@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import ClavierNumeriqueModal from './clavierNumeriqueModal';
 import ClavierTexteModal from './ClavierTexteModal';
-import { ModeTactileContext } from '../App';
+import { ModeTactileContext } from '../contexts/ModeTactileContext';
 
 function TactileInput({
   value,
@@ -11,57 +11,62 @@ function TactileInput({
   as = 'input', // 'input' ou 'textarea'
   ...props
 }) {
-  const { modeTactile } = useContext(ModeTactileContext);
+  const { modeTactile } = useContext(ModeTactileContext) || { modeTactile: false };
   const [show, setShow] = useState(false);
 
   const handleValider = (val) => {
+    // on reproduit un event "synthetique" compatible avec les inputs contrôlés
     onChange({ target: { value: val } });
   };
 
   const isNumeric = type === 'number' || isDecimal;
   const displayValue = value === undefined || value === null ? '' : value;
 
-  if (modeTactile) {
-    const commonProps = {
-      readOnly: true,
-      value: displayValue,
-      onClick: () => setShow(true),
-      style: { cursor: 'pointer', ...(props.style || {}) },
-      ...props,
-    };
-
-    return (
-      <>
-        {as === 'textarea' ? (
-          <textarea {...commonProps} />
-        ) : (
-          <input {...commonProps} type={type === 'password' ? 'password' : 'text'} />
-        )}
-
-        {isNumeric ? (
-          <ClavierNumeriqueModal
-            show={show}
-            onClose={() => setShow(false)}
-            onValider={handleValider}
-            initial=""
-            isDecimal={true}
-          />
-        ) : (
-          <ClavierTexteModal
-            show={show}
-            onClose={() => setShow(false)}
-            onValider={handleValider}
-            initial=""
-          />
-        )}
-      </>
+  // ❄️ Mode non-tactile : strict input/textarea, aucun overlay/listener
+  if (!modeTactile) {
+    return as === 'textarea' ? (
+      <textarea {...props} value={value} onChange={onChange} />
+    ) : (
+      <input {...props} type={type} value={value} onChange={onChange} />
     );
   }
 
-  return as === 'textarea' ? (
-    <textarea {...props} value={value} onChange={onChange} />
-  ) : (
-    <input {...props} type={type} value={value} onChange={onChange} />
+  // 📱 Mode tactile : input en lecture seule + clavier modal monté uniquement quand show === true
+  const commonProps = {
+    readOnly: true,
+    value: displayValue,
+    onClick: () => setShow(true),
+    style: { cursor: 'pointer', ...(props.style || {}) },
+    ...props,
+  };
+
+  return (
+    <>
+      {as === 'textarea' ? (
+        <textarea {...commonProps} />
+      ) : (
+        <input {...commonProps} type={type === 'password' ? 'password' : 'text'} />
+      )}
+
+      {show && (
+        isNumeric ? (
+          <ClavierNumeriqueModal
+            show
+            onClose={() => setShow(false)}
+            onValider={handleValider}
+            initial={String('' ?? '')}
+            isDecimal={!!isDecimal}
+          />
+        ) : (
+          <ClavierTexteModal
+            show
+            onClose={() => setShow(false)}
+            onValider={handleValider}
+            initial={String(displayValue ?? '')}
+          />
+        )
+      )}
+    </>
   );
 }
 

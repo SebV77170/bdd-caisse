@@ -1,5 +1,28 @@
 // src/styles/custom.scss
 
+/* Le conteneur des toasts ne doit jamais bloquer la page */
+section.Toastify,
+.Toastify__toast-container {
+  pointer-events: none !important;
+}
+/* …mais chaque toast reste cliquable */
+.Toastify__toast {
+  pointer-events: auto !important;
+}
+
+/* Une modale non visible ne capte aucun clic */
+.modal:not(.show),
+.modal-backdrop:not(.show) {
+  pointer-events: none !important;
+}
+
+/* Si jamais un backdrop reste après fermeture, on le neutralise */
+body:not(.modal-open) .modal-backdrop {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+
 // 🎨 Couleurs personnalisées liées aux catégories en base
 $custom-theme-colors: (
   "linge-de-maison": #ffce3c,

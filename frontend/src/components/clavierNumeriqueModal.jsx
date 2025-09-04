@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
-import { Modal, Button, Row, Col } from 'react-bootstrap';
+import React, { useEffect, useState } from 'react';
+import { Modal, Button } from 'react-bootstrap';
 
 function ClavierNumeriqueModal({ show, onClose, onValider, initial = '', isDecimal = false }) {
   const [value, setValue] = useState(initial);
 
+  // Réinitialise l’affichage à l’ouverture (et quand initial change)
+  useEffect(() => {
+    if (show) {
+      setValue(initial || '');
+    }
+  }, [show, initial]);
+
   const handleInput = (char) => {
     if (char === '←') {
       setValue((prev) => prev.slice(0, -1));
-    } else if (char === ',' && !value.includes(',')) {
+    } else if (char === ',' && isDecimal && !value.includes(',')) {
       setValue((prev) => prev + ',');
     } else if (/^\d$/.test(char)) {
       setValue((prev) => prev + char);
@@ -22,6 +29,7 @@ function ClavierNumeriqueModal({ show, onClose, onValider, initial = '', isDecim
 
   const renderButton = (char, options = {}) => (
     <Button
+      key={char}
       variant={options.variant || 'outline-primary'}
       style={{
         width: options.wide ? 130 : 60,
@@ -37,7 +45,15 @@ function ClavierNumeriqueModal({ show, onClose, onValider, initial = '', isDecim
   );
 
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal
+      show={show}
+      onHide={onClose}
+      centered
+      enforceFocus={false}
+      restoreFocus={true}
+      animation={true}
+      backdrop={true}
+    >
       <Modal.Header closeButton>
         <Modal.Title>Clavier numérique</Modal.Title>
       </Modal.Header>
@@ -67,7 +83,13 @@ function ClavierNumeriqueModal({ show, onClose, onValider, initial = '', isDecim
         <Button variant="success" onClick={valider}>
           Valider
         </Button>
-        <Button variant="secondary" onClick={onClose}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            onClose();
+            // reset via useEffect au prochain show
+          }}
+        >
           Annuler
         </Button>
       </Modal.Footer>

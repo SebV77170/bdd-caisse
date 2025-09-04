@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import TactileInput from '../components/TactileInput';
 import SignupModal from '../components/SignupModal';
 import { useSession } from '../contexts/SessionContext'; // ✅
 import { useActiveSession } from '../contexts/SessionCaisseContext'; // ✅ pour vérifier si une caisse est ouverte
+import ResponsableForm from "../components/ResponsableForm";
+
 
 function LoginPage() {
   const [pseudo, setPseudo] = useState('');
@@ -64,34 +65,37 @@ function LoginPage() {
 
   return (
     <div className="container mt-5">
-      <h2>{activeSession ? 'Alors, on change de caissier, qui prend la place ?' : "Bonjour, qui est là aujourd'hui ?"}</h2>
+  <h2 className="text-center">
+    {activeSession ? 'Alors, on change de caissier, qui prend la place ?' : "Bonjour, qui est là aujourd'hui ?"}
+  </h2>
 
-      <TactileInput
-        type="text"
-        className="form-control my-3"
-        placeholder="Pseudo"
-        value={pseudo}
-        onChange={e => setPseudo(e.target.value)}
-      />
-      <TactileInput
-        type="password"
-        className="form-control mb-3"
-        placeholder="Mot de passe"
-        value={password}
-        onChange={e => setPassword(e.target.value)}
-      />
-      <button className="btn btn-primary" onClick={handleLogin}>Se connecter</button>
+  <ResponsableForm
+    title="Identifiez-vous"
+    responsablePseudo={pseudo}
+    setResponsablePseudo={setPseudo}
+    motDePasse={password}
+    setMotDePasse={setPassword}
+    onSubmit={handleLogin}
+  />
 
-      {message && <p className="text-danger mt-2">{message}</p>}
+  {/* Bouton centré */}
+  <div className="mt-3 d-flex justify-content-center">
+    <button className="btn btn-primary px-4" onClick={handleLogin}>Se connecter</button>
+  </div>
 
-      <p className="mt-3">
-        <button type="button" className="btn btn-link p-0" onClick={() => setShowSignup(true)}>
-          Je n'ai pas de compte
-        </button>
-      </p>
+  {/* Message d'erreur centré (si présent) */}
+  {message && <p className="text-danger mt-2 text-center">{message}</p>}
 
-      <SignupModal show={showSignup} onHide={() => setShowSignup(false)} />
-    </div>
+  {/* Lien centré */}
+  <p className="mt-3 text-center">
+    <button type="button" className="btn btn-link p-0" onClick={() => setShowSignup(true)}>
+      Je n'ai pas de compte
+    </button>
+  </p>
+
+  <SignupModal show={showSignup} onHide={() => setShowSignup(false)} />
+</div>
+
   );
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import CompteEspeces from '../components/compteEspeces';
 import AffichageEcarts from '../components/AffichageEcarts';
 import BilanSessionCaisse from '../components/BilanSessionCaisse';
@@ -10,6 +10,8 @@ import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { set } from 'date-fns';
 import { euro } from '../utils/euro';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
+import SiCaisseSecondaire from '../utils/SiCaisseSecondaire';
+import ResponsableForm from "../components/ResponsableForm";
 
 
 // Composant principal pour la fermeture de caisse
@@ -29,12 +31,15 @@ function FermetureCaisse() {
   const navigate = useNavigate();
   const uuidSessionCaisse = activeSession?.uuid_session || null;
   const sessionCaisseOuverte = activeSession;
+  const [useCompteEspeces, setUseCompteEspeces] = useState(false); // ✅ NEW
+
 
   // Affiche l'UUID de la session caisse dans la console (debug)
   console.log("UUID session caisse en contexte :", uuidSessionCaisse);
 
+  // --- HANDLER CAISSE PRINCIPALE ---
   // Gestion de la soumission du formulaire de fermeture de caisse
-  const handleSubmit = async (e) => {
+  const handleSubmitPrincipal = async (e) => {
     e.preventDefault();
 
     // Vérifie qu'une session caisse est ouverte
@@ -85,6 +90,42 @@ function FermetureCaisse() {
       toast.error('Erreur de communication avec le serveur');
     }
   };
+
+  // --- HANDLER CAISSE SECONDAIRE ---
+  // Ferme la caisse secondaire + envoie vers la principale (route unique côté backend)
+  const handleSubmitSecondaire = async (e) => {
+    e.preventDefault();
+    if (!uuidSessionCaisse) return toast.error("Aucune session caisse ouverte !");
+    if (!responsablePseudo || !motDePasse) {
+      return toast.error('Pseudo responsable et mot de passe requis');
+    }
+    try {
+      const res = await fetch('http://localhost:3001/api/sync/envoyer-secondaire-vers-principal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          // le backend ferme officiellement la session secondaire AVANT d’envoyer :
+          commentaire,
+          uuid_session_caisse: uuidSessionCaisse,
+          responsable_pseudo: responsablePseudo,
+          mot_de_passe: motDePasse
+          // (les montants peuvent être omis: le backend mettra 0 par défaut si tu as suivi la logique proposée)
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        toast.success(`✅ Données envoyées (${result.ids?.length || 0}) & caisse secondaire fermée.`);
+        navigate('/Bilan', { state: { toastMessage: 'Caisse secondaire fermée et synchronisée !' } });
+      } else {
+        toast.error('❌ Échec de l’envoi : ' + (result.message || 'Erreur inconnue.'));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('❌ Erreur de communication avec le serveur.');
+    }
+  };
+
 
   // Récupère le fond initial déclaré à l'ouverture de la caisse
   useEffect(() => {
@@ -170,24 +211,53 @@ function FermetureCaisse() {
         )}
 
        <SiCaissePrincipale>
-         {/* Formulaire de fermeture de caisse */}
-        <form onSubmit={handleSubmit}>
-          {/* ✅ Intégration du tableau des espèces */}
-          <CompteEspeces onChangeTotal={(total) => setMontantReel(total)} />
-          <div></div>
-          <div>
-            <label>Montant réel dans la caisse (€) :</label><br />
-            <TactileInput
-              type="number"
-              value={montantReel}
-              onChange={(e) => setMontantReel(e.target.value)}
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmitPrincipal}>
+            {/* ✅ Toggle d'utilisation du calculateur espèces */}
+            <div style={{ margin: '12px 0' }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={useCompteEspeces}
+                  onChange={(e) => {
+                    setUseCompteEspeces(e.target.checked);
+                    // Optionnel : si on désactive, on garde la valeur actuelle dans le champ manuel.
+                    // Si tu préfères réinitialiser : setMontantReel('');
+                  }}
+                />
+                Utiliser le calculateur d'espèces
+              </label>
+              <small style={{ opacity: 0.8 }}>
+                Coche pour compter les espèces billet/pièce. Décoche pour saisir le montant total à la main.
+              </small>
+            </div>
+
+            {/* ✅ Affichage conditionnel du composant espèces */}
+            {useCompteEspeces && (
+              <>
+                <CompteEspeces onChangeTotal={(total) => setMontantReel(total)} />
+                <div style={{ marginTop: 8 }}>
+                  <strong>Montant réel (calculé) :</strong>{' '}
+                  {montantReel || '0'}
+                </div>
+              </>
+            )}
+
+            {/* ✅ Saisie manuelle uniquement si le calculateur n'est pas utilisé */}
+            {!useCompteEspeces && (
+              <div style={{ marginTop: 10 }}>
+                <label>Montant réel dans la caisse (€) :</label><br />
+                <TactileInput
+                  type="number"
+                  value={montantReel}
+                  onChange={(e) => setMontantReel(e.target.value)}
+                  required={!useCompteEspeces}     // requis seulement en mode manuel
+                />
+              </div>
+            )}
           <div>
             <label>Montant réel des transactions Sumup (€) :</label><br />
             <TactileInput
-              type="text"
+              type="number"
               value={montantReelCarte}
               isDecimal={true}
               onChange={(e) => setMontantReelCarte(e.target.value)}
@@ -237,59 +307,42 @@ function FermetureCaisse() {
               placeholder="Votre message"
             />
           </div>
-          <div>
-            <label>Pseudo du responsable :</label><br />
-            <TactileInput
-              type="text"
-              value={responsablePseudo}
-              onChange={(e) => setResponsablePseudo(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label>Mot de passe du responsable :</label><br />
-            <TactileInput
-              type="password"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-              required
-            />
-          </div>
+          <ResponsableForm title = "Identification du responsable"
+            responsablePseudo={responsablePseudo}
+            setResponsablePseudo={setResponsablePseudo}
+            motDePasse={motDePasse}
+            setMotDePasse={setMotDePasse}
+            onSubmit={handleSubmitPrincipal}
+          />
+      
           <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse</button>
         </form>
         </SiCaissePrincipale>
 
-        {activeSession?.type === 'secondaire' && (
-  <button
-    type="button"
-    style={{ marginTop: 10, marginLeft: 10 }}
-    onClick={async () => {
-      try {
-        const res = await fetch('http://localhost:3001/api/sync/envoyer-secondaire-vers-principal', {
-          method: 'POST'
-        });
+        <SiCaisseSecondaire>
+             {/* Formulaire de fermeture de caisse */}
+        <form onSubmit={handleSubmitSecondaire}>
+          
+          <div>
+            <label>Commentaire (facultatif) :</label><br />
+            <TactileInput
+              as="textarea"
+              value={commentaire}
+              onChange={(e) => setCommentaire(e.target.value)}
+              placeholder="Votre message"
+            />
+          </div>
+          <ResponsableForm title = "Identification du responsable"
+            responsablePseudo={responsablePseudo}
+            setResponsablePseudo={setResponsablePseudo}
+            motDePasse={motDePasse}
+            setMotDePasse={setMotDePasse}
+            onSubmit={handleSubmitSecondaire}
+          />
+          <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse et envoyer à la caisse principale</button>
+        </form>
+        </SiCaisseSecondaire>
 
-        const result = await res.json();
-
-        if (result.success) {
-          toast.success('✅ Données envoyées à la caisse principale.');
-          console.log('🛜 Résultat de la synchronisation vers principale :', result);
-        } else {
-          toast.error('❌ Échec de l’envoi : ' + (result.message || 'Erreur inconnue.'));
-        }
-      } catch (err) {
-        console.error('Erreur d’envoi vers caisse principale :', err);
-        toast.error('❌ Erreur réseau.');
-      }
-    }}
-  >
-    🔁 Envoyer vers caisse principale
-  </button>
-)}
-
-
-        {/* Affiche les notifications toast */}
-        <ToastContainer position="top-center" autoClose={3000} />
       </div>
     </div>
   );

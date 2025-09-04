@@ -280,10 +280,10 @@ router.post('/', (req, res) => {
       logSync('bilan', 'UPDATE', {
         date: today,
         prix_total: prixTotal - ticketOriginalData.prix_total,
-        prix_total_espece: pm.espece - pmAnnul.espece,
-        prix_total_cheque: pm.cheque - pmAnnul.cheque,
-        prix_total_carte: pm.carte - pmAnnul.carte,
-        prix_total_virement: pm.virement - pmAnnul.virement
+        espece: pm.espece - pmAnnul.espece,
+        cheque: pm.cheque - pmAnnul.cheque,
+        carte: pm.carte - pmAnnul.carte,
+        virement: pm.virement - pmAnnul.virement
       });
     } else {
       sqlite.prepare(`
@@ -305,10 +305,10 @@ router.post('/', (req, res) => {
         nombre_vente: 1,
         poids: 0,
         prix_total: prixTotal - ticketOriginalData.prix_total,
-        prix_total_espece: pm.espece - pmAnnul.espece,
-        prix_total_cheque: pm.cheque - pmAnnul.cheque,
-        prix_total_carte: pm.carte - pmAnnul.carte,
-        prix_total_virement: pm.virement - pmAnnul.virement
+        espece: pm.espece - pmAnnul.espece,
+        cheque: pm.cheque - pmAnnul.cheque,
+        carte: pm.carte - pmAnnul.carte,
+        virement: pm.virement - pmAnnul.virement
       });
     }
 

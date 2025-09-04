@@ -5,6 +5,125 @@ import BoutonsCaisse from './BoutonsCaisse';
 import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
+import ResponsableForm from "./ResponsableForm";
+
+// --- Helpers paiements (placer avant function CorrectionModal)
+const MOYENS = ['espece', 'carte', 'cheque', 'virement'];
+
+function normalizeMoyen(m) {
+  if (!m) return '';
+  const x = m.toString().trim().toLowerCase();
+  if (x.startsWith('esp')) return 'espece';
+  if (x.startsWith('car')) return 'carte';
+  if (x.startsWith('chè') || x.startsWith('che')) return 'cheque';
+  if (x.startsWith('vir')) return 'virement';
+  return x;
+}
+
+function toEurosString(cents) {
+  const n = Number.isFinite(cents) ? cents : 0;
+  return (n / 100).toFixed(2).replace('.', ','); // "12,34"
+}
+
+function parsePossibleMoney(val) {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'string') {
+    const norm = val.replace(/\s/g, '').replace(',', '.');
+    const f = parseFloat(norm);
+    if (isNaN(f)) return 0;
+    // Heuristique: si petit ou décimal → euros, sinon on suppose centimes
+    if (/\.|,/.test(val) || f < 50) return Math.round(f * 100);
+    return Math.round(f);
+  }
+  if (typeof val === 'number') {
+    if (!Number.isInteger(val) || val < 50) return Math.round(val * 100);
+    return Math.round(val);
+  }
+  return 0;
+}
+
+function extractPaiementMixteObject(maybeObj) {
+  if (!maybeObj || typeof maybeObj !== 'object') return null;
+  const mapKeys = {
+    espece: ['espece', 'espèce', 'espèces', 'especes', 'cash'],
+    carte: ['carte', 'cb', 'cb_bleue', 'cbbleue'],
+    cheque: ['cheque', 'chèque', 'cheques', 'chèques'],
+    virement: ['virement', 'sepa', 'vir'],
+  };
+  const out = {};
+  let found = false;
+  for (const moyen of Object.keys(mapKeys)) {
+    const aliases = mapKeys[moyen];
+    const key = Object.keys(maybeObj).find(k =>
+      aliases.includes(k.toString().toLowerCase())
+    );
+    if (key) {
+      const cents = parsePossibleMoney(maybeObj[key]);
+      if (cents > 0) {
+        out[moyen] = cents;
+        found = true;
+      }
+    }
+  }
+  return found ? out : null;
+}
+
+// Regarde TOUTES les variantes: camelCase/snake_case, root ou dans ticket
+function extractPaiementMixteFromAny(o) {
+  const candidates = [
+    o?.paiementMixte,
+    o?.paiement_mixte,
+    o?.ticket?.paiementMixte,
+    o?.ticket?.paiement_mixte,
+  ];
+  for (const pm of candidates) {
+    const parsed = extractPaiementMixteObject(pm);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function buildPaiementsFromTicket(ticketOriginal) {
+  // 1) Format tableau déjà prêt
+  const arr = ticketOriginal?.ticket?.montant_paiements;
+  if (Array.isArray(arr) && arr.length) {
+    return arr.map(p => ({
+      moyen: normalizeMoyen(p.moyen),
+      montant: toEurosString(parsePossibleMoney(p.montant)),
+    }));
+  }
+
+  // 2) paiementMixte/paiement_mixte (root ou dans ticket)
+  const pm = extractPaiementMixteFromAny(ticketOriginal);
+  if (pm) {
+    return Object.entries(pm).map(([moyen, cents]) => ({
+      moyen,
+      montant: toEurosString(cents), // => "xx,yy" (jamais undefined)
+    }));
+  }
+
+  // 3) Clés "à plat" éventuelles dans ticket (ex: paiement_espece, paiement_carte…)
+  const flat = {};
+  for (const k of Object.keys(ticketOriginal?.ticket || {})) {
+    const lk = k.toLowerCase();
+    if (lk.includes('espece')) flat.espece = parsePossibleMoney(ticketOriginal.ticket[k]);
+    if (lk.includes('carte')) flat.carte = parsePossibleMoney(ticketOriginal.ticket[k]);
+    if (lk.includes('cheque') || lk.includes('chèque')) flat.cheque = parsePossibleMoney(ticketOriginal.ticket[k]);
+    if (lk.includes('virement') || lk === 'sepa') flat.virement = parsePossibleMoney(ticketOriginal.ticket[k]);
+  }
+  const flatFiltered = Object.fromEntries(Object.entries(flat).filter(([, v]) => v > 0));
+  if (Object.keys(flatFiltered).length) {
+    return Object.entries(flatFiltered).map(([moyen, cents]) => ({
+      moyen,
+      montant: toEurosString(cents),
+    }));
+  }
+
+  // 4) Fallback: un seul paiement = total des objets
+  const total = (ticketOriginal?.objets || []).reduce((s, a) => s + (a.prix || 0) * (a.nbr || 0), 0);
+  return [{ moyen: 'carte', montant: toEurosString(total) }];
+}
+
 
 
 function CorrectionModal({ show, onHide, ticketOriginal, onSuccess }) {
@@ -26,20 +145,9 @@ const sessionCaisseOuverte = !!activeSession;
   const [motDePasse, setMotDePasse] = useState('');
   const [loading, setLoading] = useState(false);
   // Change moyenPaiement to an array of payment objects, similar to ValidationVente
-  const [paiements, setPaiements] = useState(() => {
-    // Initialize payments from ticketOriginal if available, otherwise default to a single payment
-    if (ticketOriginal.ticket.moyen_paiement && ticketOriginal.ticket.montant_paiements) {
-      // Assuming montant_paiements is an array of objects { moyen: string, montant: number (in cents) }
-      return ticketOriginal.ticket.montant_paiements.map(p => ({
-        moyen: p.moyen,
-        montant: (p.montant / 100).toFixed(2).replace('.', ',')
-      }));
-    } else {
-      // Default to one payment, e.g., 'carte' with the initial total
-      const initialTotal = (ticketOriginal.objets || []).reduce((sum, a) => sum + a.prix * a.nbr, 0);
-      return [{ moyen: 'carte', montant: (initialTotal / 100).toFixed(2).replace('.', ',') }];
-    }
-  });
+  // Remplace tout le bloc useState initial de paiements
+const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticketOriginal));
+
 
 
   const totalAvant = correctionsInitiales.reduce((sum, a) => sum + a.prix * a.nbr, 0);
@@ -70,17 +178,8 @@ const sessionCaisseOuverte = !!activeSession;
     setMotif('');
     setLoading(false);
 
-    if (ticketOriginal.ticket.moyen_paiement && ticketOriginal.ticket.montant_paiements) {
-      setPaiements(
-        ticketOriginal.ticket.montant_paiements.map(p => ({
-          moyen: p.moyen,
-          montant: (p.montant / 100).toFixed(2).replace('.', ',')
-        }))
-      );
-    } else {
-      const initialTotal = (ticketOriginal.objets || []).reduce((sum, a) => sum + a.prix * a.nbr, 0);
-      setPaiements([{ moyen: 'carte', montant: (initialTotal / 100).toFixed(2).replace('.', ',') }]);
-    }
+    setPaiements(buildPaiementsFromTicket(ticketOriginal));
+
 
     const reducs = ticketOriginal.objets?.filter(o => o.nom.toLowerCase().includes('réduction'));
     let red = '';
@@ -187,11 +286,12 @@ const sessionCaisseOuverte = !!activeSession;
   };
 
   const modifierPaiement = (index, champ, valeur) => {
-    const copie = [...paiements];
-    copie[index][champ] = valeur;
-    const corrigé = corrigerTotalPaiementsExact(copie);
-    setPaiements(corrigé);
-  };
+  const copie = [...paiements];
+  copie[index][champ] = (champ === 'moyen') ? normalizeMoyen(valeur) : valeur;
+  const corrige = corrigerTotalPaiementsExact(copie);
+  setPaiements(corrige);
+};
+
 
   useEffect(() => {
     // Adjust payments automatically when totalCorrige changes and only one payment method is present
@@ -237,7 +337,7 @@ const sessionCaisseOuverte = !!activeSession;
       uuid_session_caisse: uuidSessionCaisse,
       // Pass the array of payments
       paiements: paiements.map(p => ({
-        moyen: p.moyen,
+        moyen: normalizeMoyen(p.moyen),
         montant: parseMontant(p.montant)
       })),
       reductionType
@@ -258,9 +358,14 @@ const sessionCaisseOuverte = !!activeSession;
       });
       const result = await res.json();
       if (result.success) {
+         window.electron?.ensureInteractiveLight?.();
         alert('Correction enregistrée.');
         onSuccess();
         onHide();
+
+         requestAnimationFrame(() => {
+    window.electron?.ensureInteractiveRaise?.();
+  });
       } else {
         alert('Erreur lors de la correction.');
       }
@@ -352,22 +457,25 @@ const sessionCaisseOuverte = !!activeSession;
               <div className="d-flex mb-1" key={index}>
                 <Form.Select
                   className="me-2"
-                  value={p.moyen}
-                  onChange={e => modifierPaiement(index, 'moyen', e.target.value)}
+                  value={normalizeMoyen(p.moyen)}
+                  onChange={e => modifierPaiement(index, 'moyen', normalizeMoyen(e.target.value))}
                 >
                   <option value="">Mode...</option>
-                  <option value="espèces">Espèces</option>
+                  <option value="espece">Espèces</option>
                   <option value="carte">Carte</option>
-                  <option value="chèque">Chèque</option>
+                  <option value="cheque">Chèque</option>
                   <option value="virement">Virement</option>
                 </Form.Select>
+
                 <TactileInput
                   type="number"
+                  step="0.01"
                   className="form-control"
                   placeholder="Montant en euros"
-                  value={p.montant}
+                  value={p.montant?.replace(',', '.')}  // ⬅️ convertir pour l’affichage
                   onChange={e => modifierPaiement(index, 'montant', e.target.value)}
                 />
+
                 {paiements.length > 1 && (
                   <Button
                     variant="outline-danger"
@@ -398,35 +506,25 @@ const sessionCaisseOuverte = !!activeSession;
 
           <Form.Group className="mt-3">
             <Form.Label>Motif de correction</Form.Label>
-            <TactileInput
+            <Form.Control
               as="textarea"
               rows={2}
               className="form-control"
               value={motif}
               onChange={(e) => setMotif(e.target.value)}
               placeholder="Exemple : erreur de quantité saisie par le caissier"
+              required
             />
           </Form.Group>
 
-          <Form.Group className="mt-3">
-            <Form.Label>Pseudo du responsable</Form.Label>
-            <TactileInput
-              type="text"
-              className="form-control"
-              value={responsablePseudo}
-              onChange={(e) => setResponsablePseudo(e.target.value)}
-            />
-          </Form.Group>
-
-          <Form.Group className="mt-3">
-            <Form.Label>Mot de passe du responsable</Form.Label>
-            <TactileInput
-              type="password"
-              className="form-control"
-              value={motDePasse}
-              onChange={(e) => setMotDePasse(e.target.value)}
-            />
-          </Form.Group>
+          <ResponsableForm title = "Identification du responsable"
+            responsablePseudo={responsablePseudo}
+            setResponsablePseudo={setResponsablePseudo}
+            motDePasse={motDePasse}
+            setMotDePasse={setMotDePasse}
+            onSubmit={envoyerCorrection}
+          />
+      
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onHide}>Annuler</Button>

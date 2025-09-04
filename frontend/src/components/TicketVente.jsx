@@ -1,6 +1,6 @@
 import React, { useRef, useContext } from 'react';
 import TactileInput from './TactileInput';
-import { ModeTactileContext } from '../App';
+import { ModeTactileContext } from '../contexts/ModeTactileContext';
 
 function TicketVente({ ticket, onChange, onDelete, onSave }) {
   const prixRef = useRef({});

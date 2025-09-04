@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { ModeTactileContext } from '../App'; // ou vers le bon fichier si déplacé
+import { ModeTactileContext } from '../contexts/ModeTactileContext'; // ou vers le bon fichier si déplacé
 
 const ModeTactileToggle = () => {
   const { modeTactile, setModeTactile } = useContext(ModeTactileContext);

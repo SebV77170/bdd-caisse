@@ -9,6 +9,45 @@ const http = require('http');
 
 let mainWindow;
 let backendProcess;
+let _ensuring = false;
+let _lastEnsure = 0;
+
+
+function ensureInteractiveLight() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (_ensuring) return;
+  _ensuring = true;
+  try {
+    mainWindow.setIgnoreMouseEvents(false);
+    // 👇 focus "silencieux" (pas de saut OS)
+    if (!mainWindow.webContents.isFocused()) mainWindow.webContents.focus();
+  } finally {
+    _ensuring = false;
+  }
+}
+
+function ensureInteractiveRaise() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const now = Date.now();
+  if (now - _lastEnsure < 300 || _ensuring) return; // debounce anti-boucle
+  _ensuring = true;
+  try {
+    mainWindow.setIgnoreMouseEvents(false);
+    mainWindow.setFocusable(true);
+    if (!mainWindow.isFocused()) {
+      mainWindow.focus();             // 👈 peut causer un petit sursaut
+      mainWindow.webContents.focus();
+    }
+    // ⚠️ évite setAlwaysOnTop(true/false) ici pour ne pas flicker
+  } finally {
+    _lastEnsure = now;
+    _ensuring = false;
+  }
+}
+
+// IPC
+ipcMain.handle('ui/ensure-interactive-light', () => { ensureInteractiveLight(); return true; });
+ipcMain.handle('ui/ensure-interactive-raise', () => { ensureInteractiveRaise(); return true; });
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -23,7 +62,16 @@ function createWindow() {
     }
   });
 
-  Menu.setApplicationMenu(null);
+    Menu.setApplicationMenu(null);
+
+
+   // Dans createWindow(), garde seulement des accroches calmes :
+mainWindow.on('focus', () => ensureInteractiveLight());
+mainWindow.on('show',  () => ensureInteractiveLight());
+mainWindow.webContents.on('did-finish-load',      () => ensureInteractiveLight());
+mainWindow.webContents.on('did-navigate',         () => ensureInteractiveLight());
+mainWindow.webContents.on('did-navigate-in-page', () => ensureInteractiveLight());
+
   mainWindow.center();
   //mainWindow.webContents.openDevTools();
 

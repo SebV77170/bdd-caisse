@@ -9,9 +9,10 @@ import CorrectionModal from '../components/CorrectionModal';
 import TactileInput from '../components/TactileInput';
 import { Button } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import FactureModal from '../components/factureModal';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
+import SiCaisseOuverte from '../utils/SiCaisseOuverte';
 
 const socket = io('http://localhost:3001');
 
@@ -31,6 +32,75 @@ const BilanTickets = () => {
   const [ticketPourFacture, setTicketPourFacture] = useState(null);
   const [raisonSociale, setRaisonSociale] = useState('');
   const [adresseFacturation, setAdresseFacturation] = useState('');
+  const [triPaiement, setTriPaiement] = useState('none'); 
+  const [triTotal, setTriTotal] = useState('none'); 
+  const [triDate, setTriDate] = useState('none'); 
+
+
+  const normalizeMoyen = (raw) => {
+  if (!raw) return 'autre';
+  const s = String(raw).trim().toLowerCase();
+  if (['espece', 'espèces', 'especes', 'espèce', 'cash', 'liquide', 'liquides'].includes(s)) return 'especes';
+  if (['carte', 'cb', 'cb bancaire', 'cb bancaire (visa/mastercard)', 'credit card', 'debit card'].includes(s)) return 'carte';
+  if (['cheque', 'chèque', 'cheques', 'chèques'].includes(s)) return 'cheque';
+  if (['virement', 'transfert', 'transfer', 'sepa'].includes(s)) return 'virement';
+  if (['mixte', 'mix', 'multiple', 'multi', 'multi-pay', 'paiement mixte'].includes(s)) return 'mixte';
+  return s || 'autre';
+};
+
+const labelMoyen = (norm) => {
+  switch (norm) {
+    case 'especes': return 'Espèces';
+    case 'carte': return 'Carte';
+    case 'cheque': return 'Chèque';
+    case 'virement': return 'Virement';
+    case 'mixte': return 'Mixte';
+    default: return 'Autre';
+  }
+};
+
+// Ordre "caisse" : ce qui sert le plus remonte en premier
+const ordreCaisse = ['especes', 'carte', 'cheque', 'virement', 'mixte', 'autre'];
+
+const compareTickets = (a, b) => {
+  // --- helpers ---
+  const tsA = new Date(a.date_achat_dt).getTime() || 0;
+  const tsB = new Date(b.date_achat_dt).getTime() || 0;
+
+  // --- TRI PAR MOYEN DE PAIEMENT ---
+  if (triPaiement !== 'none') {
+    const A = normalizeMoyen(a.moyen_paiement);
+    const B = normalizeMoyen(b.moyen_paiement);
+
+    if (triPaiement === 'az') {
+      const cmp = labelMoyen(A).localeCompare(labelMoyen(B), 'fr');
+      if (cmp !== 0) return cmp;
+    } else if (triPaiement === 'za') {
+      const cmp = labelMoyen(B).localeCompare(labelMoyen(A), 'fr');
+      if (cmp !== 0) return cmp;
+    } else if (triPaiement === 'ordre') {
+      const ia = ordreCaisse.indexOf(A) === -1 ? ordreCaisse.length : ordreCaisse.indexOf(A);
+      const ib = ordreCaisse.indexOf(B) === -1 ? ordreCaisse.length : ordreCaisse.indexOf(B);
+      if (ia !== ib) return ia - ib;
+    }
+  }
+
+  // --- TRI PAR TOTAL ---
+  if (triTotal !== 'none') {
+    const A = a.prix_total ?? 0;
+    const B = b.prix_total ?? 0;
+    if (A !== B) return triTotal === 'asc' ? A - B : B - A;
+  }
+
+  // --- TRI PAR DATE ---
+  if (triDate !== 'none') {
+    if (tsA !== tsB) return triDate === 'asc' ? tsA - tsB : tsB - tsA;
+  }
+
+  // --- fallback stable : par #id friendly (ou timestamp) pour éviter des sauts visuels
+  return tsA - tsB;
+};
+
 
   useEffect(() => {
     const fetchBilan = () => {
@@ -67,9 +137,12 @@ const BilanTickets = () => {
     d1.getMonth() === d2.getMonth() &&
     d1.getDate() === d2.getDate();
 
-  const ticketsFiltres = tickets.filter(ticket =>
-    isSameDay(new Date(ticket.date_achat_dt), filtreDate)
-  );
+  const ticketsFiltres = tickets
+  .filter(ticket => isSameDay(new Date(ticket.date_achat_dt), filtreDate))
+  .sort(compareTickets);
+
+
+
 
   const chargerObjets = (uuid_ticket) => {
     if (details[uuid_ticket]) {
@@ -117,6 +190,52 @@ const BilanTickets = () => {
             />
           </div>
         </div>
+        <div className="d-flex flex-wrap align-items-center gap-3 mt-3">
+  <div className="d-flex align-items-center gap-2">
+    <label className="form-label mb-0">Paiement</label>
+    <select
+      className="form-select"
+      style={{ maxWidth: 200 }}
+      value={triPaiement}
+      onChange={(e) => setTriPaiement(e.target.value)}
+    >
+      <option value="none">Aucun</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+      <option value="ordre">Ordre caisse</option>
+    </select>
+  </div>
+
+  <div className="d-flex align-items-center gap-2">
+    <label className="form-label mb-0">Total</label>
+    <select
+      className="form-select"
+      style={{ maxWidth: 160 }}
+      value={triTotal}
+      onChange={(e) => setTriTotal(e.target.value)}
+    >
+      <option value="none">Aucun</option>
+      <option value="asc">↑</option>
+      <option value="desc">↓</option>
+    </select>
+  </div>
+
+  <div className="d-flex align-items-center gap-2">
+    <label className="form-label mb-0">Date</label>
+    <select
+      className="form-select"
+      style={{ maxWidth: 180 }}
+      value={triDate}
+      onChange={(e) => setTriDate(e.target.value)}
+    >
+      <option value="none">Aucun</option>
+      <option value="asc">Ancien → Récent</option>
+      <option value="desc">Récent → Ancien</option>
+    </select>
+  </div>
+</div>
+
+
         {ticketsFiltres.length === 0 ? (
           <div className="alert alert-info mt-4">Aucun ticket pour la date sélectionnée.</div>
         ) : (
@@ -125,9 +244,28 @@ const BilanTickets = () => {
               <tr>
                 <th>#</th>
                 <th>Vendeur</th>
-                <th>Date</th>
-                <th>Mode Paiement</th>
-                <th>Total</th>
+                <th
+                  role="button"
+                  onClick={() => setTriDate(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                  title="Cliquer pour trier par date"
+                >
+                  Date {triDate === 'asc' ? '↑' : triDate === 'desc' ? '↓' : ''}
+                </th>
+                <th
+                  role="button"
+                  onClick={() => setTriPaiement(prev => (prev === 'az' ? 'za' : 'az'))}
+                  title="Cliquer pour trier A→Z / Z→A"
+                >
+                  Mode Paiement {triPaiement === 'az' ? '↑' : triPaiement === 'za' ? '↓' : ''}
+                </th>
+
+                <th
+                  role="button"
+                  onClick={() => setTriTotal(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                  title="Cliquer pour trier par montant"
+                >
+                  Total {triTotal === 'asc' ? '↑' : triTotal === 'desc' ? '↓' : ''}
+                </th>
                 <th>Réduction</th>
                 <th>Type</th>
                 <th></th>
@@ -143,8 +281,8 @@ const BilanTickets = () => {
                   >
                     <td>{ticket.id_friendly}</td>
                     <td>{ticket.nom_vendeur || '—'}</td>
-                    <td>{new Date(ticket.date_achat_dt).toLocaleString()}</td>
-                    <td>{ticket.moyen_paiement || '—'}</td>
+                    <td>{new Date(ticket.date_achat_dt).toLocaleString('fr-FR')}</td>                    
+                    <td>{labelMoyen(normalizeMoyen(ticket.moyen_paiement))}</td>
                     <td>
                       {typeof ticket.prix_total === 'number'
                         ? `${(ticket.prix_total / 100).toFixed(2)} €`
@@ -166,6 +304,7 @@ const BilanTickets = () => {
                     </td>
                     <td>
                       {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&  (
+                        <SiCaisseOuverte uuidSessionCaisseTicket={ticket.uuid_session_caisse}>
                         <Button
                           variant="outline-danger"
                           size="sm"
@@ -176,6 +315,7 @@ const BilanTickets = () => {
                         >
                           ✖
                         </Button>
+                        </SiCaisseOuverte>
                       )}
                       <Button
                         variant="outline-secondary"
@@ -213,7 +353,7 @@ const BilanTickets = () => {
                           id_friendly_corrige={ticket.id_friendly_corrige}
                         />
                         {!ticket.flag_annulation && !ticket.ticket_corrige && !ticket.cloture &&(
-                        
+                          <SiCaisseOuverte uuidSessionCaisseTicket={ticket.uuid_session_caisse}>
                             <Button
                               variant="outline-warning"
                               size="sm"
@@ -225,7 +365,7 @@ const BilanTickets = () => {
                             >
                               Corriger
                             </Button>
-                          
+                          </SiCaisseOuverte>
 
                         )}
                       </td>
@@ -248,13 +388,14 @@ const BilanTickets = () => {
           />
         )}
       </div>
-      {ticketPourEmail && (
-        <div className={`modal fade ${showEmailModal ? 'show d-block' : ''}`} tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+      {showEmailModal && ticketPourEmail && (
+        <div className="modal fade show d-block" tabIndex="-1" role="dialog" aria-modal="true"
+         style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Envoyer le ticket #{ticketPourEmail.id_ticket}</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEmailModal(false)}></button>
+                <button type="button" className="btn-close" onClick={() => { setShowEmailModal(false); setTicketPourEmail(null); }}></button>
               </div>
               <div className="modal-body">
                 <label className="form-label">Adresse e-mail :</label>
@@ -287,13 +428,14 @@ const BilanTickets = () => {
                       );
                       const result = await res.json();
                       if (result.success) {
-                        alert('Ticket envoyé !');
+                        toast.success('Ticket envoyé !');
                         setShowEmailModal(false);
+                        setTicketPourEmail(null);
                       } else {
-                        alert('Échec de l\'envoi');
+                        toast.error('Échec de l\'envoi');
                       }
                     } catch (err) {
-                      alert('Erreur de communication');
+                      toast.error('Erreur de communication');
                       console.error(err);
                     }
                   }}
@@ -306,7 +448,6 @@ const BilanTickets = () => {
         </div>
         // Fin de la modale d'envoi d'email
       )}
-      <ToastContainer position="top-center" autoClose={3000} />
       <FactureModal
         show={showFactureModal}
         onClose={() => setShowFactureModal(false)}
