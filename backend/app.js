@@ -15,7 +15,9 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));          // ajuste selon tes besoins
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
 
 // ✅ Middleware express-session AVANT les routes
 require('dotenv').config(); 
@@ -72,8 +74,7 @@ const friendlyRoutes = require('./routes/friendly.routes');
 
 
 // Montage des routes API
-app.use(express.json({ limit: '20mb' }));          // ajuste selon tes besoins
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+
 app.use('/api/produits', produitsRoutes);
 app.use('/api/ticket', ticketRoutes);
 app.use('/api/valider', validerVenteRoutes);
