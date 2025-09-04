@@ -138,6 +138,9 @@ router.post('/', async (req, res) => {
           AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
         ORDER BY id
       `).all(wnd.startISO, wnd.endISO);
+      console.log(lignes);
+      console.log('taille JSON logs =', new TextEncoder().encode(JSON.stringify(lignes)).length, 'bytes');
+
 
       if (!lignes.length) {
         return res.json({ success: true, message: 'Aucune donnée à envoyer dans cette fenêtre.' });
@@ -158,6 +161,7 @@ router.post('/', async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ logs: lignes }),
     });
+    console.log('Envoi vers principale, status:', demande.status);
     const reponseDemande = await demande.json().catch(() => null);
 
     if (!demande.ok) {
