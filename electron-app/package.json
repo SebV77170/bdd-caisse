@@ -2,6 +2,11 @@
   "name": "bdd-caisse-app",
   "version": "1.1.0",
   "main": "main.js",
+  "description": "Logiciel de caisse de RessourceBrie (Electron + React + Node).",
+  "author": {
+    "name": "Sebastien Voillot",
+    "email": "president@ressourcebrie.fr"
+  },
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
@@ -10,7 +15,7 @@
   },
   "build": {
     "appId": "com.bdd.caisse",
-    "productName": "CaisseRessource",
+    "productName": "Bdd-caisse",
     "files": [
       "main.js",
       "preload.js",
