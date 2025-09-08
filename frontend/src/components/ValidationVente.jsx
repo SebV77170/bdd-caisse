@@ -1,22 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { toast } from 'react-toastify';
 
+const PAYMENT_METHODS = ['especes', 'carte', 'cheque', 'virement'];
+const METHOD_LABELS = {
+  especes: 'Espèces',
+  carte: 'Carte',
+  cheque: 'Chèque',
+  virement: 'Virement',
+};
+
 function ValidationVente({ total, id_temp_vente, onValide }) {
-    const activeSession = useActiveSession();
-  
+  const activeSession = useActiveSession();
   const [reduction, setReduction] = useState('');
   const [reductionsDisponibles, setReductionsDisponibles] = useState([]);
-  const [paiements, setPaiements] = useState([{ moyen: 'carte', montant: (total / 100).toFixed(2).replace('.', ',') }]);
+  const [paiements, setPaiements] = useState([
+    { moyen: 'carte', montant: (total / 100).toFixed(2).replace('.', ',') },
+  ]);
   const [codePostal, setCodePostal] = useState('');
   const [email, setEmail] = useState('');
   const uuidSessionCaisse = activeSession?.uuid_session || null;
 
-  console.log("UUID session caisse en contexte :", uuidSessionCaisse);
+  console.log('UUID session caisse en contexte :', uuidSessionCaisse);
 
+  const parseMontant = (str) => {
+    if (!str) return 0;
+    const normalise = str.replace(',', '.');
+    const nombre = parseFloat(normalise);
+    return isNaN(nombre) ? 0 : Math.round(nombre * 100);
+  };
 
-  const totalAvecReduction = React.useMemo(() => {
+  const totalAvecReduction = useMemo(() => {
     let t = total;
     switch (reduction) {
       case 'trueClient':
@@ -56,31 +71,30 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         setReduction('trueGrosPanierClient');
       }
     }
-  }, [total]);
+  }, [total]); // eslint-disable-line
 
+  // Si un seul paiement, garder l’auto-ajustement sur le montant
   useEffect(() => {
     if (paiements.length === 1) {
       const montantActuel = parseMontant(paiements[0].montant);
       if (montantActuel !== totalAvecReduction) {
-        setPaiements([{
-          ...paiements[0],
-          montant: (totalAvecReduction / 100).toFixed(2).replace('.', ',')
-        }]);
+        setPaiements([
+          {
+            ...paiements[0],
+            montant: (totalAvecReduction / 100).toFixed(2).replace('.', ','),
+          },
+        ]);
       }
     }
-  }, [totalAvecReduction]);
+  }, [totalAvecReduction]); // eslint-disable-line
 
-  const parseMontant = (str) => {
-    if (!str) return 0;
-    const normalise = str.replace(',', '.');
-    const nombre = parseFloat(normalise);
-    return isNaN(nombre) ? 0 : Math.round(nombre * 100);
-  };
+  const totalPaiements = useMemo(
+    () => paiements.reduce((s, p) => s + parseMontant(p.montant), 0),
+    [paiements]
+  );
 
-  const totalPaiements = paiements.reduce((s, p) => s + parseMontant(p.montant), 0);
-
-  const corrigerTotalPaiementsExact = (paiementsModifiés) => {
-    const copie = [...paiementsModifiés];
+  const corrigerTotalPaiementsExact = (paiementsModifies) => {
+    const copie = [...paiementsModifies];
     const totalCents = copie.reduce((s, p) => s + parseMontant(p.montant), 0);
     const delta = totalAvecReduction - totalCents;
 
@@ -94,8 +108,40 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     return copie;
   };
 
+  // Moyens déjà utilisés (optionnellement en excluant une ligne)
+  const usedMethods = (exceptIndex = null) => {
+    return paiements
+      .map((p, i) => (i === exceptIndex ? null : p.moyen))
+      .filter(Boolean);
+  };
+
+  // Options disponibles pour une ligne donnée (garde la valeur courante même si déjà utilisée ailleurs)
+  const optionsForIndex = (index) => {
+    const used = new Set(usedMethods(index));
+    const current = paiements[index]?.moyen || null;
+    return PAYMENT_METHODS.filter((m) => m === current || !used.has(m));
+  };
+
   const ajouterPaiement = () => {
-    setPaiements([...paiements, { moyen: '', montant: '' }]);
+    // Chercher le premier moyen non utilisé
+    const used = new Set(usedMethods());
+    const next = PAYMENT_METHODS.find((m) => !used.has(m));
+
+    if (!next) {
+      toast.info('Tous les moyens de paiement sont déjà sélectionnés.');
+      return;
+    }
+
+    // Pré-remplir avec le reste à payer
+    const reste = Math.max(totalAvecReduction - totalPaiements, 0);
+    const nouveau = {
+      moyen: next,
+      montant: (reste / 100).toFixed(2).replace('.', ','),
+    };
+
+    // Ajuste précisément le dernier paiement (le nouveau)
+    const corriges = corrigerTotalPaiementsExact([...paiements, nouveau]);
+    setPaiements(corriges);
   };
 
   const supprimerPaiement = (index) => {
@@ -106,14 +152,24 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
 
   const modifierPaiement = (index, champ, valeur) => {
     const copie = [...paiements];
+
+    if (champ === 'moyen') {
+      // Empêche la sélection d’un doublon (sécurité supplémentaire)
+      const dejaPris = usedMethods(index);
+      if (dejaPris.includes(valeur)) {
+        toast.warn('Ce moyen est déjà utilisé.');
+        return;
+      }
+    }
+
     copie[index][champ] = valeur;
-    const corrigé = corrigerTotalPaiementsExact(copie);
-    setPaiements(corrigé);
+    const corrige = corrigerTotalPaiementsExact(copie);
+    setPaiements(corrige);
   };
 
   const validerVente = () => {
     if (!activeSession || !uuidSessionCaisse) {
-      toast.error("Aucune session caisse ouverte !");
+      toast.error('Aucune session caisse ouverte !');
       return;
     }
 
@@ -122,9 +178,9 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       return;
     }
 
-    const paiementsCentimes = paiements.map(p => ({
+    const paiementsCentimes = paiements.map((p) => ({
       moyen: p.moyen,
-      montant: parseMontant(p.montant)
+      montant: parseMontant(p.montant),
     }));
 
     const data = {
@@ -133,17 +189,17 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       reductionType: reduction || null,
       paiements: paiementsCentimes,
       code_postal: codePostal || null,
-      email: email || null
+      email: email || null,
     };
 
     fetch('http://localhost:3001/api/valider', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     })
-      .then(res => res.json())
-      .then(result => {
+      .then((res) => res.json())
+      .then((result) => {
         console.log('Résultat serveur :', result);
         if (result.success) {
           toast.success('Vente validée avec succès');
@@ -155,22 +211,17 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
             toast.success(`Un ticket sera envoyé à : ${email}`);
           }
 
-  window.electron?.ensureInteractiveLight?.();
-
-          
+          window.electron?.ensureInteractiveLight?.();
           onValide();
 
           requestAnimationFrame(() => {
-    window.electron?.ensureInteractiveRaise?.();
-    // Évite window.focus() ici si tu as encore DevTools : ça peut voler/renvoyer le focus
-    // window.focus();
-  });
-          
+            window.electron?.ensureInteractiveRaise?.();
+          });
         } else {
           toast.error('Erreur pendant validation');
         }
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Erreur lors de la validation', err);
         toast.error('Erreur de communication');
       });
@@ -183,12 +234,12 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         <div className="d-flex gap-2">
           <TactileInput
             type="text"
-            isDecimal='true'
+            isDecimal="true"
             className="form-control form-control-sm"
             style={{ maxWidth: '100px' }}
             placeholder="Code postal"
             value={codePostal}
-            onChange={e => setCodePostal(e.target.value)}
+            onChange={(e) => setCodePostal(e.target.value)}
           />
           <TactileInput
             type="email"
@@ -196,7 +247,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
             style={{ maxWidth: '180px' }}
             placeholder="email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
           />
         </div>
       </div>
@@ -205,8 +256,10 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         <label>Réduction :</label>
         <select className="form-select" value={reduction} onChange={(e) => setReduction(e.target.value)}>
           <option value="">Aucune</option>
-          {reductionsDisponibles.map(red => (
-            <option key={red.value} value={red.value}>{red.label}</option>
+          {reductionsDisponibles.map((red) => (
+            <option key={red.value} value={red.value}>
+              {red.label}
+            </option>
           ))}
         </select>
       </div>
@@ -220,21 +273,24 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
             <select
               className="form-select me-2"
               value={p.moyen}
-              onChange={e => modifierPaiement(index, 'moyen', e.target.value)}
+              onChange={(e) => modifierPaiement(index, 'moyen', e.target.value)}
             >
-              <option value="especes">Espèces</option>
-              <option value="carte">Carte</option>
-              <option value="cheque">Chèque</option>
-              <option value="virement">Virement</option>
+              {optionsForIndex(index).map((m) => (
+                <option key={m} value={m}>
+                  {METHOD_LABELS[m]}
+                </option>
+              ))}
             </select>
+
             <TactileInput
               type="text"
-              isDecimal='true'
+              isDecimal="true"
               className="form-control me-2"
               placeholder="Montant en euros"
               value={p.montant}
-              onChange={e => modifierPaiement(index, 'montant', e.target.value)}
+              onChange={(e) => modifierPaiement(index, 'montant', e.target.value)}
             />
+
             {paiements.length > 1 && (
               <button
                 className="btn btn-outline-danger"
@@ -246,12 +302,16 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
             )}
           </div>
         ))}
-        <button className="btn btn-sm btn-secondary w-100 mt-2" onClick={ajouterPaiement}>+ Ajouter un paiement</button>
+        <button className="btn btn-sm btn-secondary w-100 mt-2" onClick={ajouterPaiement}>
+          + Ajouter un paiement
+        </button>
       </div>
 
       <div>Total saisi : {(totalPaiements / 100).toFixed(2)} €</div>
 
-      <button className="btn btn-success w-100 mt-3" onClick={validerVente}>Valider la vente</button>
+      <button className="btn btn-success w-100 mt-3" onClick={validerVente}>
+        Valider la vente
+      </button>
     </div>
   );
 }

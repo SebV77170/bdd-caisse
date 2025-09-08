@@ -10,6 +10,12 @@ import { toast } from 'react-toastify';
 
 // --- Helpers paiements (placer avant function CorrectionModal)
 const MOYENS = ['espece', 'carte', 'cheque', 'virement'];
+const METHOD_LABELS = { // NEW
+  espece: 'Espèces',
+  carte: 'Carte',
+  cheque: 'Chèque',
+  virement: 'Virement',
+};
 
 function normalizeMoyen(m) {
   if (!m) return '';
@@ -150,6 +156,17 @@ const sessionCaisseOuverte = !!activeSession;
 const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticketOriginal));
 
 
+// --- Helpers "anti-doublons" --- // NEW
+  const usedMethods = (exceptIndex = null) =>
+    paiements
+      .map((p, i) => (i === exceptIndex ? null : normalizeMoyen(p.moyen)))
+      .filter(Boolean);
+
+  const optionsForIndex = (index) => {
+    const used = new Set(usedMethods(index));
+    const current = normalizeMoyen(paiements[index]?.moyen || '');
+    return MOYENS.filter((m) => m === current || !used.has(m));
+  };
 
   const totalAvant = correctionsInitiales.reduce((sum, a) => sum + a.prix * a.nbr, 0);
 
@@ -261,10 +278,10 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
   // New functions for managing payments (copied and adapted from ValidationVente)
   const totalPaiements = paiements.reduce((s, p) => s + parseMontant(p.montant), 0);
 
-  const corrigerTotalPaiementsExact = (paiementsModifiés) => {
+ const corrigerTotalPaiementsExact = (paiementsModifiés) => {
     const copie = [...paiementsModifiés];
     const totalCents = copie.reduce((s, p) => s + parseMontant(p.montant), 0);
-    const delta = totalCorrige - totalCents; // Use totalCorrige here
+    const delta = totalCorrige - totalCents;
 
     if (copie.length === 0) return copie;
 
@@ -276,8 +293,20 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
     return copie;
   };
 
-  const ajouterPaiement = () => {
-    setPaiements([...paiements, { moyen: '', montant: '' }]);
+   const ajouterPaiement = () => {
+    const used = new Set(usedMethods());
+    const next = MOYENS.find((m) => !used.has(m));
+    if (!next) {
+      toast.info('Tous les moyens de paiement sont déjà sélectionnés.');
+      return;
+    }
+    const reste = Math.max(totalCorrige - totalPaiements, 0);
+    const nouveau = {
+      moyen: next,
+      montant: (reste / 100).toFixed(2).replace('.', ','),
+    };
+    const corriges = corrigerTotalPaiementsExact([...paiements, nouveau]);
+    setPaiements(corriges);
   };
 
   const supprimerPaiement = (index) => {
@@ -287,11 +316,23 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
   };
 
   const modifierPaiement = (index, champ, valeur) => {
-  const copie = [...paiements];
-  copie[index][champ] = (champ === 'moyen') ? normalizeMoyen(valeur) : valeur;
-  const corrige = corrigerTotalPaiementsExact(copie);
-  setPaiements(corrige);
-};
+    const copie = [...paiements];
+
+    if (champ === 'moyen') {
+      const valNorm = normalizeMoyen(valeur);
+      const dejaPris = usedMethods(index);
+      if (dejaPris.includes(valNorm)) {
+        toast.warn('Ce moyen est déjà utilisé.');
+        return;
+      }
+      copie[index][champ] = valNorm;
+    } else {
+      copie[index][champ] = valeur;
+    }
+
+    const corrige = corrigerTotalPaiementsExact(copie);
+    setPaiements(corrige);
+  };
 
 
   useEffect(() => {
@@ -451,45 +492,47 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
             <strong>Total après correction :</strong> {(totalCorrige / 100).toFixed(2)} €
           </div>
 
-          {/* Payment selection logic */}
-          <div className="mb-2 mt-3">
-            <Form.Label>Modes de paiement :</Form.Label>
-            {paiements.map((p, index) => (
-              <div className="d-flex mb-1" key={index}>
-                <Form.Select
-                  className="me-2"
-                  value={normalizeMoyen(p.moyen)}
-                  onChange={e => modifierPaiement(index, 'moyen', normalizeMoyen(e.target.value))}
-                >
-                  <option value="espece">Espèces</option>
-                  <option value="carte">Carte</option>
-                  <option value="cheque">Chèque</option>
-                  <option value="virement">Virement</option>
-                </Form.Select>
+            {/* Payment selection logic */}
+  <div className="mb-2 mt-3">
+    <Form.Label>Modes de paiement :</Form.Label>
+    {paiements.map((p, index) => (
+      <div className="d-flex mb-1" key={index}>
+        {/* ⬇️ REMPLACER les <option> statiques par ceci */}  {/* NEW */}
+        <Form.Select
+          className="me-2"
+          value={normalizeMoyen(p.moyen)}
+          onChange={e => modifierPaiement(index, 'moyen', e.target.value)}
+        >
+          {optionsForIndex(index).map((m) => (
+            <option key={m} value={m}>{METHOD_LABELS[m]}</option>
+          ))}
+        </Form.Select>
 
-                <TactileInput
-                  type="number"
-                  step="0.01"
-                  className="form-control"
-                  placeholder="Montant en euros"
-                  value={p.montant?.replace(',', '.')}  // ⬅️ convertir pour l’affichage
-                  onChange={e => modifierPaiement(index, 'montant', e.target.value)}
-                />
+        <TactileInput
+          type="number"
+          step="0.01"
+          className="form-control"
+          placeholder="Montant en euros"
+          value={p.montant?.replace(',', '.')}
+          onChange={e => modifierPaiement(index, 'montant', e.target.value)}
+        />
 
-                {paiements.length > 1 && (
-                  <Button
-                    variant="outline-danger"
-                    onClick={() => supprimerPaiement(index)}
-                    title="Supprimer ce paiement"
-                    className="ms-2"
-                  >
-                    ❌
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button size="sm" variant="secondary" className="w-100 mt-2" onClick={ajouterPaiement}>+ Ajouter un paiement</Button>
-          </div>
+        {paiements.length > 1 && (
+          <Button
+            variant="outline-danger"
+            onClick={() => supprimerPaiement(index)}
+            title="Supprimer ce paiement"
+            className="ms-2"
+          >
+            ❌
+          </Button>
+        )}
+      </div>
+    ))}
+    <Button size="sm" variant="secondary" className="w-100 mt-2" onClick={ajouterPaiement}>
+      + Ajouter un paiement
+    </Button>
+  </div>
           <div>Total saisi pour les paiements : {(totalPaiements / 100).toFixed(2)} €</div>
 
 
