@@ -460,7 +460,6 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
                   value={normalizeMoyen(p.moyen)}
                   onChange={e => modifierPaiement(index, 'moyen', normalizeMoyen(e.target.value))}
                 >
-                  <option value="">Mode...</option>
                   <option value="espece">Espèces</option>
                   <option value="carte">Carte</option>
                   <option value="cheque">Chèque</option>

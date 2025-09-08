@@ -221,7 +221,6 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
               value={p.moyen}
               onChange={e => modifierPaiement(index, 'moyen', e.target.value)}
             >
-              <option value="">Mode...</option>
               <option value="especes">Espèces</option>
               <option value="carte">Carte</option>
               <option value="cheque">Chèque</option>
