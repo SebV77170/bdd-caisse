@@ -12,6 +12,8 @@ import { euro } from '../utils/euro';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 import SiCaisseSecondaire from '../utils/SiCaisseSecondaire';
 import ResponsableForm from "../components/ResponsableForm";
+import { eurosStringToCents } from '../utils/money';
+
 
 
 // Composant principal pour la fermeture de caisse
@@ -44,7 +46,7 @@ function FermetureCaisse() {
 
     // Vérifie qu'une session caisse est ouverte
     if (!sessionCaisseOuverte || !uuidSessionCaisse) {
-      alert("Aucune session caisse ouverte !");
+      toast.error("Aucune session caisse ouverte !");
       return;
     }
 
@@ -249,6 +251,7 @@ function FermetureCaisse() {
                 <TactileInput
                   type="number"
                   value={montantReel}
+                  isDecimal={true}
                   onChange={(e) => setMontantReel(e.target.value)}
                   required={!useCompteEspeces}     // requis seulement en mode manuel
                 />
@@ -269,6 +272,7 @@ function FermetureCaisse() {
             <TactileInput
               type="number"
               value={montantReelCheque}
+              isDecimal={true}
               onChange={(e) => setMontantReelCheque(e.target.value)}
               required
             />
@@ -278,6 +282,7 @@ function FermetureCaisse() {
             <TactileInput
               type="number"
               value={montantReelVirement}
+              isDecimal={true}
               onChange={(e) => setMontantReelVirement(e.target.value)}
               required
             />
@@ -285,28 +290,33 @@ function FermetureCaisse() {
           {/* Affiche les écarts entre attendu et réel */}
           <AffichageEcarts
             attendu={{
-              espece: (attendu?.espece + fondInitial*100 ?? 0),
-              carte: (attendu?.carte ?? 0),
+              espece: (attendu?.espece ?? 0) + Math.round((fondInitial ?? 0) * 100),
+              carte:  (attendu?.carte  ?? 0),
               cheque: (attendu?.cheque ?? 0),
-              virement: (attendu?.virement ?? 0),
+              virement:(attendu?.virement ?? 0),
             }}
             reel={{
-              espece: montantReel*100,           // en centimes
-              carte: montantReelCarte*100,
-              cheque: montantReelCheque*100,
-              virement: montantReelVirement*100
+              espece:   eurosStringToCents(montantReel),
+              carte:    eurosStringToCents(montantReelCarte),
+              cheque:   eurosStringToCents(montantReelCheque),
+              virement: eurosStringToCents(montantReelVirement),
             }}
-            fondInitial={fondInitial*100}
+            fondInitial={Math.round((fondInitial ?? 0) * 100)}
           />
-          <div>
-            <label>Commentaire (facultatif) :</label><br />
-            <TactileInput
-              as="textarea"
+          <div className="mb-3">
+            <label htmlFor="commentaire" className="form-label">
+              Commentaire (facultatif) :
+            </label>
+            <textarea
+              id="commentaire"
+              className="form-control"
               value={commentaire}
               onChange={(e) => setCommentaire(e.target.value)}
               placeholder="Votre message"
+              rows={4}
             />
           </div>
+
           <ResponsableForm title = "Identification du responsable"
             responsablePseudo={responsablePseudo}
             setResponsablePseudo={setResponsablePseudo}
@@ -323,15 +333,20 @@ function FermetureCaisse() {
              {/* Formulaire de fermeture de caisse */}
         <form onSubmit={handleSubmitSecondaire}>
           
-          <div>
-            <label>Commentaire (facultatif) :</label><br />
-            <TactileInput
-              as="textarea"
+          <div className="mb-3">
+            <label htmlFor="commentaire2" className="form-label">
+              Commentaire (facultatif) :
+            </label>
+            <textarea
+              id="commentaire2"
+              className="form-control"
               value={commentaire}
               onChange={(e) => setCommentaire(e.target.value)}
               placeholder="Votre message"
+              rows={4}
             />
           </div>
+
           <ResponsableForm title = "Identification du responsable"
             responsablePseudo={responsablePseudo}
             setResponsablePseudo={setResponsablePseudo}

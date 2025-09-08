@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
+import { toast } from 'react-toastify';
 
 function ValidationVente({ total, id_temp_vente, onValide }) {
     const activeSession = useActiveSession();
@@ -112,12 +113,12 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
 
   const validerVente = () => {
     if (!activeSession || !uuidSessionCaisse) {
-      alert("Aucune session caisse ouverte !");
+      toast.error("Aucune session caisse ouverte !");
       return;
     }
 
     if (totalPaiements !== totalAvecReduction) {
-      alert('Le total des paiements ne correspond pas au montant à payer.');
+      toast.error('Le total des paiements ne correspond pas au montant à payer.');
       return;
     }
 
@@ -145,13 +146,13 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       .then(result => {
         console.log('Résultat serveur :', result);
         if (result.success) {
-          alert('Vente validée avec succès');
+          toast.success('Vente validée avec succès');
           if (!reduction) {
             const tampons = Math.floor(totalAvecReduction / 500);
-            alert(`Ajoutez ${tampons} tampon(s) sur la carte de fidélité`);
+            toast.success(`Ajoutez ${tampons} tampon(s) sur la carte de fidélité`);
           }
           if (email) {
-            alert(`Un ticket sera envoyé à : ${email}`);
+            toast.success(`Un ticket sera envoyé à : ${email}`);
           }
 
   window.electron?.ensureInteractiveLight?.();
@@ -166,12 +167,12 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   });
           
         } else {
-          alert('Erreur pendant validation');
+          toast.error('Erreur pendant validation');
         }
       })
       .catch(err => {
         console.error('Erreur lors de la validation', err);
-        alert('Erreur de communication');
+        toast.error('Erreur de communication');
       });
   };
 
