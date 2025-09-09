@@ -239,6 +239,12 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     validerVente(unique);
   };
 
+  let nombreTampons = 0;
+  if (total < 5000) {
+    nombreTampons = Math.floor(total / 500); // équiv. à Math.floor((total/100)/5)
+  }
+
+
   const formulairePaiements = (
     <div className="mb-2">
       <label>Paiements :</label>
@@ -320,6 +326,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       </div>
 
       <div>Total à payer après réduction : {(totalAvecReduction / 100).toFixed(2)} €</div>
+      <div>Nombre de tampons à ajouter : {nombreTampons}</div>
 
       {modePaiementBoutons ? (
         <>
