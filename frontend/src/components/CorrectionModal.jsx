@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import CategorieSelector from './CategorieSelector';
 import BoutonsCaisse from './BoutonsCaisse';
@@ -26,6 +26,17 @@ function normalizeMoyen(m) {
   if (x.startsWith('vir')) return 'virement';
   return x;
 }
+
+const MOTIFS_PREDEFINIS = [
+  "Erreur de saisie du mode de paiement",
+  "Erreur de saisie de la réduction",
+  "Erreur de quantité",
+  "Erreur de prix",
+  "Changement de moyen de paiement après refus CB",
+  "Oublie d'un article",
+  "Article en trop",
+];
+const AUTRE_VALUE = "__autre__"
 
 function toEurosString(cents) {
   const n = Number.isFinite(cents) ? cents : 0;
@@ -154,6 +165,12 @@ const sessionCaisseOuverte = !!activeSession;
   // Change moyenPaiement to an array of payment objects, similar to ValidationVente
   // Remplace tout le bloc useState initial de paiements
 const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticketOriginal));
+// --- Motif (prédéfini / autre)
+const [motifSelect, setMotifSelect] = useState('');
+const [showMotifModal, setShowMotifModal] = useState(false);
+const [motifCustom, setMotifCustom] = useState('');
+const prevMotifSelect = useRef('');
+
 
 
 // --- Helpers "anti-doublons" --- // NEW
@@ -194,6 +211,8 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
     setCorrectionsInitiales((ticketOriginal.objets || []).map(obj => ({ ...obj })));
     setArticlesSupprimes([]);
     setMotif('');
+    setMotifSelect('');
+    setMotifCustom('');
     setLoading(false);
 
     setPaiements(buildPaiementsFromTicket(ticketOriginal));
@@ -211,6 +230,38 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
     setReductionOriginale(red);
     setReductionType(red || '');
   }, [ticketOriginal]);
+
+  const handleMotifSelectChange = (e) => {
+  const val = e.target.value;
+  if (val === AUTRE_VALUE) {
+    // On mémorise la sélection précédente pour pouvoir revenir en arrière si annulation
+    prevMotifSelect.current = motifSelect || '';
+    setMotifSelect(AUTRE_VALUE);
+    setMotifCustom(motif || '');
+    setShowMotifModal(true);
+  } else {
+    setMotifSelect(val);
+    setMotif(val); // on copie le libellé choisi dans le champ 'motif' existant
+  }
+};
+
+const handleConfirmCustomMotif = () => {
+  const txt = (motifCustom || '').trim();
+  if (!txt) {
+    toast.warn('Merci de saisir un motif personnalisé.');
+    return;
+  }
+  setMotif(txt);
+  setShowMotifModal(false);
+  setMotifSelect(AUTRE_VALUE); // on laisse "Autre..." sélectionné
+};
+
+const handleCancelCustomMotif = () => {
+  setShowMotifModal(false);
+  // Revenir à la sélection précédente si on annule
+  setMotifSelect(prevMotifSelect.current || '');
+};
+
 
   // Helper function to parse amount string to cents
   const parseMontant = (str) => {
@@ -548,17 +599,39 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
           </Form.Group>
 
           <Form.Group className="mt-3">
-            <Form.Label>Motif de correction</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={2}
-              className="form-control"
-              value={motif}
-              onChange={(e) => setMotif(e.target.value)}
-              placeholder="Exemple : erreur de quantité saisie par le caissier"
-              required
-            />
-          </Form.Group>
+  <Form.Label>Motif de correction</Form.Label>
+
+  <Form.Select
+    value={motifSelect}
+    onChange={handleMotifSelectChange}
+    aria-label="Sélectionnez un motif de correction"
+  >
+    <option value="">— Sélectionner un motif —</option>
+    {MOTIFS_PREDEFINIS.map((m) => (
+      <option key={m} value={m}>{m}</option>
+    ))}
+    <option value={AUTRE_VALUE}>Autre…</option>
+  </Form.Select>
+
+  {/* Affiche un aperçu si "Autre…" est sélectionné */}
+  {motifSelect === AUTRE_VALUE && motif && (
+    <div className="form-text mt-1">
+      Motif personnalisé : « {motif} »
+      <Button
+        variant="link"
+        className="p-0 ms-2 align-baseline"
+        onClick={() => {
+          prevMotifSelect.current = AUTRE_VALUE;
+          setMotifCustom(motif || '');
+          setShowMotifModal(true);
+        }}
+      >
+        modifier
+      </Button>
+    </div>
+  )}
+</Form.Group>
+
 
           <ResponsableForm title = "Identification du responsable"
             responsablePseudo={responsablePseudo}
@@ -602,6 +675,32 @@ const [paiements, setPaiements] = useState(() => buildPaiementsFromTicket(ticket
           </div>
         </Modal.Body>
       </Modal>
+      <Modal show={showMotifModal} onHide={handleCancelCustomMotif} size="md" backdrop="static">
+  <Modal.Header closeButton>
+    <Modal.Title>Autre motif</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <Form.Group>
+      <Form.Label>Décrivez le motif</Form.Label>
+      <Form.Control
+        as="textarea"
+        rows={3}
+        value={motifCustom}
+        onChange={(e) => setMotifCustom(e.target.value)}
+        placeholder="Exemple : erreur de saisie du libellé de l'article"
+        autoFocus
+      />
+      <div className="form-text">
+        Ce texte sera enregistré comme motif de correction.
+      </div>
+    </Form.Group>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={handleCancelCustomMotif}>Annuler</Button>
+    <Button variant="primary" onClick={handleConfirmCustomMotif}>Utiliser ce motif</Button>
+  </Modal.Footer>
+</Modal>
+
     </>
   );
 }
