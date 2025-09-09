@@ -2,6 +2,8 @@ import React, { useEffect, useState, useCallback, useRef, useContext } from 'rea
 import { Table, Button, Form, Spinner } from 'react-bootstrap';
 import TactileInput from '../components/TactileInput';
 import { ModeTactileContext } from '../contexts/ModeTactileContext';
+import { useConfirm } from "../contexts/ConfirmContext";
+
 
 const api = 'http://localhost:3001';
 
@@ -24,6 +26,7 @@ const BoutonsManager = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newBouton, setNewBouton] = useState({ nom: '', prix: '', id_cat: '', id_souscat: '' });
+  const confirm = useConfirm();
 
   // refs par ligne (par id_bouton)
   const prixRef = useRef({});
@@ -94,8 +97,15 @@ const BoutonsManager = () => {
   };
 
   // --- DELETE
-  const deleteBouton = async (id) => {
-    if (!window.confirm('Supprimer ce bouton ?')) return;
+ const deleteBouton = async (id) => {
+    const ok = await confirm({
+      title: "Supprimer le bouton",
+      message: "Confirmer la suppression de ce bouton ?",
+      confirmText: "Supprimer",
+      cancelText: "Annuler",
+      variant: "danger",
+    });
+    if (!ok) return;
     await fetch(`${api}/api/boutons/${id}`, { method: 'DELETE' });
     await refetchBoutons();
   };

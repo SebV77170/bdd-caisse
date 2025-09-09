@@ -1,11 +1,14 @@
 import React, { useRef, useContext } from 'react';
 import TactileInput from './TactileInput';
 import { ModeTactileContext } from '../contexts/ModeTactileContext';
+import { useConfirm } from "../contexts/ConfirmContext";
+
 
 function TicketVente({ ticket, onChange, onDelete, onSave }) {
   const prixRef = useRef({});
   const nbrRef = useRef({});
   const { modeTactile } = useContext(ModeTactileContext);
+  const confirm = useConfirm();
 
   const handleSavePrix = async (id, rawValue) => {
     if (!rawValue || rawValue.trim() === '') return;
@@ -56,9 +59,15 @@ function TicketVente({ ticket, onChange, onDelete, onSave }) {
               {/* Ligne du haut : nom + corbeille */}
               <div className="ticket-name-top">
                 <button
-                  className="btn btn-outline-danger btn-sm"
-                  onClick={() => {
-                    if (window.confirm(`Supprimer "${item.nom}" ?`)) onDelete(item.id);
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "Supprimer",
+                      message: `Supprimer "${item.nom}" ?`,
+                      confirmText: "Supprimer",
+                      cancelText: "Annuler",
+                      variant: "danger",
+                    });
+                    if (ok) onDelete(item.id);
                   }}
                 >
                   🗑️

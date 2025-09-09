@@ -9,6 +9,7 @@ import ValidationVente from '../components/ValidationVente';
 import { toast } from 'react-toastify';
 import { useLocation, Link } from 'react-router-dom';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
+import { useConfirm } from "../contexts/ConfirmContext";
 
 
 function Caisse() {
@@ -114,10 +115,18 @@ function Caisse() {
     chargerTicket();
   };
 
-  const annulerVente = () => {
+  const confirm = useConfirm();
+
+   const annulerVente = async () => {
     if (!venteActive) return;
-    const confirmer = window.confirm("Confirmer l'annulation de la vente ?");
-    if (!confirmer) return;
+    const ok = await confirm({
+      title: "Annuler la vente",
+      message: "Confirmer l'annulation de la vente ?",
+      confirmText: "Oui, annuler",
+      cancelText: "Non",
+      variant: "warning",
+    });
+    if (!ok) return;
 
     fetch(`http://localhost:3001/api/ventes/${venteActive}`, {
       method: 'DELETE'

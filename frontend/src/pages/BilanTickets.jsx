@@ -11,8 +11,8 @@ import { Button } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import FactureModal from '../components/factureModal';
-import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 import SiCaisseOuverte from '../utils/SiCaisseOuverte';
+import { useConfirm } from "../contexts/ConfirmContext";
 
 const socket = io('http://localhost:3001');
 
@@ -35,6 +35,7 @@ const BilanTickets = () => {
   const [triPaiement, setTriPaiement] = useState('none'); 
   const [triTotal, setTriTotal] = useState('none'); 
   const [triDate, setTriDate] = useState('none'); 
+  const confirm = useConfirm();
 
 
   const normalizeMoyen = (raw) => {
@@ -161,8 +162,15 @@ const compareTickets = (a, b) => {
   };
 
   const supprimerTicket = async (uuid_ticket) => {
-    if (!window.confirm("Confirmer la suppression de ce ticket ?")) return;
-    try {
+      const ok = await confirm({
+        title: "Supprimer le ticket",
+        message: "Confirmer la suppression de ce ticket ?",
+        confirmText: "Supprimer",
+        cancelText: "Annuler",
+        variant: "danger",
+      });
+      if (!ok) return;    
+      try {
       const res = await fetch(`http://localhost:3001/api/correction/${uuid_ticket}/supprimer`, {
         method: 'POST'
       });
