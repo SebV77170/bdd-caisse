@@ -3,7 +3,6 @@ import { Form, Button, Collapse } from 'react-bootstrap';
 import BoutonsManager from '../components/BoutonsManager';
 import ResetButton from '../components/ResetButton';
 import DevModeToggle from '../components/DevModeToggle';
-import ModeTactileToggle from '../components/ModeTactileToggle';
 import DevModeModal from '../components/DevModeModal';
 import { useContext } from 'react';
 import { DevModeContext } from '../contexts/DevModeContext';
@@ -225,14 +224,6 @@ const [showBoutons, setShowBoutons] = useState(false);
             <BoutonsManager />
           </div>
         </Collapse>
-
-        <hr />
-
-        <h4>🖐️ Options d'affichage</h4>
-        <p>Activer le mode tactile</p>
-        <div className="d-flex gap-3 mb-3">
-          <ModeTactileToggle />
-        </div>
 
         <hr />
 

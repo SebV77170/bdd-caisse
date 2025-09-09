@@ -5,6 +5,7 @@ import { DevModeContext } from '../contexts/DevModeContext';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useSession } from '../contexts/SessionContext';
 import { ModePaiementBoutonsContext } from '../contexts/ModePaiementBoutonsContext';
+import ModeTactileToggle from './ModeTactileToggle';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 const socket = io('http://localhost:3001');
@@ -89,7 +90,7 @@ function MainNavbar() {
           </div>
 
           <div className="d-flex align-items-center ms-auto">
-
+            <ModeTactileToggle />
             <div className="form-check form-switch text-white me-2">
               <input
                 className="form-check-input"

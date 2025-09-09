@@ -5,7 +5,7 @@ const ModeTactileToggle = () => {
   const { modeTactile, setModeTactile } = useContext(ModeTactileContext);
 
   return (
-    <div className="form-check form-switch ms-2">
+    <div className="form-check form-switch text-white me-2">
       <input
         className="form-check-input"
         type="checkbox"
@@ -14,7 +14,7 @@ const ModeTactileToggle = () => {
         checked={modeTactile}
         onChange={() => setModeTactile(prev => !prev)}
       />
-      <label className="form-check-label text-white" htmlFor="modeTactileSwitch">
+      <label className="form-check-label" htmlFor="modeTactileSwitch">
         🖐️
       </label>
     </div>
