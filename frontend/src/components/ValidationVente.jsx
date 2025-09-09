@@ -26,14 +26,17 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   const [showMixte, setShowMixte] = useState(false);
   const uuidSessionCaisse = activeSession?.uuid_session || null;
 
-  console.log('UUID session caisse en contexte :', uuidSessionCaisse);
+  // 💶 ESPÈCES — états modale/calculette
+  const [showCash, setShowCash] = useState(false);
+  const [montantDonne, setMontantDonne] = useState(''); // string "12,34"
 
   const parseMontant = (str) => {
     if (!str) return 0;
-    const normalise = str.replace(',', '.');
+    const normalise = String(str).replace(',', '.');
     const nombre = parseFloat(normalise);
     return isNaN(nombre) ? 0 : Math.round(nombre * 100);
   };
+  const fmtEuros = (cents) => (cents / 100).toFixed(2).replace('.', ',');
 
   const totalAvecReduction = useMemo(() => {
     let t = total;
@@ -71,9 +74,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         { value: 'trueGrosPanierBene', label: 'Gros Panier Bénévole (-20%)' },
       ];
       setReductionsDisponibles(grosPanier);
-      if (!reduction) {
-        setReduction('trueGrosPanierClient');
-      }
+      if (!reduction) setReduction('trueGrosPanierClient');
     }
   }, [total]); // eslint-disable-line
 
@@ -85,7 +86,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         setPaiements([
           {
             ...paiements[0],
-            montant: (totalAvecReduction / 100).toFixed(2).replace('.', ','),
+            montant: fmtEuros(totalAvecReduction),
           },
         ]);
       }
@@ -108,7 +109,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     const montantDernier = parseMontant(copie[dernierIndex].montant);
     const nouveauMontant = Math.max(montantDernier + delta, 0);
 
-    copie[dernierIndex].montant = (nouveauMontant / 100).toFixed(2).replace('.', ',');
+    copie[dernierIndex].montant = fmtEuros(nouveauMontant);
     return copie;
   };
 
@@ -119,7 +120,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       .filter(Boolean);
   };
 
-  // Options disponibles pour une ligne donnée (garde la valeur courante même si déjà utilisée ailleurs)
+  // Options disponibles pour une ligne donnée
   const optionsForIndex = (index) => {
     const used = new Set(usedMethods(index));
     const current = paiements[index]?.moyen || null;
@@ -127,7 +128,6 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   };
 
   const ajouterPaiement = () => {
-    // Chercher le premier moyen non utilisé
     const used = new Set(usedMethods());
     const next = PAYMENT_METHODS.find((m) => !used.has(m));
 
@@ -136,14 +136,12 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       return;
     }
 
-    // Pré-remplir avec le reste à payer
     const reste = Math.max(totalAvecReduction - totalPaiements, 0);
     const nouveau = {
       moyen: next,
-      montant: (reste / 100).toFixed(2).replace('.', ','),
+      montant: fmtEuros(reste),
     };
 
-    // Ajuste précisément le dernier paiement (le nouveau)
     const corriges = corrigerTotalPaiementsExact([...paiements, nouveau]);
     setPaiements(corriges);
   };
@@ -158,7 +156,6 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     const copie = [...paiements];
 
     if (champ === 'moyen') {
-      // Empêche la sélection d’un doublon (sécurité supplémentaire)
       const dejaPris = usedMethods(index);
       if (dejaPris.includes(valeur)) {
         toast.warn('Ce moyen est déjà utilisé.');
@@ -234,16 +231,49 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
 
   const validerPaiementDirect = (moyen) => {
     const unique = [
-      { moyen, montant: (totalAvecReduction / 100).toFixed(2).replace('.', ',') },
+      { moyen, montant: fmtEuros(totalAvecReduction) },
     ];
     validerVente(unique);
   };
 
   let nombreTampons = 0;
   if (total < 5000) {
-    nombreTampons = Math.floor(total / 500); // équiv. à Math.floor((total/100)/5)
+    nombreTampons = Math.floor(total / 500);
   }
 
+  // 🧮💶 ==================  Calculette "Espèces"  ==================
+  const cashGivenCents = parseMontant(montantDonne);
+  const changeCents = Math.max(cashGivenCents - totalAvecReduction, 0);
+  const manqueCents = Math.max(totalAvecReduction - cashGivenCents, 0);
+  const peutValiderCash = cashGivenCents >= totalAvecReduction;
+
+  const addToMontantDonne = (addCents) => {
+    const newCents = cashGivenCents + addCents;
+    setMontantDonne(fmtEuros(newCents));
+  };
+  const setExact = () => setMontantDonne(fmtEuros(totalAvecReduction));
+  const clearMontant = () => setMontantDonne('');
+
+  const appendChar = (char) => {
+    // mini pavé numérique
+    if (char === '←') {
+      setMontantDonne((prev) => (prev || '').slice(0, -1));
+    } else if (char === ',' && !(montantDonne || '').includes(',')) {
+      setMontantDonne((prev) => (prev || '') + ',');
+    } else if (/^\d$/.test(char)) {
+      setMontantDonne((prev) => (prev || '') + char);
+    } else if (char === 'C') {
+      clearMontant();
+    }
+  };
+
+  const quickNextMultiple = (stepCents) => {
+    const due = totalAvecReduction;
+    const next = Math.ceil(due / stepCents) * stepCents;
+    return next;
+  };
+
+  // =================================================================
 
   const formulairePaiements = (
     <div className="mb-2">
@@ -325,7 +355,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         </select>
       </div>
 
-      <div>Total à payer après réduction : {(totalAvecReduction / 100).toFixed(2)} €</div>
+      <div>Total à payer après réduction : {fmtEuros(totalAvecReduction)} €</div>
       <div>Nombre de tampons à ajouter : {nombreTampons}</div>
 
       {modePaiementBoutons ? (
@@ -334,7 +364,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
             <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('carte')}>
               Carte
             </button>
-            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('especes')}>
+            {/* 🔁 ICI on ouvre la modale espèces au lieu de valider direct */}
+            <button className="btn btn-success flex-fill" onClick={() => { setMontantDonne(''); setShowCash(true); }}>
               Espèces
             </button>
             <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('virement')}>
@@ -348,13 +379,67 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
             </button>
           </div>
 
+          {/* 🧮💶 Modale ESPÈCES */}
+          <Modal show={showCash} onHide={() => setShowCash(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Encaissement en espèces</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="mb-2 d-flex justify-content-between">
+                <div><strong>À payer :</strong></div>
+                <div>{fmtEuros(totalAvecReduction)} €</div>
+              </div>
+
+              <div className="mb-2">
+                <label className="form-label">Montant donné par le client</label>
+                <TactileInput
+                  type="text"
+                  isDecimal="true"
+                  className="form-control"
+                  placeholder="0,00"
+                  value={montantDonne}
+                  onChange={(e) => setMontantDonne(e.target.value)}
+                />
+              </div>
+
+              {/* Résultat rendu */}
+              <div className="d-flex justify-content-between align-items-center">
+                
+                  
+                    <div className="fs-6"><strong>À rendre :</strong></div>
+                    <div className="fs-4">{fmtEuros(changeCents)} €</div>
+                 
+                
+              </div>
+
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowCash(false)}>Annuler</Button>
+              <Button
+                variant="success"
+                onClick={() => {
+                  // On valide la vente en "Espèces" pour le montant dû,
+                  // et on informe le rendu.
+                  setShowCash(false);
+                  if (changeCents > 0) {
+                    toast.info(`Rendre ${fmtEuros(changeCents)} €`);
+                  }
+                  validerPaiementDirect('especes');
+                }}
+              >
+                Encaisser & valider
+              </Button>
+            </Modal.Footer>
+          </Modal>
+
+          {/* Modale Paiement mixte (inchangé) */}
           <Modal show={showMixte} onHide={() => setShowMixte(false)}>
             <Modal.Header closeButton>
               <Modal.Title>Paiement mixte</Modal.Title>
             </Modal.Header>
             <Modal.Body>
               {formulairePaiements}
-              <div>Total saisi : {(totalPaiements / 100).toFixed(2)} €</div>
+              <div>Total saisi : {fmtEuros(totalPaiements)} €</div>
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onClick={() => setShowMixte(false)}>
@@ -369,7 +454,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       ) : (
         <>
           {formulairePaiements}
-          <div>Total saisi : {(totalPaiements / 100).toFixed(2)} €</div>
+          <div>Total saisi : {fmtEuros(totalPaiements)} €</div>
           <button className="btn btn-success w-100 mt-3" onClick={() => validerVente()}>
             Valider la vente
           </button>
