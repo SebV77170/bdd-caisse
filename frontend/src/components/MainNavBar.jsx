@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { DevModeContext } from '../contexts/DevModeContext';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useSession } from '../contexts/SessionContext';
+import { ModePaiementBoutonsContext } from '../contexts/ModePaiementBoutonsContext';
 import { toast } from 'react-toastify';
 import { io } from 'socket.io-client';
 const socket = io('http://localhost:3001');
@@ -15,6 +16,7 @@ function MainNavbar() {
   const { user } = useSession();
   const [syncStatus, setSyncStatus] = useState(null);
   const navigate = useNavigate();
+  const { modePaiementBoutons, setModePaiementBoutons } = useContext(ModePaiementBoutonsContext);
 
   useEffect(() => {
     const startHandler = () => {
@@ -87,6 +89,19 @@ function MainNavbar() {
           </div>
 
           <div className="d-flex align-items-center ms-auto">
+
+            <div className="form-check form-switch text-white me-2">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="modePaiementBoutonsSwitch"
+                checked={modePaiementBoutons}
+                onChange={() => setModePaiementBoutons(prev => !prev)}
+              />
+              <label className="form-check-label" htmlFor="modePaiementBoutonsSwitch">
+                💳
+              </label>
+            </div>
 
             <button
   className="btn btn-sm btn-outline-success me-2"

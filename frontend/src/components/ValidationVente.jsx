@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { toast } from 'react-toastify';
+import { Modal, Button } from 'react-bootstrap';
+import { ModePaiementBoutonsContext } from '../contexts/ModePaiementBoutonsContext';
 
 const PAYMENT_METHODS = ['especes', 'carte', 'cheque', 'virement'];
 const METHOD_LABELS = {
@@ -13,6 +15,7 @@ const METHOD_LABELS = {
 
 function ValidationVente({ total, id_temp_vente, onValide }) {
   const activeSession = useActiveSession();
+  const { modePaiementBoutons } = useContext(ModePaiementBoutonsContext);
   const [reduction, setReduction] = useState('');
   const [reductionsDisponibles, setReductionsDisponibles] = useState([]);
   const [paiements, setPaiements] = useState([
@@ -20,6 +23,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   ]);
   const [codePostal, setCodePostal] = useState('');
   const [email, setEmail] = useState('');
+  const [showMixte, setShowMixte] = useState(false);
   const uuidSessionCaisse = activeSession?.uuid_session || null;
 
   console.log('UUID session caisse en contexte :', uuidSessionCaisse);
@@ -167,18 +171,19 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
     setPaiements(corrige);
   };
 
-  const validerVente = () => {
+  const validerVente = (paiementsOverride = paiements) => {
     if (!activeSession || !uuidSessionCaisse) {
       toast.error('Aucune session caisse ouverte !');
       return;
     }
 
-    if (totalPaiements !== totalAvecReduction) {
+    const totalLocal = paiementsOverride.reduce((s, p) => s + parseMontant(p.montant), 0);
+    if (totalLocal !== totalAvecReduction) {
       toast.error('Le total des paiements ne correspond pas au montant à payer.');
       return;
     }
 
-    const paiementsCentimes = paiements.map((p) => ({
+    const paiementsCentimes = paiementsOverride.map((p) => ({
       moyen: p.moyen,
       montant: parseMontant(p.montant),
     }));
@@ -227,6 +232,56 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       });
   };
 
+  const validerPaiementDirect = (moyen) => {
+    const unique = [
+      { moyen, montant: (totalAvecReduction / 100).toFixed(2).replace('.', ',') },
+    ];
+    validerVente(unique);
+  };
+
+  const formulairePaiements = (
+    <div className="mb-2">
+      <label>Paiements :</label>
+      {paiements.map((p, index) => (
+        <div className="d-flex mb-1" key={index}>
+          <select
+            className="form-select me-2"
+            value={p.moyen}
+            onChange={(e) => modifierPaiement(index, 'moyen', e.target.value)}
+          >
+            {optionsForIndex(index).map((m) => (
+              <option key={m} value={m}>
+                {METHOD_LABELS[m]}
+              </option>
+            ))}
+          </select>
+
+          <TactileInput
+            type="text"
+            isDecimal="true"
+            className="form-control me-2"
+            placeholder="Montant en euros"
+            value={p.montant}
+            onChange={(e) => modifierPaiement(index, 'montant', e.target.value)}
+          />
+
+          {paiements.length > 1 && (
+            <button
+              className="btn btn-outline-danger"
+              onClick={() => supprimerPaiement(index)}
+              title="Supprimer ce paiement"
+            >
+              ❌
+            </button>
+          )}
+        </div>
+      ))}
+      <button className="btn btn-sm btn-secondary w-100 mt-2" onClick={ajouterPaiement}>
+        + Ajouter un paiement
+      </button>
+    </div>
+  );
+
   return (
     <div className="p-3 bg-white border rounded shadow-sm">
       <div className="d-flex justify-content-between align-items-start mb-2">
@@ -266,52 +321,53 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
 
       <div>Total à payer après réduction : {(totalAvecReduction / 100).toFixed(2)} €</div>
 
-      <div className="mb-2">
-        <label>Paiements :</label>
-        {paiements.map((p, index) => (
-          <div className="d-flex mb-1" key={index}>
-            <select
-              className="form-select me-2"
-              value={p.moyen}
-              onChange={(e) => modifierPaiement(index, 'moyen', e.target.value)}
-            >
-              {optionsForIndex(index).map((m) => (
-                <option key={m} value={m}>
-                  {METHOD_LABELS[m]}
-                </option>
-              ))}
-            </select>
-
-            <TactileInput
-              type="text"
-              isDecimal="true"
-              className="form-control me-2"
-              placeholder="Montant en euros"
-              value={p.montant}
-              onChange={(e) => modifierPaiement(index, 'montant', e.target.value)}
-            />
-
-            {paiements.length > 1 && (
-              <button
-                className="btn btn-outline-danger"
-                onClick={() => supprimerPaiement(index)}
-                title="Supprimer ce paiement"
-              >
-                ❌
-              </button>
-            )}
+      {modePaiementBoutons ? (
+        <>
+          <div className="mt-3 d-flex flex-wrap gap-2">
+            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('carte')}>
+              Carte
+            </button>
+            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('especes')}>
+              Espèces
+            </button>
+            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('virement')}>
+              Virement
+            </button>
+            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('cheque')}>
+              Chèque
+            </button>
+            <button className="btn btn-warning flex-fill" onClick={() => setShowMixte(true)}>
+              Mixte
+            </button>
           </div>
-        ))}
-        <button className="btn btn-sm btn-secondary w-100 mt-2" onClick={ajouterPaiement}>
-          + Ajouter un paiement
-        </button>
-      </div>
 
-      <div>Total saisi : {(totalPaiements / 100).toFixed(2)} €</div>
-
-      <button className="btn btn-success w-100 mt-3" onClick={validerVente}>
-        Valider la vente
-      </button>
+          <Modal show={showMixte} onHide={() => setShowMixte(false)}>
+            <Modal.Header closeButton>
+              <Modal.Title>Paiement mixte</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {formulairePaiements}
+              <div>Total saisi : {(totalPaiements / 100).toFixed(2)} €</div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowMixte(false)}>
+                Fermer
+              </Button>
+              <Button variant="primary" onClick={() => { validerVente(); setShowMixte(false); }}>
+                Valider
+              </Button>
+            </Modal.Footer>
+          </Modal>
+        </>
+      ) : (
+        <>
+          {formulairePaiements}
+          <div>Total saisi : {(totalPaiements / 100).toFixed(2)} €</div>
+          <button className="btn btn-success w-100 mt-3" onClick={() => validerVente()}>
+            Valider la vente
+          </button>
+        </>
+      )}
     </div>
   );
 }
