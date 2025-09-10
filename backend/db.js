@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 const mysql = require('mysql2/promise');
+const { syncSqliteWithTemplate } = require('./syncSqliteWithTemplate');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const os = require('os');
@@ -127,6 +128,12 @@ if (process.env.NODE_ENV === 'test') {
   // 🎯 Connexion active à la BDD
   db = new Database(dbPath);
   console.log('✅ Connecté à SQLite :', dbPath);
+
+  try {
+    syncSqliteWithTemplate(db, templatePath);
+  } catch (err) {
+    console.error('⚠️ Erreur lors de la synchronisation du schéma SQLite :', err.message);
+  }
 }
 
 module.exports = db;
