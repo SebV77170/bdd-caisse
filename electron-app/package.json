@@ -1,6 +1,6 @@
 {
   "name": "bdd-caisse-app",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "main": "main.js",
   "description": "Logiciel de caisse de RessourceBrie (Electron + React + Node).",
   "author": {
