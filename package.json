@@ -6,7 +6,9 @@
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
     "electron": "wait-on http://localhost:3000 && electron electron-app",
-    "dev:full": "run-p server client electron",
+    "init-template": "node backend/init-template.js",
+    "move-template": "node -e \"require('fs').renameSync('backend/ressourcebrie-sqlite-template.db', 'backend/database/ressourcebrie-sqlite-template.db')\"",
+    "dev:full": "run-s init-template move-template && run-p server client electron",
     "build": "cd frontend && npm run build",
     "copy-react": "xcopy /E /I /Y frontend\\build electron-app\\build",
     "package": "npm run build && npm run copy-react && cd electron-app && npm run dist"
