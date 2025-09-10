@@ -24,6 +24,10 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [scanned, setScanned] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
 
+  const [usersDiff, setUsersDiff] = useState(null);
+  const [usersMsg, setUsersMsg] = useState('');
+  const [usersError, setUsersError] = useState('');
+
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
 
@@ -127,6 +131,43 @@ const [showBoutons, setShowBoutons] = useState(false);
     }
   };
 
+  const compareUsers = async () => {
+    setUsersError('');
+    setUsersMsg('');
+    try {
+      const res = await fetch('http://localhost:3001/api/users/compare');
+      const data = await res.json();
+      if (data.success) {
+        setUsersDiff({
+          missing: data.missing.length,
+          extra: data.extra.length,
+          different: data.different.length
+        });
+      } else {
+        setUsersError(data.error || 'Erreur');
+      }
+    } catch {
+      setUsersError('Erreur lors de la comparaison');
+    }
+  };
+
+  const syncUsers = async () => {
+    setUsersError('');
+    setUsersMsg('');
+    try {
+      const res = await fetch('http://localhost:3001/api/users/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setUsersMsg(`Mise à jour effectuée (${data.count} utilisateurs).`);
+        setUsersDiff(null);
+      } else {
+        setUsersError(data.error || 'Erreur');
+      }
+    } catch {
+      setUsersError('Erreur lors de la mise à jour');
+    }
+  };
+
   useEffect(() => {
   console.log('🧪 window.electron:', window.electron);
 }, []);
@@ -204,6 +245,23 @@ const [showBoutons, setShowBoutons] = useState(false);
               ))}
             </ul>
           )}
+        </div>
+
+        <hr />
+
+        <h3>👥 Synchronisation utilisateurs</h3>
+        <div className="mb-3">
+          <Button onClick={compareUsers} className="me-2">Comparer</Button>
+          {usersDiff && (
+            <div className="mt-2">
+              <p>À ajouter: {usersDiff.missing} – À supprimer: {usersDiff.extra} – Différents: {usersDiff.different}</p>
+              <Button variant="secondary" onClick={syncUsers} className="mt-2">
+                Mettre à jour la base locale
+              </Button>
+            </div>
+          )}
+          {usersError && <div className="mt-2 text-danger">{usersError}</div>}
+          {usersMsg && <div className="mt-2">{usersMsg}</div>}
         </div>
 
         <hr />
