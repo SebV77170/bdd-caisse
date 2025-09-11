@@ -7,6 +7,7 @@ import DevModeModal from '../components/DevModeModal';
 import { useContext } from 'react';
 import { DevModeContext } from '../contexts/DevModeContext';
 import TactileInput from '../components/TactileInput';
+import MotifManagerModal from '../components/MotifManagerModal';
 
 const Parametres = () => {
   const [interval, setIntervalValue] = useState('');
@@ -30,6 +31,19 @@ const [showBoutons, setShowBoutons] = useState(false);
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
+
+  const [motifs, setMotifs] = useState([]);
+  const [showMotifManager, setShowMotifManager] = useState(false);
+
+  const refreshMotifs = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/motifs');
+      const data = await res.json();
+      setMotifs(Array.isArray(data) ? data : []);
+    } catch {
+      // ignore errors
+    }
+  };
 
   useEffect(() => {
     fetch('http://localhost:3001/api/sync-config')
@@ -59,6 +73,8 @@ const [showBoutons, setShowBoutons] = useState(false);
       .then(res => res.json())
       .then(data => setLocalIp(data.ip || ''))
       .catch(() => {});
+
+    refreshMotifs();
   }, []);
 
   const save = async () => {
@@ -282,6 +298,23 @@ const [showBoutons, setShowBoutons] = useState(false);
             <BoutonsManager />
           </div>
         </Collapse>
+
+        <hr />
+
+        <h4>✏️ Motifs de correction</h4>
+        <Button
+          variant="secondary"
+          className="mb-2"
+          onClick={() => setShowMotifManager(true)}
+        >
+          Gérer les motifs
+        </Button>
+        <MotifManagerModal
+          show={showMotifManager}
+          onHide={() => setShowMotifManager(false)}
+          motifs={motifs}
+          refreshMotifs={refreshMotifs}
+        />
 
         <hr />
 
