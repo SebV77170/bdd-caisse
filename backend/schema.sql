@@ -157,6 +157,20 @@ CREATE TABLE IF NOT EXISTS journal_corrections (
   motif TEXT
 );
 
+CREATE TABLE IF NOT EXISTS motifs_correction (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  motif TEXT NOT NULL UNIQUE
+);
+
+INSERT OR IGNORE INTO motifs_correction (motif) VALUES
+  ('Erreur de saisie du mode de paiement'),
+  ('Erreur de saisie de la réduction'),
+  ('Erreur de quantité'),
+  ('Erreur de prix'),
+  ('Changement de moyen de paiement après refus CB'),
+  ('Oublie d''un article'),
+  ('Article en trop');
+
 CREATE TABLE IF NOT EXISTS sync_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   type TEXT NOT NULL,

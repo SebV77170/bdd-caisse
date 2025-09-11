@@ -7,6 +7,7 @@ import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import ResponsableForm from "./ResponsableForm";
 import { toast } from 'react-toastify';
+import MotifManagerModal from './MotifManagerModal';
 
 // --- Helpers paiements (placer avant function CorrectionModal)
 const MOYENS = ['espece', 'carte', 'cheque', 'virement'];
@@ -27,16 +28,7 @@ function normalizeMoyen(m) {
   return x;
 }
 
-const MOTIFS_PREDEFINIS = [
-  "Erreur de saisie du mode de paiement",
-  "Erreur de saisie de la réduction",
-  "Erreur de quantité",
-  "Erreur de prix",
-  "Changement de moyen de paiement après refus CB",
-  "Oublie d'un article",
-  "Article en trop",
-];
-const AUTRE_VALUE = "__autre__"
+const AUTRE_VALUE = "__autre__";
 
 function toEurosString(cents) {
   const n = Number.isFinite(cents) ? cents : 0;
@@ -170,7 +162,21 @@ const [motifSelect, setMotifSelect] = useState('');
 const [showMotifModal, setShowMotifModal] = useState(false);
 const [motifCustom, setMotifCustom] = useState('');
 const prevMotifSelect = useRef('');
+const [motifs, setMotifs] = useState([]);
+const [showMotifManager, setShowMotifManager] = useState(false);
+const refreshMotifs = async () => {
+  try {
+    const res = await fetch('/api/motifs');
+    const data = await res.json();
+    setMotifs(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.error('Erreur chargement motifs', err);
+  }
+};
 
+useEffect(() => {
+  refreshMotifs();
+}, []);
 
 
 // --- Helpers "anti-doublons" --- // NEW
@@ -599,38 +605,54 @@ const handleCancelCustomMotif = () => {
           </Form.Group>
 
           <Form.Group className="mt-3">
-  <Form.Label>Motif de correction</Form.Label>
+            <Form.Label>Motif de correction</Form.Label>
 
-  <Form.Select
-    value={motifSelect}
-    onChange={handleMotifSelectChange}
-    aria-label="Sélectionnez un motif de correction"
-  >
-    <option value="">— Sélectionner un motif —</option>
-    {MOTIFS_PREDEFINIS.map((m) => (
-      <option key={m} value={m}>{m}</option>
-    ))}
-    <option value={AUTRE_VALUE}>Autre…</option>
-  </Form.Select>
+            <div className="d-flex">
+              <Form.Select
+                value={motifSelect}
+                onChange={handleMotifSelectChange}
+                aria-label="Sélectionnez un motif de correction"
+                className="flex-grow-1"
+              >
+                <option value="">— Sélectionner un motif —</option>
+                {motifs.map((m) => (
+                  <option key={m.id} value={m.motif}>{m.motif}</option>
+                ))}
+                <option value={AUTRE_VALUE}>Autre…</option>
+              </Form.Select>
+              <Button
+                variant="outline-secondary"
+                className="ms-2"
+                onClick={() => setShowMotifManager(true)}
+              >
+                Gérer
+              </Button>
+            </div>
 
-  {/* Affiche un aperçu si "Autre…" est sélectionné */}
-  {motifSelect === AUTRE_VALUE && motif && (
-    <div className="form-text mt-1">
-      Motif personnalisé : « {motif} »
-      <Button
-        variant="link"
-        className="p-0 ms-2 align-baseline"
-        onClick={() => {
-          prevMotifSelect.current = AUTRE_VALUE;
-          setMotifCustom(motif || '');
-          setShowMotifModal(true);
-        }}
-      >
-        modifier
-      </Button>
-    </div>
-  )}
-</Form.Group>
+            {/* Affiche un aperçu si "Autre…" est sélectionné */}
+            {motifSelect === AUTRE_VALUE && motif && (
+              <div className="form-text mt-1">
+                Motif personnalisé : « {motif} »
+                <Button
+                  variant="link"
+                  className="p-0 ms-2 align-baseline"
+                  onClick={() => {
+                    prevMotifSelect.current = AUTRE_VALUE;
+                    setMotifCustom(motif || '');
+                    setShowMotifModal(true);
+                  }}
+                >
+                  modifier
+                </Button>
+              </div>
+            )}
+          </Form.Group>
+          <MotifManagerModal
+            show={showMotifManager}
+            onHide={() => setShowMotifManager(false)}
+            motifs={motifs}
+            refreshMotifs={refreshMotifs}
+          />
 
 
           <ResponsableForm title = "Identification du responsable"

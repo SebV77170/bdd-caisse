@@ -65,6 +65,7 @@ const envoyerSecondaireVersPrincipal = require('./routes/envoyer-secondaire-vers
 const principalIpRoutes = require('./routes/principalIp.routes');
 const networkRoutes = require('./routes/network.routes');
 const friendlyRoutes = require('./routes/friendly.routes');
+const motifsRoutes = require('./routes/motifs.routes');
 
 
 
@@ -97,6 +98,7 @@ app.use('/api/principal-ip', principalIpRoutes);
 app.use('/api/network', networkRoutes);
 app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/motifs', motifsRoutes);
 app.use('/api/sync/envoyer-secondaire-vers-principal', envoyerSecondaireVersPrincipal);
 app.use('/api/friendly', friendlyRoutes);
 
