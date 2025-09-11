@@ -166,7 +166,7 @@ const [motifs, setMotifs] = useState([]);
 const [showMotifManager, setShowMotifManager] = useState(false);
 const refreshMotifs = async () => {
   try {
-    const res = await fetch('/api/motifs');
+    const res = await fetch('http://localhost:3001/api/motifs');
     const data = await res.json();
     setMotifs(Array.isArray(data) ? data : []);
   } catch (err) {

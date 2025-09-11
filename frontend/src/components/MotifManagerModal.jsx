@@ -10,7 +10,7 @@ function MotifManagerModal({ show, onHide, motifs = [], refreshMotifs }) {
     const motif = newMotif.trim();
     if (!motif) return;
     try {
-      const res = await fetch('/api/motifs', {
+      const res = await fetch('http://localhost:3001/api/motifs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ motif })
@@ -36,7 +36,7 @@ function MotifManagerModal({ show, onHide, motifs = [], refreshMotifs }) {
     const ids = Array.from(selectedIds);
     if (!ids.length) return;
     try {
-      const res = await fetch('/api/motifs', {
+      const res = await fetch('http://localhost:3001/api/motifs', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids })
