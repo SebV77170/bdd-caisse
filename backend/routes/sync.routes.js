@@ -23,27 +23,39 @@ function combineUTC(d, t) {
   return `${d}T${hhmmss}Z`;
 }
 
+function toEpochSec(v) {
+  if (v == null || v === '') return null;
+  // Essaye ISO direct
+  const d1 = Date.parse(v);
+  if (!Number.isNaN(d1)) return Math.floor(d1 / 1000);
+  // Essaye Date de MySQL/driver (ex: objet Date JS)
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return Math.floor(v.getTime() / 1000);
+  // Essaye new Date(string locale)
+  const d2 = new Date(v);
+  if (!Number.isNaN(d2.getTime())) return Math.floor(d2.getTime() / 1000);
+  return null;
+}
+
+function normScalar(val) {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'boolean') return val ? '1' : '0';
+  if (typeof val === 'number') return String(val);
+  return String(val).trim();
+}
+
 async function compareChampsAvecMysql(table, uuidField, payload, pool) {
   const champsParTable = {
     ticketdecaisse: [
-      'uuid_ticket', 'nom_vendeur', 'id_vendeur', 'date_achat_dt',
-      'nbr_objet', 'moyen_paiement', 'prix_total', 'lien',
-      'reducbene', 'reducclient', 'reducgrospanierclient', 'reducgrospanierbene',
-      'uuid_session_caisse', 'flag_correction', 'corrige_le_ticket', 'annulation_de', 'flag_annulation'
+      'uuid_ticket','nom_vendeur','id_vendeur','date_achat_dt',
+      'nbr_objet','moyen_paiement','prix_total','lien',
+      'reducbene','reducclient','reducgrospanierclient','reducgrospanierbene',
+      'uuid_session_caisse','flag_correction','corrige_le_ticket','annulation_de','flag_annulation'
     ],
-    paiement_mixte: [
-      'id_ticket', 'uuid_ticket', 'espece', 'carte', 'cheque', 'virement'
-    ],
-    // ✅ Nouvelle définition pour session_caisse en UTC
+    paiement_mixte: ['id_ticket','uuid_ticket','espece','carte','cheque','virement'],
     session_caisse: [
-      'id_session',
-      'opened_at_utc', 'closed_at_utc',
-      'utilisateur_ouverture', 'responsable_ouverture',
-      'utilisateur_fermeture', 'responsable_fermeture',
-      'fond_initial', 'montant_reel',
-      'commentaire', 'ecart', 'caissiers',
-      'montant_reel_carte', 'montant_reel_cheque', 'montant_reel_virement',
-      'issecondaire', 'poste'
+      'id_session','opened_at_utc','closed_at_utc','utilisateur_ouverture','responsable_ouverture',
+      'utilisateur_fermeture','responsable_fermeture','fond_initial','montant_reel','commentaire',
+      'ecart','caissiers','montant_reel_carte','montant_reel_cheque','montant_reel_virement','issecondaire','poste'
     ]
   };
 
@@ -57,19 +69,47 @@ async function compareChampsAvecMysql(table, uuidField, payload, pool) {
   );
   if (rows.length === 0) return false;
 
-  const ligneMysql = rows[0];
+  const remote = rows[0];
 
   for (const champ of champs) {
-    const localVal = payload[champ];
-    const remoteVal = ligneMysql[champ];
+    const lv = payload[champ];
+    const rv = remote[champ];
 
-    const localStr = localVal === null || localVal === undefined ? '' : String(localVal);
-    const remoteStr = remoteVal === null || remoteVal === undefined ? '' : String(remoteVal);
+    // 1) Dates : comparer à la seconde près
+    if (champ === 'date_achat_dt' || champ.endsWith('_at_utc')) {
+      const ls = toEpochSec(lv);
+      const rs = toEpochSec(rv);
+      if (ls !== rs) return false;
+      continue;
+    }
 
-    if (localStr !== remoteStr) return false;
+    // 2) lien : tolère '' (local) vs valeur (remote)
+    if (champ === 'lien') {
+      const l = (lv ?? '').trim();
+      const r = (rv ?? '').trim();
+      // On considère "pas de lien local" == "OK" si remote a déjà un chemin
+      if (l === '' && r !== '') continue;
+      if (l !== r) return false;
+      continue;
+    }
+
+    // 3) Numériques : '300' vs 300
+    if (['prix_total','nbr_objet','reducbene','reducclient','reducgrospanierclient','reducgrospanierbene',
+         'fond_initial','montant_reel','ecart','montant_reel_carte','montant_reel_cheque','montant_reel_virement',
+         'espece','carte','cheque','virement','flag_correction','flag_annulation','issecondaire'
+        ].includes(champ)) {
+      const ln = lv == null || lv === '' ? 0 : Number(lv);
+      const rn = rv == null || rv === '' ? 0 : Number(rv);
+      if ((Number.isNaN(ln) ? '' : ln) !== (Number.isNaN(rn) ? '' : rn)) return false;
+      continue;
+    }
+
+    // 4) Chaînes : trim/normalise
+    if (normScalar(lv) !== normScalar(rv)) return false;
   }
   return true;
 }
+
 
 async function existsInMysql(table, uuidField, uuidValue, pool) {
   const [rows] = await pool.query(
@@ -79,10 +119,16 @@ async function existsInMysql(table, uuidField, uuidValue, pool) {
   return rows.length > 0;
 }
 
+let syncRunning = false;
+
+
 router.post('/', async (req, res) => {
   const io = req.app.get('socketio');
   const debugMode = req.query.debug === 'true';
   const debugLogs = [];
+
+  if (syncRunning) return res.status(429).json({success:false, error:'Sync already running'});
+  syncRunning = true;
 
   if (io) io.emit('syncStart');
   let syncSuccess = true;
@@ -100,6 +146,16 @@ router.post('/', async (req, res) => {
         const payload = JSON.parse(ligne.payload);
         const { type, operation } = ligne;
         if (!type || !payload || !operation) continue;
+
+        // Réservation atomique : on ne traite que si on a réussi à marquer "en cours"
+        const reserved = sqlite
+          .prepare('UPDATE sync_log SET synced = -1 WHERE id = ? AND synced = 0')
+          .run(ligne.id).changes;
+        if (reserved !== 1) {
+          // ligne déjà prise par une autre exécution de la sync
+          continue;
+        }
+
 
         if (debugMode) debugLogs.push(`🔄 Traitement ID ${ligne.id} - ${type} (${operation})`);
 
@@ -447,6 +503,7 @@ router.post('/', async (req, res) => {
       res.status(500).json({ success: false, error: 'Erreur de synchronisation côté serveur.' });
     }
   } finally {
+    syncRunning = false;
     if (io) io.emit('syncEnd', { success: syncSuccess });
   }
 });

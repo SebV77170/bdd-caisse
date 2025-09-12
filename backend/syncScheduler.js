@@ -25,13 +25,18 @@ let { interval, enabled } = loadConfig();
 let job = null;
 let port = 3001;
 let io = null;
+let isSyncCalling = false;
 
 async function callSync() {
   try {
+    if (isSyncCalling) return;
+    isSyncCalling = true;
     await axios.post(`http://localhost:${port}/api/sync/`);
     console.log('✅ Synchronisation périodique exécutée');
   } catch (err) {
     console.error('Erreur de synchronisation périodique:', err.message);
+  } finally {
+    isSyncCalling = false;
   }
 }
 
