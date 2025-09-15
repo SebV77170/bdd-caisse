@@ -5,26 +5,31 @@ function CategorieSelector({ categories, active, onSelect }) {
     <div>
       <h5 className="mb-3">Catégories</h5>
       <div className="d-flex flex-column gap-2">
-        {categories.map((cat, i) => (
-          <button
-            key={i}
-            className={`btn ${active === cat ? 'btn-primary' : 'btn-light'} text-start shadow-sm`}
-            style={{
-              textTransform: 'capitalize',
-              borderLeft: active === cat ? '5px solid #0d6efd' : '5px solid transparent',
-              transition: 'all 0.2s ease',
-              fontWeight: active === cat ? 'bold' : 'normal'
-            }}
-            onClick={() => onSelect(cat)}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = active === cat ? '' : '#f0f8ff'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = active === cat ? '' : 'white'}
-          >
-            {cat}
-            {active === cat && (
-              <span className="badge bg-light text-primary ms-2">Actif</span>
-            )}
-          </button>
-        ))}
+        {categories.map((cat, i) => {
+          const isActive = active === cat.nom;
+          const variant = cat.color || 'secondary';
+          return (
+            <button
+              key={i}
+              type="button"
+              className={`btn btn-${variant} text-start shadow-sm w-100`}
+              style={{
+                textTransform: 'capitalize',
+                borderLeft: isActive
+                  ? `5px solid var(--bs-${variant})`
+                  : '5px solid transparent',
+                transition: 'all 0.2s ease',
+                fontWeight: isActive ? 'bold' : 'normal'
+              }}
+              onClick={() => onSelect(cat.nom)}
+            >
+              {cat.nom}
+              {isActive && (
+                <span className="badge bg-light text-primary ms-2">Actif</span>
+              )}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

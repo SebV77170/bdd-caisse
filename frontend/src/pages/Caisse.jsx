@@ -15,6 +15,7 @@ import { useConfirm } from "../contexts/ConfirmContext";
 function Caisse() {
   const activeSession = useActiveSession();
   const [boutons, setBoutons] = useState({});
+  const [categories, setCategories] = useState([]);
   const [categorieActive, setCategorieActive] = useState('');
   const [ticketModif, setTicketModif] = useState([]);
   const [modifs, setModifs] = useState({});
@@ -27,14 +28,29 @@ function Caisse() {
 
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/produits/organises')
-      .then(res => res.json())
-      .then(data => {
-        setBoutons(data);
-        const categories = Object.keys(data);
-        if (categories.length > 0) setCategorieActive(categories[0]);
+  fetch('http://localhost:3001/api/produits/organises')
+    .then(res => res.json())
+    .then(data => {
+      setBoutons(data);
+
+      // Construire [{ nom, color }]
+      const cats = Object.entries(data).map(([nomCat, sousCats]) => {
+        // Cherche la 1ère couleur trouvée dans les produits de la catégorie
+        let color = 'secondary';
+        const firstSousCat = Object.values(sousCats)[0]; // tableau d’items
+        if (Array.isArray(firstSousCat) && firstSousCat.length > 0) {
+          color = firstSousCat[0]?.color || 'secondary';
+        }
+        return { nom: nomCat, color };
       });
-  }, []);
+
+      setCategories(cats);
+      if (cats.length > 0) setCategorieActive(cats[0].nom);
+    })
+    .catch(err => console.error('Erreur fetch /organises:', err));
+}, []);
+
+
 
   const chargerVentes = useCallback(() => {
     fetch('http://localhost:3001/api/ventes')
@@ -140,6 +156,7 @@ function Caisse() {
       .catch(err => console.error("Erreur lors de l'annulation :", err));
   };
 
+
   const totalTicket = ticketModif.reduce((sum, item) => sum + item.prixt, 0);
 
   /* if (!sessionCaisseOuverte) {
@@ -179,9 +196,9 @@ function Caisse() {
       <div className="row flex-grow-1 m-0 h-100 overflow-hidden">
         <div className="col-md-2 bg-light h-100 overflow-auto pt-3">
           <CategorieSelector
-            categories={Object.keys(boutons)}
+            categories={categories}                 // ✅ objets { nom, color }
             active={categorieActive}
-            onSelect={setCategorieActive}
+            onSelect={setCategorieActive}           // onSelect reçoit le nom
           />
         </div>
 

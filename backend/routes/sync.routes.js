@@ -94,10 +94,11 @@ async function compareChampsAvecMysql(table, uuidField, payload, pool) {
     }
 
     // 3) Numériques : '300' vs 300
-    if (['prix_total','nbr_objet','reducbene','reducclient','reducgrospanierclient','reducgrospanierbene',
-         'fond_initial','montant_reel','ecart','montant_reel_carte','montant_reel_cheque','montant_reel_virement',
-         'espece','carte','cheque','virement','flag_correction','flag_annulation','issecondaire'
-        ].includes(champ)) {
+    if ([
+      'prix_total','nbr_objet','reducbene','reducclient','reducgrospanierclient','reducgrospanierbene',
+      'fond_initial','montant_reel','ecart','montant_reel_carte','montant_reel_cheque','montant_reel_virement',
+      'espece','carte','cheque','virement','flag_correction','flag_annulation','issecondaire'
+    ].includes(champ)) {
       const ln = lv == null || lv === '' ? 0 : Number(lv);
       const rn = rv == null || rv === '' ? 0 : Number(rv);
       if ((Number.isNaN(ln) ? '' : ln) !== (Number.isNaN(rn) ? '' : rn)) return false;
@@ -110,7 +111,6 @@ async function compareChampsAvecMysql(table, uuidField, payload, pool) {
   return true;
 }
 
-
 async function existsInMysql(table, uuidField, uuidValue, pool) {
   const [rows] = await pool.query(
     `SELECT 1 FROM ${table} WHERE ${uuidField} = ? LIMIT 1`,
@@ -120,7 +120,6 @@ async function existsInMysql(table, uuidField, uuidValue, pool) {
 }
 
 let syncRunning = false;
-
 
 router.post('/', async (req, res) => {
   const io = req.app.get('socketio');
@@ -301,14 +300,14 @@ router.post('/', async (req, res) => {
                 // Ligne existante -> cumul (on rejoue l'activité)
                 await conn.query(
                   `UPDATE bilan SET
-                    timestamp            = ?,                             
-                    nombre_vente         = IFNULL(nombre_vente, 0)         + ?,
-                    poids                = IFNULL(poids, 0)                + ?,
-                    prix_total           = IFNULL(prix_total, 0)           + ?,
-                    prix_total_espece    = IFNULL(prix_total_espece, 0)    + ?,
-                    prix_total_cheque    = IFNULL(prix_total_cheque, 0)    + ?,
-                    prix_total_carte     = IFNULL(prix_total_carte, 0)     + ?,
-                    prix_total_virement  = IFNULL(prix_total_virement, 0)  + ?
+                    timestamp           = ?,
+                    nombre_vente        = COALESCE(nombre_vente, 0)       + COALESCE(?, 0),
+                    poids               = COALESCE(poids, 0)              + COALESCE(?, 0),
+                    prix_total          = COALESCE(prix_total, 0)         + COALESCE(?, 0),
+                    prix_total_espece   = COALESCE(prix_total_espece, 0)  + COALESCE(?, 0),
+                    prix_total_cheque   = COALESCE(prix_total_cheque, 0)  + COALESCE(?, 0),
+                    prix_total_carte    = COALESCE(prix_total_carte, 0)   + COALESCE(?, 0),
+                    prix_total_virement = COALESCE(prix_total_virement, 0)+ COALESCE(?, 0)
                   WHERE date = ?`,
                   [ts, nv, poids, total, espece, cheque, carte, virement, dateKey]
                 );
@@ -326,16 +325,16 @@ router.post('/', async (req, res) => {
           } else if (operation === 'UPDATE') {
             // ✅ Ta logique existante conservée telle quelle
             await pool.query(
-              `UPDATE bilan 
-              SET timestamp = ?, 
-                  nombre_vente = nombre_vente + ?, 
-                  poids = poids + ?, 
-                  prix_total = prix_total + ?, 
-                  prix_total_espece = prix_total_espece + ?, 
-                  prix_total_cheque = prix_total_cheque + ?, 
-                  prix_total_carte = prix_total_carte + ?, 
-                  prix_total_virement = prix_total_virement + ? 
-              WHERE date = ?`,
+              `UPDATE bilan SET
+                    timestamp           = ?,
+                    nombre_vente        = COALESCE(nombre_vente, 0)       + COALESCE(?, 0),
+                    poids               = COALESCE(poids, 0)              + COALESCE(?, 0),
+                    prix_total          = COALESCE(prix_total, 0)         + COALESCE(?, 0),
+                    prix_total_espece   = COALESCE(prix_total_espece, 0)  + COALESCE(?, 0),
+                    prix_total_cheque   = COALESCE(prix_total_cheque, 0)  + COALESCE(?, 0),
+                    prix_total_carte    = COALESCE(prix_total_carte, 0)   + COALESCE(?, 0),
+                    prix_total_virement = COALESCE(prix_total_virement, 0)+ COALESCE(?, 0)
+                  WHERE date = ?`,
               [
                 safe(payload.timestamp), safe(payload.nombre_vente), safe(payload.poids),
                 safe(payload.prix_total), safe(payload.espece),
@@ -426,6 +425,7 @@ router.post('/', async (req, res) => {
                  montant_reel_carte, montant_reel_cheque, montant_reel_virement,
                  issecondaire, poste
                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+
               [
                 payload.id_session,
                 opened_at_utc, closed_at_utc || null,

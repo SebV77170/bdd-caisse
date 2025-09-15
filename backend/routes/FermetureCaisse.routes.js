@@ -8,6 +8,38 @@ const genererTicketCloturePdf = require('../utils/genererTicketCloturePdf');
 const { v4: uuidv4 } = require('uuid');
 const getBilanSession = require('../utils/bilanSession');
 
+function lancerDerniereSyncNonBloquante(req, { debug = false } = {}) {
+  // Démarrer APRES l’envoi de la réponse
+  req.res.on('finish', () => {
+    (async () => {
+      try {
+        const io = req.app.get('socketio');
+        const url = `http://localhost:3001/api/sync${debug ? '?debug=true' : ''}`;
+
+        io && io.emit('syncStart', { source: 'fermeture_caisse', at: new Date().toISOString() });
+
+        // NB: on n'attend pas cette promesse dans le flux principal de la route
+        const resp = await fetch(url, { method: 'POST' });
+        if (!resp.ok) {
+          // 429 attendu si une sync est déjà en cours → on considère non bloquant
+          const msg = `Sync HTTP ${resp.status}`;
+          console.warn('[SYNC] Dernière sync non OK :', msg);
+          io && io.emit('syncEnd', { source: 'fermeture_caisse', ok: false, status: resp.status, at: new Date().toISOString() });
+          return;
+        }
+
+        io && io.emit('syncEnd', { source: 'fermeture_caisse', ok: true, at: new Date().toISOString() });
+        console.log('✅ Dernière synchronisation effectuée');
+      } catch (e) {
+        console.error('❌ Dernière synchronisation échouée :', e);
+        const io = req.app.get('socketio');
+        io && io.emit('syncEnd', { source: 'fermeture_caisse', ok: false, error: e?.message || String(e), at: new Date().toISOString() });
+        // on avale l’erreur -> ne bloque rien
+      }
+    })();
+  });
+}
+
 // Route POST pour fermer la caisse (UTC)
 router.post('/', (req, res) => {
   // Récupération des données envoyées par le frontend
@@ -161,6 +193,9 @@ router.post('/', (req, res) => {
       type: typeSession
     });
   }
+
+  // 🔁 Lancer la dernière sync vers MySQL sans bloquer la fermeture
+  lancerDerniereSyncNonBloquante(req, { debug: false });
 
   // Réponse au frontend
   res.json({ success: true });

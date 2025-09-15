@@ -279,6 +279,7 @@ router.post('/', (req, res) => {
       );
       logSync('bilan', 'UPDATE', {
         date: today,
+        timestamp,
         prix_total: prixTotal - ticketOriginalData.prix_total,
         espece: pm.espece - pmAnnul.espece,
         cheque: pm.cheque - pmAnnul.cheque,
