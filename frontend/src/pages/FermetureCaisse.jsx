@@ -80,12 +80,12 @@ function FermetureCaisse() {
       if (data.success) {
         console.log(data.success);
 
-    // On redirige et on transmet un message dans l’état de navigation
-    navigate('/Bilan', {
-      state: { toastMessage: 'Caisse fermée avec succès !' }
-    });
-  } else {
-        toast.error(data.error || 'Erreur lors de la fermeture');
+        // On redirige et on transmet un message dans l’état de navigation
+        navigate('/Bilan', {
+          state: { toastMessage: 'Caisse fermée avec succès !' }
+        });
+      } else {
+          toast.error(data.error || 'Erreur lors de la fermeture');
       }
     } catch (err) {
       console.error(err);
