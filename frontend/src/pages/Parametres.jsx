@@ -35,6 +35,25 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [motifs, setMotifs] = useState([]);
   const [showMotifManager, setShowMotifManager] = useState(false);
 
+  const [ticketInterval, setTicketInterval] = useState('30');
+  const [ticketAutoEnabled, setTicketAutoEnabled] = useState(true);
+  const [ticketHost, setTicketHost] = useState('');
+  const [ticketPort, setTicketPort] = useState('22');
+  const [ticketUsername, setTicketUsername] = useState('');
+  const [ticketPassword, setTicketPassword] = useState('');
+  const [ticketRemotePath, setTicketRemotePath] = useState('/tickets');
+  const [ticketMessage, setTicketMessage] = useState('');
+  const [ticketStatus, setTicketStatus] = useState(null);
+
+  const formatDateTime = iso => {
+    if (!iso) return 'Jamais';
+    try {
+      return new Date(iso).toLocaleString();
+    } catch {
+      return iso;
+    }
+  };
+
   const refreshMotifs = async () => {
     try {
       const res = await fetch('http://localhost:3001/api/motifs');
@@ -67,6 +86,24 @@ const [showBoutons, setShowBoutons] = useState(false);
       .then(data => {
         setPrincipalIp(data.ip || '');
       })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/ticket-sync/config')
+      .then(res => res.json())
+      .then(data => {
+        setTicketInterval(String(data.interval ?? '30'));
+        setTicketAutoEnabled(Boolean(data.enabled));
+        setTicketHost(data.host || '');
+        setTicketPort(String(data.port ?? '22'));
+        setTicketUsername(data.username || '');
+        setTicketPassword(data.password || '');
+        setTicketRemotePath(data.remoteBasePath || '/tickets');
+      })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/ticket-sync/status')
+      .then(res => res.json())
+      .then(data => setTicketStatus(data))
       .catch(() => {});
 
     fetch('http://localhost:3001/api/network/local-ip')
@@ -184,6 +221,67 @@ const [showBoutons, setShowBoutons] = useState(false);
     }
   };
 
+  const refreshTicketStatus = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/ticket-sync/status');
+      const data = await res.json();
+      setTicketStatus(data);
+    } catch {
+      setTicketStatus(null);
+    }
+  };
+
+  const saveTicketSync = async () => {
+    setTicketMessage('');
+    try {
+      const intervalValue = parseInt(ticketInterval, 10);
+      const portValue = parseInt(ticketPort, 10);
+      const res = await fetch('http://localhost:3001/api/ticket-sync/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interval: Number.isNaN(intervalValue) ? undefined : intervalValue,
+          enabled: ticketAutoEnabled,
+          host: ticketHost,
+          port: Number.isNaN(portValue) ? undefined : portValue,
+          username: ticketUsername,
+          password: ticketPassword,
+          remoteBasePath: ticketRemotePath
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTicketMessage('✅ Paramètres sauvegardés');
+      } else {
+        setTicketMessage('❌ ' + (data.error || 'Erreur'));
+      }
+    } catch {
+      setTicketMessage('❌ Erreur de sauvegarde');
+    }
+  };
+
+  const runTicketSync = async () => {
+    setTicketMessage('');
+    setTicketStatus(prev => ({ ...(prev || {}), running: true }));
+    try {
+      const res = await fetch('http://localhost:3001/api/ticket-sync/run', { method: 'POST' });
+      const data = await res.json();
+      if (res.status === 202 && data.success) {
+        setTicketMessage('🚀 Synchronisation lancée');
+      } else if (res.status === 409) {
+        setTicketMessage('⏳ Une synchronisation est déjà en cours');
+      } else {
+        setTicketMessage('❌ ' + (data.error || 'Erreur lors du démarrage'));
+      }
+    } catch {
+      setTicketMessage('❌ Erreur lors du démarrage');
+    }
+
+    setTimeout(() => {
+      refreshTicketStatus();
+    }, 1500);
+  };
+
   useEffect(() => {
   console.log('🧪 window.electron:', window.electron);
 }, []);
@@ -218,6 +316,99 @@ const [showBoutons, setShowBoutons] = useState(false);
         </Form>
 
         {message && <div className="mt-2">{message}</div>}
+
+        <hr />
+
+        <h3>🧾 Synchronisation des tickets PDF</h3>
+        <Form>
+          <Form.Group className="mb-2">
+            <Form.Label>Adresse du serveur SFTP</Form.Label>
+            <TactileInput value={ticketHost} onChange={e => setTicketHost(e.target.value)} />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Port</Form.Label>
+            <TactileInput
+              type="number"
+              value={ticketPort}
+              onChange={e => setTicketPort(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Utilisateur</Form.Label>
+            <TactileInput value={ticketUsername} onChange={e => setTicketUsername(e.target.value)} />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Mot de passe</Form.Label>
+            <TactileInput
+              type="password"
+              value={ticketPassword}
+              onChange={e => setTicketPassword(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Dossier distant de base</Form.Label>
+            <TactileInput value={ticketRemotePath} onChange={e => setTicketRemotePath(e.target.value)} />
+          </Form.Group>
+
+          <Form.Group className="mb-2">
+            <Form.Label>Période automatique (minutes)</Form.Label>
+            <TactileInput
+              type="number"
+              value={ticketInterval}
+              onChange={e => setTicketInterval(e.target.value)}
+            />
+          </Form.Group>
+
+          <Form.Group className="form-check form-switch mb-3">
+            <Form.Check
+              type="switch"
+              id="ticketSyncEnabledSwitch"
+              label="Synchronisation automatique des tickets"
+              checked={ticketAutoEnabled}
+              onChange={() => setTicketAutoEnabled(prev => !prev)}
+            />
+          </Form.Group>
+
+          <div className="d-flex flex-wrap gap-2">
+            <Button onClick={saveTicketSync}>💾 Sauvegarder</Button>
+            <Button variant="secondary" onClick={runTicketSync}>🚀 Lancer maintenant</Button>
+            <Button variant="outline-secondary" onClick={refreshTicketStatus}>🔄 Rafraîchir le statut</Button>
+          </div>
+        </Form>
+
+        {ticketMessage && <div className="mt-2">{ticketMessage}</div>}
+
+        {ticketStatus && (
+          <div className="mt-2">
+            <p>Dernière exécution : {formatDateTime(ticketStatus.lastRunAt)}</p>
+            {ticketStatus.running && <p>⏳ Synchronisation en cours…</p>}
+            {ticketStatus.lastError && <p className="text-danger">❌ {ticketStatus.lastError}</p>}
+            {ticketStatus.lastResult && (
+              <ul>
+                <li>Total détectés : {ticketStatus.lastResult.total}</li>
+                <li>Transférés : {ticketStatus.lastResult.uploaded}</li>
+                <li>Déjà présents : {ticketStatus.lastResult.skipped}</li>
+                {ticketStatus.lastResult.errors && ticketStatus.lastResult.errors.length > 0 && (
+                  <li className="text-danger">Erreurs : {ticketStatus.lastResult.errors.length}</li>
+                )}
+              </ul>
+            )}
+            {ticketStatus.lastResult?.errors?.length > 0 && (
+              <details>
+                <summary>Détails des erreurs</summary>
+                <ul>
+                  {ticketStatus.lastResult.errors.map((err, idx) => (
+                    <li key={idx}>{err.file} : {err.message}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
 
         <hr />
 

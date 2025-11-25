@@ -66,6 +66,7 @@ const principalIpRoutes = require('./routes/principalIp.routes');
 const networkRoutes = require('./routes/network.routes');
 const friendlyRoutes = require('./routes/friendly.routes');
 const motifsRoutes = require('./routes/motifs.routes');
+const ticketSyncRoutes = require('./routes/ticketSync.routes');
 
 
 
@@ -101,6 +102,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/motifs', motifsRoutes);
 app.use('/api/sync/envoyer-secondaire-vers-principal', envoyerSecondaireVersPrincipal);
 app.use('/api/friendly', friendlyRoutes);
+app.use('/api/ticket-sync', ticketSyncRoutes);
 
 fs.mkdirSync(baseDir, { recursive: true });
 app.use('/factures', express.static(path.join(baseDir, 'factures')));
