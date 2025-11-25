@@ -1,8 +1,8 @@
 {
   "name": "bdd-caisse-app",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "main": "main.js",
-  "description": "Logiciel de caisse de RessourceBrie (Electron + React + Node).",
+  "description": "Logiciel de caisse de RessourceBrie (Electron + React + Node). Implementation WebDAV pour la synchronisation des tickets.",
   "author": {
     "name": "Sebastien Voillot",
     "email": "president@ressourcebrie.fr"
