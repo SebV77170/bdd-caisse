@@ -29,6 +29,13 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [usersMsg, setUsersMsg] = useState('');
   const [usersError, setUsersError] = useState('');
 
+  const [webdavInterval, setWebdavInterval] = useState('');
+  const [webdavEnabled, setWebdavEnabled] = useState(false);
+  const [webdavMode, setWebdavMode] = useState('');
+  const [webdavMessage, setWebdavMessage] = useState('');
+  const [webdavModes, setWebdavModes] = useState([]);
+  const [webdavState, setWebdavState] = useState(null);
+
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
 
@@ -67,6 +74,21 @@ const [showBoutons, setShowBoutons] = useState(false);
       .then(data => {
         setPrincipalIp(data.ip || '');
       })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/webdav/config')
+      .then(res => res.json())
+      .then(data => {
+        setWebdavInterval(String(data.interval || ''));
+        setWebdavEnabled(Boolean(data.enabled));
+        setWebdavMode(data.mode || '');
+        setWebdavModes(Array.isArray(data.availableModes) ? data.availableModes : []);
+      })
+      .catch(() => {});
+
+    fetch('http://localhost:3001/api/webdav/state')
+      .then(res => res.json())
+      .then(data => setWebdavState(data))
       .catch(() => {});
 
     fetch('http://localhost:3001/api/network/local-ip')
@@ -184,9 +206,53 @@ const [showBoutons, setShowBoutons] = useState(false);
     }
   };
 
+  const saveWebdav = async () => {
+    setWebdavMessage('');
+    try {
+      const res = await fetch('http://localhost:3001/api/webdav/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          interval: parseInt(webdavInterval, 10),
+          enabled: webdavEnabled,
+          mode: webdavMode
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWebdavMessage('✅ Paramètres WebDAV enregistrés');
+      } else {
+        setWebdavMessage('❌ ' + (data.error || 'Erreur de sauvegarde'));
+      }
+    } catch {
+      setWebdavMessage('❌ Erreur de sauvegarde');
+    }
+  };
+
+  const triggerWebdavSync = async () => {
+    setWebdavMessage('');
+    try {
+      const res = await fetch('http://localhost:3001/api/webdav/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setWebdavMessage(`✅ Synchronisation lancée (${data.count} fichiers envoyés)`);
+      } else {
+        setWebdavMessage('❌ ' + (data.error || 'Erreur pendant la synchronisation'));
+      }
+    } catch {
+      setWebdavMessage('❌ Erreur pendant la synchronisation');
+    }
+  };
+
   useEffect(() => {
   console.log('🧪 window.electron:', window.electron);
 }, []);
+
+  useEffect(() => {
+    if (!webdavMode && webdavModes.length > 0) {
+      setWebdavMode(webdavModes[0].key);
+    }
+  }, [webdavModes, webdavMode]);
 
 
   return (
@@ -214,12 +280,64 @@ const [showBoutons, setShowBoutons] = useState(false);
             />
           </Form.Group>
 
-          <Button onClick={save}>💾 Sauvegarder</Button>
-        </Form>
+        <Button onClick={save}>💾 Sauvegarder</Button>
+      </Form>
 
-        {message && <div className="mt-2">{message}</div>}
+      {message && <div className="mt-2">{message}</div>}
 
-        <hr />
+      <hr />
+
+      <h3>☁️ Synchronisation WebDAV</h3>
+      <Form>
+        <Form.Group className="mb-2">
+          <Form.Label>Période d'envoi (minutes)</Form.Label>
+          <TactileInput
+            type="number"
+            value={webdavInterval}
+            onChange={e => setWebdavInterval(e.target.value)}
+          />
+        </Form.Group>
+
+        <Form.Group className="form-check form-switch mb-2">
+          <Form.Check
+            type="switch"
+            id="webdavEnabledSwitch"
+            label="Envoi automatique des tickets"
+            checked={webdavEnabled}
+            onChange={() => setWebdavEnabled(prev => !prev)}
+          />
+        </Form.Group>
+
+        <Form.Group className="mb-2">
+          <Form.Label>Mode WebDAV</Form.Label>
+          <Form.Select
+            value={webdavMode}
+            onChange={e => setWebdavMode(e.target.value)}
+            disabled={webdavModes.length === 0}
+          >
+            {webdavModes.length === 0 && <option>Aucun profil disponible</option>}
+            {webdavModes.map(mode => (
+              <option key={mode.key} value={mode.key}>
+                {mode.label} ({mode.url})
+              </option>
+            ))}
+          </Form.Select>
+          <div className="form-text">Les profils proviennent de la variable d'environnement WEBDAV_ENDPOINTS.</div>
+        </Form.Group>
+
+        <div className="d-flex gap-2">
+          <Button onClick={saveWebdav} disabled={webdavModes.length === 0}>💾 Sauvegarder</Button>
+          <Button variant="secondary" onClick={triggerWebdavSync} disabled={webdavModes.length === 0}>⏫ Lancer maintenant</Button>
+        </div>
+      </Form>
+      {webdavMessage && <div className="mt-2">{webdavMessage}</div>}
+      {webdavState && webdavState.lastRun && (
+        <div className="mt-2">
+          <small>Dernier envoi : {new Date(webdavState.lastRun).toLocaleString()} {webdavState.lastResult === 'error' && `- ${webdavState.error || ''}`}</small>
+        </div>
+      )}
+
+      <hr />
 
         <h3>🏠 Informations magasin</h3>
         <Form>

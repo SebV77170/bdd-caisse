@@ -3,6 +3,7 @@ const http = require('http');
 const app = require('./app');
 const PORT = process.env.PORT || 3001;
 const { startScheduler } = require('./syncScheduler');
+const { startWebdavScheduler } = require('./webdavScheduler');
 
 const server = http.createServer(app);
 const io = require('socket.io')(server, {
@@ -21,6 +22,7 @@ app.use('/api/sync/recevoir-de-secondaire', recevoirDeSecondaire);
 server.listen(PORT, () => {
   console.log(`Serveur backend lancé sur http://localhost:${PORT}`);
   startScheduler(PORT, io);
+  startWebdavScheduler();
 });
 
 /* // Émet une fausse synchronisation toutes les 15 secondes
