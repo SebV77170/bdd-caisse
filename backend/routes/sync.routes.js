@@ -174,14 +174,14 @@ router.post('/', async (req, res) => {
             }
 
             await pool.query(
-              `INSERT INTO ticketdecaisse (uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt, nbr_objet, moyen_paiement, prix_total, lien, reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse, flag_correction, corrige_le_ticket, annulation_de, flag_annulation) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              `INSERT INTO ticketdecaisse (uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt, nbr_objet, moyen_paiement, prix_total, lien, reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse, flag_correction, corrige_le_ticket, annulation_de, flag_annulation, cloture) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
                 payload.uuid_ticket, payload.nom_vendeur, payload.id_vendeur, payload.date_achat_dt,
                 payload.nbr_objet, payload.moyen_paiement, payload.prix_total, payload.lien,
                 payload.reducbene, payload.reducclient, payload.reducgrospanierclient, payload.reducgrospanierbene,
                 payload.uuid_session_caisse, payload.flag_correction || 0, payload.corrige_le_ticket || null,
-                payload.annulation_de || null, payload.flag_annulation || 0
+                payload.annulation_de || null, payload.flag_annulation || 0, payload.cloture || 0
               ]
             );
             if (debugMode) debugLogs.push(`✅ INSERT ticketdecaisse ${payload.uuid_ticket}`);
