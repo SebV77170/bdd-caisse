@@ -48,8 +48,7 @@ function buildRemoteUrl(baseUrl, remotePath) {
 const createdDirs = new Set();
 
 async function ensureRemoteDir(baseUrl, headers, remoteDir) {
-  if (!remoteDir || remoteDir === '/' || createdDirs.has(remoteDir)) return;
-  createdDirs.add(remoteDir);
+  if (!remoteDir || remoteDir === '/') return;
 
   const segments = remoteDir.split('/').filter(Boolean);
   let current = '';
@@ -57,17 +56,38 @@ async function ensureRemoteDir(baseUrl, headers, remoteDir) {
   for (const segment of segments) {
     current += `/${segment}`;
 
-    if (createdDirs.has(current)) continue;
-    createdDirs.add(current);
+    if (createdDirs.has(current)) {
+      continue;
+    }
 
     const targetUrl = buildRemoteUrl(baseUrl, current);
 
-    await axios({
-      method: 'MKCOL',
-      url: targetUrl,
-      headers,
-      validateStatus: status => [200, 201, 301, 302, 405, 207].includes(status)
-    });
+    try {
+      const res = await axios({
+        method: 'MKCOL',
+        url: targetUrl,
+        headers,
+        // on accepte tous les codes, on les analyse ensuite
+        validateStatus: () => true
+      });
+
+      console.log(`MKCOL ${current} -> ${res.status}`);
+
+      // OK : créé ou déjà existant
+      if ([201, 405, 200, 301, 302, 207].includes(res.status)) {
+        createdDirs.add(current);
+        continue;
+      }
+
+      if (res.status === 409) {
+        console.log(`⚠️ MKCOL 409 (parent manquant) pour ${current}`);
+        // on continue, mais le PUT sur ce répertoire risque d'échouer
+      } else {
+        console.log(`⚠️ MKCOL statut inattendu ${res.status} pour ${current}`);
+      }
+    } catch (err) {
+      console.log(`❌ NETWORK ERROR MKCOL ${current}`, err.code || err.message);
+    }
   }
 }
 
@@ -78,25 +98,22 @@ async function uploadWithRetry(url, stream, headers, attempt = 1) {
       headers: { ...headers, 'Content-Type': 'application/pdf' },
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
-      timeout: 15000
+      timeout: 30000
     });
     return true;
   } catch (err) {
     if (err.response) {
-      console.log(
-        `❌ HTTP ERROR ${err.response.status} sur ${url}`
-      );
-      // Optionnel : afficher un bout du body
-      if (typeof err.response.data === 'string') {
-        console.log(err.response.data.slice(0, 200));
-      }
+      console.log(`❌ HTTP ERROR ${err.response.status} sur ${url}`);
     } else {
       console.log(`❌ NETWORK ERROR sur ${url}`, err.code || err.message);
     }
 
     if (attempt < 3) {
       console.log(`Retry ${attempt}/3 : ${url}`);
-      return uploadWithRetry(url, stream, headers, attempt + 1);
+      // IMPORTANT : recréer le stream, sinon il est "consommé"
+      const fs = require('fs');
+      const newStream = fs.createReadStream(new URL(url).pathname.replace(/^.*tickets/, path.join(ticketsDir)));
+      return uploadWithRetry(url, newStream, headers, attempt + 1);
     }
 
     return false;
@@ -113,6 +130,8 @@ async function runWithConcurrency(items, limit, worker) {
     while (queue.length > 0) {
       const item = queue.pop();
       results.push(await worker(item));
+      // petite pause optionnelle pour ménager le serveur
+      await new Promise(r => setTimeout(r, 50));
     }
   }
 
@@ -121,6 +140,7 @@ async function runWithConcurrency(items, limit, worker) {
 
   return results;
 }
+
 
 // -------- 7. Version optimisée de uploadTickets --------
 async function uploadTickets() {
@@ -134,19 +154,20 @@ async function uploadTickets() {
   console.log(`📦 ${files.length} fichiers détectés en local.`);
 
   const results = await runWithConcurrency(
-    files,
-    5, // ← 5 uploads en parallèle
-    async file => {
-      const remotePath = normalizeRemotePath(basePath || '/tickets', file.relPath);
-      const remoteDir = path.posix.dirname(remotePath);
-      await ensureRemoteDir(url, headers, remoteDir);
+  files,
+  2, // 2 uploads simultanés seulement
+  async file => {
+    const remotePath = normalizeRemotePath(basePath || '/tickets', file.relPath);
+    const remoteDir = path.posix.dirname(remotePath);
+    await ensureRemoteDir(url, headers, remoteDir);
 
-      const targetUrl = buildRemoteUrl(url, remotePath);
-      const stream = fs.createReadStream(file.absPath);
+    const targetUrl = buildRemoteUrl(url, remotePath);
+    const stream = fs.createReadStream(file.absPath);
 
-      return uploadWithRetry(targetUrl, stream, headers);
-    }
-  );
+    return uploadWithRetry(targetUrl, stream, headers);
+  }
+);
+
 
   const success = results.filter(r => r === true).length;
   const failed = results.filter(r => r === false).length;
