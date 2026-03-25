@@ -27,7 +27,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Pseudo et mot de passe requis' });
   }
 
-  const user = sqlite.prepare('SELECT * FROM users WHERE pseudo = ?').get(pseudo);
+  const user = sqlite.prepare('SELECT * FROM users WHERE pseudo = ? COLLATE NOCASE ').get(pseudo);
   if (!user) {
     return res.status(404).json({ error: 'Utilisateur non trouvé' });
   }
