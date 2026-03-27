@@ -5,6 +5,14 @@ const { sqlite, getMysqlPool } = require('../db');
 const bcrypt = require('bcrypt');
 const logSync = require('../logsync');
 
+function normalizePseudo(pseudo) {
+  return String(pseudo || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 // GET /api/users — retourne la liste pour la page de login
 router.get('/', (req, res) => {
   try {
@@ -54,29 +62,83 @@ router.post('/', (req, res) => {
 router.get('/compare', async (req, res) => {
   try {
     const pool = getMysqlPool();
-    const [mysqlUsers] = await pool.query(
-      'SELECT uuid_user, prenom, nom, pseudo, password, admin, mail, tel FROM users'
-    );
-    const sqliteUsers = sqlite
-      .prepare('SELECT uuid_user, prenom, nom, pseudo, password, admin, mail, tel FROM users')
-      .all();
+
+    const [mysqlUsers] = await pool.query(`
+      SELECT
+        uuid_user,
+        prenom,
+        nom,
+        pseudo,
+        pseudo_normalise,
+        password,
+        admin,
+        mail,
+        tel
+      FROM users
+    `);
+
+    const sqliteUsers = sqlite.prepare(`
+      SELECT
+        uuid_user,
+        prenom,
+        nom,
+        pseudo,
+        pseudo_normalise,
+        password,
+        admin,
+        mail,
+        tel
+      FROM users
+    `).all();
+
     const localMap = new Map(sqliteUsers.map(u => [u.uuid_user, u]));
     const remoteMap = new Map(mysqlUsers.map(u => [u.uuid_user, u]));
 
     const missing = mysqlUsers.filter(u => !localMap.has(u.uuid_user));
     const extra = sqliteUsers.filter(u => !remoteMap.has(u.uuid_user));
+
+    const fieldsToCompare = [
+      'prenom',
+      'nom',
+      'pseudo',
+      'pseudo_normalise',
+      'password',
+      'admin',
+      'mail',
+      'tel'
+    ];
+
     const different = mysqlUsers.filter(u => {
       const lu = localMap.get(u.uuid_user);
       if (!lu) return false;
-      return ['prenom', 'nom', 'pseudo', 'password', 'admin', 'mail', 'tel'].some(
-        f => String(u[f] ?? '') !== String(lu[f] ?? '')
+
+      const remoteUser = {
+        ...u,
+        pseudo_normalise: u.pseudo_normalise || normalizePseudo(u.pseudo)
+      };
+
+      const localUser = {
+        ...lu,
+        pseudo_normalise: lu.pseudo_normalise || normalizePseudo(lu.pseudo)
+      };
+
+      return fieldsToCompare.some(
+        f => String(remoteUser[f] ?? '') !== String(localUser[f] ?? '')
       );
     });
 
-    res.json({ success: true, missing, extra, different });
+    res.json({
+      success: true,
+      missing,
+      extra,
+      different
+    });
   } catch (err) {
     console.error('Erreur comparaison users:', err);
-    res.status(500).json({ success: false, error: 'Erreur comparaison users' });
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Erreur comparaison users'
+    });
   }
 });
 
@@ -84,32 +146,65 @@ router.get('/compare', async (req, res) => {
 router.post('/sync', async (req, res) => {
   try {
     const pool = getMysqlPool();
-    const [mysqlUsers] = await pool.query(
-      'SELECT uuid_user, prenom, nom, pseudo, password, admin, mail, tel FROM users'
-    );
-    const insert = sqlite.prepare(
-      'INSERT OR REPLACE INTO users (uuid_user, prenom, nom, pseudo, password, admin, mail, tel) VALUES (?,?,?,?,?,?,?,?)'
-    );
+
+    const [mysqlUsers] = await pool.query(`
+      SELECT
+        uuid_user,
+        prenom,
+        nom,
+        pseudo,
+        pseudo_normalise,
+        password,
+        admin,
+        mail,
+        tel
+      FROM users
+    `);
+
+    const insert = sqlite.prepare(`
+      INSERT OR REPLACE INTO users (
+        uuid_user,
+        prenom,
+        nom,
+        pseudo,
+        pseudo_normalise,
+        password,
+        admin,
+        mail,
+        tel
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
     const replaceAll = sqlite.transaction(users => {
       sqlite.prepare('DELETE FROM users').run();
+
       for (const u of users) {
         insert.run(
           u.uuid_user,
-          u.prenom,
-          u.nom,
-          u.pseudo,
-          u.password,
-          u.admin,
-          u.mail || '',
-          u.tel || ''
+          u.prenom ?? '',
+          u.nom ?? '',
+          u.pseudo ?? '',
+          u.pseudo_normalise || normalizePseudo(u.pseudo),
+          u.password ?? '',
+          u.admin ?? 0,
+          u.mail ?? '',
+          u.tel ?? ''
         );
       }
     });
+
     replaceAll(mysqlUsers);
-    res.json({ success: true, count: mysqlUsers.length });
+
+    res.json({
+      success: true,
+      count: mysqlUsers.length
+    });
   } catch (err) {
     console.error('Erreur sync users:', err);
-    res.status(500).json({ success: false, error: 'Erreur mise à jour users' });
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Erreur mise à jour users'
+    });
   }
 });
 

@@ -128,6 +128,7 @@ if (process.env.NODE_ENV === 'test') {
   // 🎯 Connexion active à la BDD
   db = new Database(dbPath);
   console.log('✅ Connecté à SQLite :', dbPath);
+  
 
   try {
     syncSqliteWithTemplate(db, templatePath);

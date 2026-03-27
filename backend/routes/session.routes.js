@@ -27,20 +27,26 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Pseudo et mot de passe requis' });
   }
 
-  const user = sqlite.prepare('SELECT * FROM users WHERE pseudo = ? COLLATE NOCASE ').get(pseudo);
+  const pseudoSaisi = String(pseudo).trim().normalize('NFC');
+
+  const users = sqlite.prepare('SELECT * FROM users').all();
+
+  const user = users.find(u =>
+    typeof u.pseudo === 'string' &&
+    u.pseudo.trim().normalize('NFC').toLowerCase() === pseudoSaisi.toLowerCase()
+  );
+
   if (!user) {
     return res.status(404).json({ error: 'Utilisateur non trouvé' });
   }
 
-  // compat bcrypt $2y$ -> $2b$
-  const hashCorrige = user.password.replace(/^\$2y\$/, '$2b$');
-  const motDePasseValide = bcrypt.compareSync(mot_de_passe.trim(), hashCorrige);
+  const hashCorrige = String(user.password).trim().replace(/^\$2y\$/, '$2b$');
+  const motDePasseValide = bcrypt.compareSync(mot_de_passe, hashCorrige);
 
   if (!motDePasseValide) {
     return res.status(403).json({ error: 'Mot de passe invalide' });
   }
 
-  // Enregistrement de l'utilisateur dans la session HTTP
   req.session.user = {
     nom: user.nom,
     prenom: user.prenom,
@@ -52,7 +58,6 @@ router.post('/', (req, res) => {
     res.json({ success: true, user: req.session.user });
   });
 });
-
 // ----------------------
 // Qui est connecté
 // ----------------------
