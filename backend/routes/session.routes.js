@@ -17,6 +17,14 @@ const toYMD = (iso) => {
   }
 };
 
+function normalizePseudo(pseudo) {
+  return String(pseudo || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 // ----------------------
 // Connexion
 // ----------------------
@@ -27,20 +35,20 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Pseudo et mot de passe requis' });
   }
 
-  const pseudoSaisi = String(pseudo).trim().normalize('NFC');
+  const pseudoNormalise = normalizePseudo(pseudo);
 
-  const users = sqlite.prepare('SELECT * FROM users').all();
-
-  const user = users.find(u =>
-    typeof u.pseudo === 'string' &&
-    u.pseudo.trim().normalize('NFC').toLowerCase() === pseudoSaisi.toLowerCase()
-  );
+  const user = sqlite
+    .prepare('SELECT * FROM users WHERE pseudo_normalise = ?')
+    .get(pseudoNormalise);
 
   if (!user) {
     return res.status(404).json({ error: 'Utilisateur non trouvé' });
   }
 
-  const hashCorrige = String(user.password).trim().replace(/^\$2y\$/, '$2b$');
+  const hashCorrige = String(user.password || '')
+    .trim()
+    .replace(/^\$2y\$/, '$2b$');
+
   const motDePasseValide = bcrypt.compareSync(mot_de_passe, hashCorrige);
 
   if (!motDePasseValide) {
@@ -54,7 +62,12 @@ router.post('/', (req, res) => {
     uuid_user: user.uuid_user
   };
 
-  req.session.save(() => {
+  req.session.save(err => {
+    if (err) {
+      console.error('Erreur sauvegarde session :', err);
+      return res.status(500).json({ error: 'Erreur session' });
+    }
+
     res.json({ success: true, user: req.session.user });
   });
 });

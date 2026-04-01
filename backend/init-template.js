@@ -79,7 +79,8 @@ CREATE TABLE users (
   password TEXT(32767),
   admin tinyint NOT NULL,
   mail varchar(255),
-  tel varchar(255)
+  tel varchar(255),
+  pseudo_normalise text
 );
 
 CREATE TABLE vente (
