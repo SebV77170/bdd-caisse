@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron');
 const { session: electronSession } = require('electron');
+const { autoUpdater } = require('electron-updater');
 
 const path = require('path');
 const fs = require('fs');
@@ -11,6 +12,72 @@ let mainWindow;
 let backendProcess;
 let _ensuring = false;
 let _lastEnsure = 0;
+
+const GITHUB_OWNER = process.env.BDD_CAISSE_GITHUB_OWNER;
+const GITHUB_REPO = process.env.BDD_CAISSE_GITHUB_REPO;
+
+function setupAutoUpdaterLogs() {
+  autoUpdater.on('checking-for-update', () => {
+    console.log('🔎 Vérification des mises à jour GitHub...');
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log(`✅ Version locale à jour (${info?.version || app.getVersion()})`);
+  });
+
+  autoUpdater.on('error', (error) => {
+    console.error('❌ Erreur pendant la mise à jour automatique :', error?.message || error);
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    const percent = Math.round(progress?.percent || 0);
+    console.log(`⬇️ Téléchargement mise à jour : ${percent}%`);
+  });
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    console.log(`📦 Mise à jour ${info.version} téléchargée. Installation...`);
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Mise à jour disponible',
+      message: `La version ${info.version} a été téléchargée. L'application va redémarrer pour finaliser la mise à jour.`
+    });
+
+    setImmediate(() => autoUpdater.quitAndInstall());
+  });
+}
+
+async function checkForAppUpdate() {
+  if (!app.isPackaged) {
+    console.log('ℹ️ Mode développement: vérification de mise à jour ignorée.');
+    return;
+  }
+
+  if (!GITHUB_OWNER || !GITHUB_REPO) {
+    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_GITHUB_OWNER et BDD_CAISSE_GITHUB_REPO.');
+    return;
+  }
+
+  setupAutoUpdaterLogs();
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.setFeedURL({
+    provider: 'github',
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO
+  });
+
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (result?.updateInfo?.version) {
+      console.log(`🆚 Version locale ${app.getVersion()} / GitHub ${result.updateInfo.version}`);
+    }
+  } catch (error) {
+    console.error('❌ Impossible de vérifier les mises à jour GitHub :', error?.message || error);
+  }
+}
 
 
 function ensureInteractiveLight() {
@@ -263,7 +330,9 @@ function waitForBackendReady(callback) {
 }
 
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await checkForAppUpdate();
+
   if (!isDev) {
     launchBackend();
     waitForBackendReady(() => {
