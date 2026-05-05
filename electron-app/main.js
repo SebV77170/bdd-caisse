@@ -13,8 +13,8 @@ let backendProcess;
 let _ensuring = false;
 let _lastEnsure = 0;
 
-const GITHUB_OWNER = process.env.BDD_CAISSE_GITHUB_OWNER;
-const GITHUB_REPO = process.env.BDD_CAISSE_GITHUB_REPO;
+const UPDATE_BASE_URL = process.env.BDD_CAISSE_UPDATE_URL;
+let autoUpdaterConfigured = false;
 
 function setupAutoUpdaterLogs() {
   autoUpdater.on('checking-for-update', () => {
@@ -46,36 +46,46 @@ function setupAutoUpdaterLogs() {
   });
 }
 
-async function checkForAppUpdate() {
-  if (!app.isPackaged) {
-    console.log('ℹ️ Mode développement: vérification de mise à jour ignorée.');
-    return;
-  }
+function configureAutoUpdater() {
+  if (autoUpdaterConfigured) return true;
 
-  if (!GITHUB_OWNER || !GITHUB_REPO) {
-    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_GITHUB_OWNER et BDD_CAISSE_GITHUB_REPO.');
-    return;
+  if (!UPDATE_BASE_URL) {
+    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_UPDATE_URL.');
+    return false;
   }
 
   setupAutoUpdaterLogs();
-
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
-
   autoUpdater.setFeedURL({
-    provider: 'github',
-    owner: GITHUB_OWNER,
-    repo: GITHUB_REPO
+    provider: 'generic',
+    url: UPDATE_BASE_URL
   });
+  autoUpdaterConfigured = true;
+  console.log(`🌐 Source de mise à jour configurée : ${UPDATE_BASE_URL}`);
+  return true;
+}
+
+async function checkForAppUpdate(source = 'startup') {
+  if (!app.isPackaged) {
+    console.log(`ℹ️ Mode développement: vérification de mise à jour ignorée (${source}).`);
+    return { success: false, message: 'Mode développement' };
+  }
+
+  if (!configureAutoUpdater()) {
+    return { success: false, message: 'BDD_CAISSE_UPDATE_URL manquante' };
+  }
 
   try {
     const result = await autoUpdater.checkForUpdates();
     if (result?.updateInfo?.version) {
-      console.log(`🆚 Version locale ${app.getVersion()} / GitHub ${result.updateInfo.version}`);
+      console.log(`🆚 Version locale ${app.getVersion()} / distante ${result.updateInfo.version} (${source})`);
     }
+    return { success: true, version: result?.updateInfo?.version || app.getVersion() };
   } catch (error) {
-    console.error('❌ Impossible de vérifier les mises à jour GitHub :', error?.message || error);
+    console.error('❌ Impossible de vérifier les mises à jour distantes :', error?.message || error);
+    return { success: false, message: error?.message || 'Erreur inconnue' };
   }
 }
 
@@ -115,6 +125,9 @@ function ensureInteractiveRaise() {
 // IPC
 ipcMain.handle('ui/ensure-interactive-light', () => { ensureInteractiveLight(); return true; });
 ipcMain.handle('ui/ensure-interactive-raise', () => { ensureInteractiveRaise(); return true; });
+ipcMain.handle('app/check-for-updates', async () => {
+  return checkForAppUpdate('manual');
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({

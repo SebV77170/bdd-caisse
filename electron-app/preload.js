@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
   openPdf: (relativePath) => ipcRenderer.send('open-pdf', relativePath),
   ouvrirDevTools: () => ipcRenderer.send('devtools-open'),
-ensureInteractiveLight: () => ipcRenderer.invoke('ui/ensure-interactive-light'),
-  ensureInteractiveRaise: () => ipcRenderer.invoke('ui/ensure-interactive-raise')
+  ensureInteractiveLight: () => ipcRenderer.invoke('ui/ensure-interactive-light'),
+  ensureInteractiveRaise: () => ipcRenderer.invoke('ui/ensure-interactive-raise'),
+  checkForUpdates: () => ipcRenderer.invoke('app/check-for-updates')
 });
