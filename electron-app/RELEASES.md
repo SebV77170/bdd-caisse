@@ -2,63 +2,80 @@
 
 Ce projet utilise `electron-updater` : l'application installée compare sa version locale avec les métadonnées publiées sur ton serveur WebDAV.
 
-Pour que ça fonctionne, il faut publier **les artefacts Electron Builder** (pas seulement un tag Git).
+Pour que ça fonctionne, il faut publier **les artefacts Electron Builder** (`latest.yml`, l'installateur et les blockmaps) dans un dossier WebDAV accessible en lecture.
 
 ## 1) Pré-requis serveur WebDAV
 
-1. Disposer d'un dossier distant WebDAV dédié aux releases (ex: `https://mon-serveur/webdav/bdd-caisse/releases/`).
-2. Avoir les accès en écriture (upload des artefacts).
+1. Disposer d'un endpoint WebDAV déjà déclaré dans `backend/.env` via `WEBDAV_ENDPOINTS`.
+2. Avoir les accès en écriture pour uploader les artefacts générés.
+3. Prévoir un dossier distant dédié aux releases (par défaut `/releases`).
 
-## 2) Lier l'app à ton endpoint WebDAV
+## 2) Configuration utilisée par l'application
 
-L'auto-update lit cette variable au runtime (dans `electron-app/main.js`) :
+L'auto-update ne lit plus `BDD_CAISSE_UPDATE_URL`. Il réutilise les accès déjà déclarés dans `backend/.env` via `WEBDAV_ENDPOINTS`.
 
-- `BDD_CAISSE_UPDATE_URL`
+Exemple de profil :
 
-Exemple :
-
-```bash
-export BDD_CAISSE_UPDATE_URL=https://mon-serveur/webdav/bdd-caisse/releases/
+```json
+{
+  "production": {
+    "label": "Serveur production",
+    "url": "https://mon-serveur/webdav/",
+    "username": "utilisateur",
+    "password": "motdepasse",
+    "basePath": "/tickets",
+    "updatePath": "/releases"
+  }
+}
 ```
+
+Notes :
+
+- `url`, `username` et `password` sont obligatoires.
+- `updatePath` indique le dossier qui contiendra `latest.yml` et l'installateur.
+- Si `updatePath` est absent, l'application utilise `/releases` par défaut.
+- Le profil actif est celui enregistré dans la configuration WebDAV de l'application ; sinon le premier profil de `WEBDAV_ENDPOINTS` est utilisé.
 
 ## 3) Incrémenter la version
 
 Mettre à jour la version dans `electron-app/package.json` (ex: `1.2.2` -> `1.2.3`).
 
-## 4) Build + publication des artefacts release
+## 4) Build des artefacts release
 
-Depuis `electron-app/` (sans publication GitHub) :
+Depuis `electron-app/` :
 
 ```bash
-npm run dist -- --publish never
+npm run dist
 ```
 
-Electron Builder va générer dans `dist/` :
+Le script `dist` lance `electron-builder --publish never`. La configuration `build.publish` du `package.json` force Electron Builder à générer les métadonnées d'auto-update, dont `latest.yml`, sans publier automatiquement sur GitHub.
 
-- l'installeur (`.exe`),
+Electron Builder génère dans `dist/` :
+
+- l'installateur Windows (`*.exe`),
 - les métadonnées (`latest.yml` + fichiers associés),
 - les fichiers de blockmap (`*.blockmap` éventuels).
 
-Ensuite, uploader ces fichiers dans ton dossier WebDAV de release.
+## 5) Upload WebDAV
 
-## 5) Vérifier le dossier de release WebDAV
+Uploader tous les fichiers générés nécessaires dans le dossier WebDAV configuré par `updatePath`.
 
-Vérifier la présence de :
+Exemple avec le profil ci-dessus :
 
-- l'installeur Windows (`*.exe`),
-- `latest.yml`,
-- blocs (`*.blockmap` éventuels).
-
-Sans `latest.yml`, `electron-updater` ne peut pas déterminer la version/URL de mise à jour.
+```text
+https://mon-serveur/webdav/releases/latest.yml
+https://mon-serveur/webdav/releases/Bdd-caisse Setup 1.2.3.exe
+https://mon-serveur/webdav/releases/Bdd-caisse Setup 1.2.3.exe.blockmap
+```
 
 ## 6) Vérification côté app
 
-Lancer l'application packagée avec `BDD_CAISSE_UPDATE_URL` pointant vers le dossier WebDAV qui contient `latest.yml`.
+Au démarrage, ou via le bouton **Rechercher une mise à jour** dans les paramètres, l'application :
 
-Au démarrage, elle doit logguer la vérification de MAJ et télécharger automatiquement si la version distante est plus récente.
+1. lit `backend/.env`,
+2. récupère `WEBDAV_ENDPOINTS`,
+3. sélectionne le profil WebDAV actif,
+4. pointe `electron-updater` vers `url + updatePath`,
+5. télécharge automatiquement la mise à jour si la version distante est plus récente.
 
----
-
-## CI (optionnel mais recommandé)
-
-Tu peux automatiser le build puis l'upload WebDAV via CI/CD (GitHub Actions, GitLab CI, etc.) pour éviter les publications manuelles.
+Sans `latest.yml` dans ce dossier, `electron-updater` ne peut pas déterminer la version/URL de mise à jour.

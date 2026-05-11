@@ -10,7 +10,7 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "dist": "electron-builder --publish never",
     "copy-react-build": "rm -rf build && cp -r ../frontend/build ./build"
   },
   "build": {
@@ -39,25 +39,25 @@
         "to": "node.exe"
       },
       {
-      "from": "../backend/database/ressourcebrie-sqlite-template.db",
-      "to": "database"
-    },
-    {
-      "from": "../backend/inserts_categories_boutons.sql",
-      "to": "."
-    },
-    {
-      "from": "../backend/inserts_users.sql",
-      "to": "."
-    },
-    {
-      "from": "../frontend/src/images",
-      "to": "images"
-    },
-    {
-    "from": "../frontend/build",
-    "to": "frontend_build"
-  }
+        "from": "../backend/database/ressourcebrie-sqlite-template.db",
+        "to": "database"
+      },
+      {
+        "from": "../backend/inserts_categories_boutons.sql",
+        "to": "."
+      },
+      {
+        "from": "../backend/inserts_users.sql",
+        "to": "."
+      },
+      {
+        "from": "../frontend/src/images",
+        "to": "images"
+      },
+      {
+        "from": "../frontend/build",
+        "to": "frontend_build"
+      }
     ],
     "directories": {
       "buildResources": "assets"
@@ -65,7 +65,13 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
-    }
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://example.invalid/bdd-caisse/releases/"
+      }
+    ]
   },
   "dependencies": {
     "electron-updater": "^6.6.2"

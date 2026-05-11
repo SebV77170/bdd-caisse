@@ -13,12 +13,111 @@ let backendProcess;
 let _ensuring = false;
 let _lastEnsure = 0;
 
-const UPDATE_BASE_URL = process.env.BDD_CAISSE_UPDATE_URL;
 let autoUpdaterConfigured = false;
+
+function getBackendDir() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'backend')
+    : path.join(__dirname, '../backend');
+}
+
+function parseEnvContent(content) {
+  return content.split(/\r?\n/).reduce((acc, line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return acc;
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) return acc;
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    let value = trimmed.slice(separatorIndex + 1).trim();
+    if (!key) return acc;
+
+    const quote = value[0];
+    const isQuoted = (quote === '"' || quote === "'") && value.endsWith(quote);
+    if (isQuoted) {
+      value = value.slice(1, -1);
+    }
+
+    if (quote === '"') {
+      value = value.replace(/\\"/g, '"');
+    }
+
+    acc[key] = value.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+    return acc;
+  }, {});
+}
+
+function loadBackendEnv() {
+  const envPath = path.join(getBackendDir(), '.env');
+  if (!fs.existsSync(envPath)) return {};
+
+  try {
+    return parseEnvContent(fs.readFileSync(envPath, 'utf8'));
+  } catch (error) {
+    console.error('❌ Impossible de lire le fichier .env backend :', error?.message || error);
+    return {};
+  }
+}
+
+function loadWebdavEndpoints() {
+  const backendEnv = loadBackendEnv();
+  const raw = process.env.WEBDAV_ENDPOINTS || backendEnv.WEBDAV_ENDPOINTS || process.env.WEBDAV_CONFIG || backendEnv.WEBDAV_CONFIG;
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed;
+  } catch (error) {
+    console.error('❌ WEBDAV_ENDPOINTS invalide pour la mise à jour :', error?.message || error);
+    return {};
+  }
+}
+
+function loadPersistedWebdavMode(endpoints) {
+  const configPath = path.join(app.getPath('home'), '.bdd-caisse', 'webdavSyncConfig.json');
+  if (!fs.existsSync(configPath)) return Object.keys(endpoints)[0] || null;
+
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (config?.mode && endpoints[config.mode]) return config.mode;
+  } catch {}
+
+  return Object.keys(endpoints)[0] || null;
+}
+
+function buildBasicAuthHeader(username, password) {
+  const token = Buffer.from(`${username}:${password}`).toString('base64');
+  return `Basic ${token}`;
+}
+
+function buildWebdavUpdateConfig() {
+  const endpoints = loadWebdavEndpoints();
+  const activeMode = loadPersistedWebdavMode(endpoints);
+  const endpoint = activeMode ? endpoints[activeMode] : null;
+
+  if (!endpoint?.url || !endpoint?.username || !endpoint?.password) {
+    return null;
+  }
+
+  const updatePath = endpoint.updatePath || endpoint.releasePath || endpoint.releasesPath || '/releases';
+  const normalizedBase = endpoint.url.endsWith('/') ? endpoint.url : `${endpoint.url}/`;
+  const normalizedPath = String(updatePath).replace(/^\/+/, '').replace(/\/+$/, '');
+  const updateUrl = new URL(`${normalizedPath}/`, normalizedBase).toString();
+
+  return {
+    url: updateUrl,
+    mode: activeMode,
+    requestHeaders: {
+      Authorization: buildBasicAuthHeader(endpoint.username, endpoint.password)
+    }
+  };
+}
 
 function setupAutoUpdaterLogs() {
   autoUpdater.on('checking-for-update', () => {
-    console.log('🔎 Vérification des mises à jour GitHub...');
+    console.log('🔎 Vérification des mises à jour WebDAV...');
   });
 
   autoUpdater.on('update-not-available', (info) => {
@@ -49,8 +148,9 @@ function setupAutoUpdaterLogs() {
 function configureAutoUpdater() {
   if (autoUpdaterConfigured) return true;
 
-  if (!UPDATE_BASE_URL) {
-    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_UPDATE_URL.');
+  const webdavUpdateConfig = buildWebdavUpdateConfig();
+  if (!webdavUpdateConfig) {
+    console.warn('⚠️ Mise à jour auto désactivée: aucun endpoint WEBDAV_ENDPOINTS exploitable trouvé dans backend/.env.');
     return false;
   }
 
@@ -60,10 +160,11 @@ function configureAutoUpdater() {
   autoUpdater.allowPrerelease = false;
   autoUpdater.setFeedURL({
     provider: 'generic',
-    url: UPDATE_BASE_URL
+    url: webdavUpdateConfig.url,
+    requestHeaders: webdavUpdateConfig.requestHeaders
   });
   autoUpdaterConfigured = true;
-  console.log(`🌐 Source de mise à jour configurée : ${UPDATE_BASE_URL}`);
+  console.log(`🌐 Source de mise à jour WebDAV configurée (${webdavUpdateConfig.mode}) : ${webdavUpdateConfig.url}`);
   return true;
 }
 
@@ -74,7 +175,7 @@ async function checkForAppUpdate(source = 'startup') {
   }
 
   if (!configureAutoUpdater()) {
-    return { success: false, message: 'BDD_CAISSE_UPDATE_URL manquante' };
+    return { success: false, message: 'Aucun endpoint WEBDAV_ENDPOINTS exploitable pour les mises à jour' };
   }
 
   try {
