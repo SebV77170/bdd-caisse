@@ -6,16 +6,12 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 
 const transporter = nodemailer.createTransport({
-  host: 'smtp.ouvaton.coop',
-  port: 587,
-  secure: false, // STARTTLS
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: 'magasin@ressourcebrie.fr',
     pass: 'Magasin7#'
-  },
-  tls: {
-    ciphers: 'SSLv3',
-    rejectUnauthorized: false
   },
   logger: true,
   debug: true

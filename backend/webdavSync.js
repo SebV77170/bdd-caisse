@@ -6,6 +6,7 @@ const { getActiveCredentials } = require('./webdavConfig');
 
 const baseDir = path.join(os.homedir(), '.bdd-caisse');
 const ticketsDir = path.join(baseDir, 'tickets');
+const facturesDir = path.join(baseDir, 'factures');
 
 // -------- 1. Fonction récursive pour lister tous les fichiers --------
 async function listLocalFiles(rootDir) {
@@ -215,6 +216,39 @@ async function runWithConcurrency(items, limit, worker) {
 }
 
 
+async function uploadDirectory({ label, localDir, baseUrl, headers, remoteBasePath }) {
+  const files = await listLocalFiles(localDir);
+  console.log(`📦 ${label}: ${files.length} fichiers détectés en local.`);
+
+  if (files.length === 0) {
+    return { success: 0, failed: 0, total: 0 };
+  }
+
+  // 1) Créer tous les dossiers nécessaires
+  await createAllRemoteDirs(baseUrl, headers, files, remoteBasePath);
+
+  // 2) Uploader les fichiers
+  const base = remoteBasePath;
+
+  const results = await runWithConcurrency(
+    files,
+    3, // 3 uploads en parallèle pour commencer
+    async file => {
+      const remotePath = normalizeRemotePath(base, file.relPath);
+      const targetUrl = buildRemoteUrl(baseUrl, remotePath);
+      return uploadWithRetry(targetUrl, file.absPath, headers);
+    }
+  );
+
+  const success = results.filter(r => r === true).length;
+  const failed = results.filter(r => r === false).length;
+
+  console.log(`✅ ${label}: Upload OK ${success} fichiers`);
+  console.log(`❌ ${label}: Échecs ${failed}`);
+
+  return { success, failed, total: files.length };
+}
+
 // -------- 7. Version optimisée de uploadTickets --------
 async function uploadTickets() {
   const credentials = getActiveCredentials();
@@ -224,33 +258,38 @@ async function uploadTickets() {
 
   const { url, username, password, basePath } = credentials;
   const headers = buildAuthHeader(username, password);
-
-  const files = await listLocalFiles(ticketsDir);
-  console.log(`📦 ${files.length} fichiers détectés en local.`);
-
-  // 1) Créer tous les dossiers nécessaires
-  await createAllRemoteDirs(url, headers, files, basePath);
-
-  // 2) Uploader les fichiers
-  const base = basePath || '/tickets';
-
-  const results = await runWithConcurrency(
-    files,
-    3, // 3 uploads en parallèle pour commencer
-    async file => {
-      const remotePath = normalizeRemotePath(base, file.relPath);
-      const targetUrl = buildRemoteUrl(url, remotePath);
-      return uploadWithRetry(targetUrl, file.absPath, headers);
-    }
-  );
-
-  const success = results.filter(r => r === true).length;
-  const failed = results.filter(r => r === false).length;
-
-  console.log(`✅ Upload OK : ${success} fichiers`);
-  console.log(`❌ Échecs : ${failed}`);
-
-  return { success, failed };
+  const ticketsBasePath = basePath || '/tickets';
+  return uploadDirectory({
+    label: 'tickets',
+    localDir: ticketsDir,
+    baseUrl: url,
+    headers,
+    remoteBasePath: ticketsBasePath
+  });
 }
 
-module.exports = { uploadTickets };
+async function uploadFactures() {
+  const credentials = getActiveCredentials();
+  if (!credentials) {
+    throw new Error('Aucun profil WebDAV actif trouvé. Vérifiez WEBDAV_ENDPOINTS.');
+  }
+
+  const { url, username, password } = credentials;
+  const headers = buildAuthHeader(username, password);
+
+  return uploadDirectory({
+    label: 'factures',
+    localDir: facturesDir,
+    baseUrl: url,
+    headers,
+    remoteBasePath: '/factures'
+  });
+}
+
+async function uploadTicketsAndFactures() {
+  const tickets = await uploadTickets();
+  const factures = await uploadFactures();
+  return { tickets, factures };
+}
+
+module.exports = { uploadTickets, uploadFactures, uploadTicketsAndFactures };
