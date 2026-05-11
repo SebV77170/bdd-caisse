@@ -1,5 +1,5 @@
 // src/contexts/SessionCaisseContext.jsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import socket from '../utils/socket';
 
 const SessionCaisseContext = createContext();
@@ -29,7 +29,7 @@ export function SessionCaisseProvider({ children }) {
   const [sessionCaisseOuverte, setSessionCaisseOuverte] = useState(false);
   const [isReady, setIsReady] = useState(false); // ✅ NEW
 
-  const refreshSessionCaisse = () => {
+  const refreshSessionCaisse = useCallback(() => {
     // on retourne la Promise pour pouvoir await dans useEffect
     return fetch('http://localhost:3001/api/session/etat-caisse', { credentials: 'include' })
       .then(res => res.json())
@@ -46,7 +46,7 @@ export function SessionCaisseProvider({ children }) {
         setUuidSessionCaisse(null);
         setSessionCaisseOuverte(false);
       });
-  };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -64,7 +64,7 @@ export function SessionCaisseProvider({ children }) {
 
     socket.on('etatCaisseUpdated', handler);
     return () => socket.off('etatCaisseUpdated', handler);
-  }, []);
+  }, [refreshSessionCaisse]);
 
   return (
     <SessionCaisseContext.Provider value={{
@@ -92,7 +92,7 @@ export function SessionCaisseSecondaireProvider({ children }) {
   const [caisseSecondaireActive, setCaisseSecondaireActive] = useState(false);
   const [isReady, setIsReady] = useState(false); // ✅ NEW
 
-  const refreshCaisseSecondaire = () => {
+  const refreshCaisseSecondaire = useCallback(() => {
     return fetch('http://localhost:3001/api/session/etat-caisse-secondaire', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
@@ -108,7 +108,7 @@ export function SessionCaisseSecondaireProvider({ children }) {
         setUuidCaisseSecondaire(null);
         setCaisseSecondaireActive(false);
       });
-  };
+  }, [sessionCaisseOuverte]);
 
   useEffect(() => {
     if (!principaleReady) return; // ✅ tant que le principal n’a pas fini son 1er fetch, on attend
@@ -126,7 +126,7 @@ export function SessionCaisseSecondaireProvider({ children }) {
 
     socket.on('etatCaisseUpdated', handler);
     return () => socket.off('etatCaisseUpdated', handler);
-  }, [principaleReady, sessionCaisseOuverte]);
+  }, [principaleReady, sessionCaisseOuverte, refreshCaisseSecondaire]);
 
   const markSecondaryOpen = (id) => {
   setUuidCaisseSecondaire(id);

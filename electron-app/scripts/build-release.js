@@ -25,6 +25,7 @@ function ask(question, defaultValue = '') {
 }
 
 function runElectronBuilder() {
+  console.log('🏗️ Construction des artefacts Electron avec electron-builder...');
   const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
   const result = spawnSync(npx, ['electron-builder', '--publish', 'never'], {
     cwd: appDir,
@@ -35,6 +36,8 @@ function runElectronBuilder() {
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }
+
+  console.log('✅ Artefacts Electron générés dans electron-app/dist/.');
 }
 
 function getReleaseNotes() {
@@ -120,6 +123,11 @@ function uploadFile(baseUrl, file) {
       });
     });
 
+    const timeoutMs = Number(process.env.BDD_CAISSE_UPLOAD_TIMEOUT_MS || 120000);
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error(`Upload ${file.fileName} interrompu après ${timeoutMs / 1000}s sans réponse.`));
+    });
+
     request.on('error', reject);
     fs.createReadStream(file.fullPath).pipe(request);
   });
@@ -130,6 +138,8 @@ async function publishToWebdav() {
   if (!updateUrl) {
     throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release.');
   }
+
+  console.log(`🌐 Publication WebDAV vers ${updateUrl}`);
 
   const releaseNotes = getReleaseNotes();
   injectReleaseNotes(releaseNotes);
@@ -147,10 +157,14 @@ async function publishToWebdav() {
 }
 
 async function main() {
-  runElectronBuilder();
-
   let shouldPublish = args.has('--publish');
   if (args.has('--no-publish')) shouldPublish = false;
+
+  if (shouldPublish && !process.env.BDD_CAISSE_UPDATE_URL) {
+    throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release avant de lancer --publish. Utilise npm run package:no-publish pour construire sans publier.');
+  }
+
+  runElectronBuilder();
 
   if (!args.has('--publish') && !args.has('--no-publish')) {
     const answer = await ask('Publier cette mise à jour sur le serveur WebDAV ? [o/N] ', 'n');

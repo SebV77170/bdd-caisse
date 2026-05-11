@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import CategorieSelector from './CategorieSelector';
 import BoutonsCaisse from './BoutonsCaisse';
-import { useSessionCaisse } from '../contexts/SessionCaisseContext';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import ResponsableForm from "./ResponsableForm";
@@ -306,16 +305,6 @@ const handleCancelCustomMotif = () => {
     setArticlesSupprimes(articlesSupprimes.slice(0, -1));
   };
 
-  // Calcule le total avant réduction initiale (pour affichage) - Keep as is
-  const totalAvantReductionInitiale = () => {
-    if (!reductionOriginale) return totalAvant;
-    if (reductionOriginale === 'trueClient') return totalAvant + 500;
-    if (reductionOriginale === 'trueBene') return totalAvant + 1000;
-    if (reductionOriginale === 'trueGrosPanierClient') return Math.round(totalAvant / 0.9);
-    if (reductionOriginale === 'trueGrosPanierBene') return Math.round(totalAvant / 0.8);
-    return totalAvant;
-  };
-
   // Calcule le total après application de la réduction sélectionnée
   const totalApresReduction = () => {
     const totalSansReduction = corrections
@@ -394,16 +383,18 @@ const handleCancelCustomMotif = () => {
 
   useEffect(() => {
     // Adjust payments automatically when totalCorrige changes and only one payment method is present
-    if (paiements.length === 1) {
-      const montantActuel = parseMontant(paiements[0].montant);
-      if (montantActuel !== totalCorrige) {
-        setPaiements([{
-          ...paiements[0],
-          montant: (totalCorrige / 100).toFixed(2).replace('.', ',')
-        }]);
-      }
-    }
-  }, [totalCorrige, paiements.length]); // Added paiements.length as a dependency
+    setPaiements((currentPaiements) => {
+      if (currentPaiements.length !== 1) return currentPaiements;
+
+      const montantActuel = parseMontant(currentPaiements[0].montant);
+      if (montantActuel === totalCorrige) return currentPaiements;
+
+      return [{
+        ...currentPaiements[0],
+        montant: (totalCorrige / 100).toFixed(2).replace('.', ',')
+      }];
+    });
+  }, [totalCorrige]);
 
 
   // Envoie la correction au backend après vérifications

@@ -7,7 +7,6 @@ import BilanSessionCaisse from '../components/BilanSessionCaisse';
 import BilanReductionsSession from '../components/BilanReductionsSession';
 import TactileInput from '../components/TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
-import { set } from 'date-fns';
 import { euro } from '../utils/euro';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 import SiCaisseSecondaire from '../utils/SiCaisseSecondaire';
@@ -163,6 +162,7 @@ function FermetureCaisse() {
 
   // Récupère les montants attendus pour la session de caisse en cours
   useEffect(() => {
+    if (!uuidSessionCaisse) return;
     // Récupération des montants attendus depuis la table "bilan"
     fetch('http://localhost:3001/api/bilan/bilan_session_caisse?uuid_session_caisse=' + uuidSessionCaisse,{credentials: 'include'})
       .then(res => res.json())
@@ -185,7 +185,7 @@ function FermetureCaisse() {
           virement: 0
         });
       });
-  }, []);
+  }, [uuidSessionCaisse]);
 
   // Rendu du composant principal de fermeture de caisse
   return (

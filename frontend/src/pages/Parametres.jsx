@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button, Collapse } from 'react-bootstrap';
 import BoutonsManager from '../components/BoutonsManager';
-import ResetButton from '../components/ResetButton';
 import DevModeToggle from '../components/DevModeToggle';
 import DevModeModal from '../components/DevModeModal';
 import { useContext } from 'react';

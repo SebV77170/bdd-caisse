@@ -1,22 +1,13 @@
-import { io } from 'socket.io-client';
-import { useEffect, useState, createContext } from 'react';
+import { useEffect } from 'react';
 import MainRoutes from './components/MainRoutes';
 import MainNavbar from './components/MainNavBar';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/App.scss';
-import { useLocation } from 'react-router-dom';
 import BilanJour from './components/BilanJour';
 import { SyncModalProvider } from './contexts/SyncModalContext';
 import ModalSyncSecondaire from './components/ModalSyncSecondaire';
 //import FocusHud from './components/FocusHud';
-
-
-
-
-
-// Ces deux lignes doivent venir **après** tous les imports
-const socket = io('http://localhost:3001');
 
 function App() {
 

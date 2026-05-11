@@ -13,16 +13,11 @@ import Parametres from '../pages/Parametres';
 import RequireUserSession from './RequireUserSession';
 import RequireUserAndCaisseSession from './RequireUserAndCaisseSession';
 import CaisseNonOuverte from '../pages/CaisseNonOuverte';
-import { useActiveSession } from '../contexts/SessionCaisseContext';
-import SessionCaisseAutoProvider from '../contexts/SessionCaisseAutoProvider';
-import { SessionCaisseProvider, SessionCaisseSecondaireProvider } from '../contexts/SessionCaisseContext';
 import { useContext } from 'react';
 import { DevModeContext } from '../contexts/DevModeContext';
 
 export default function MainRoutes() {
   const { devMode } = useContext(DevModeContext);
-  const activeSession = useActiveSession();
-
   return (
     <Routes>
       

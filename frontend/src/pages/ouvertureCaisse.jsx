@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import CompteEspeces from '../components/compteEspeces';
 import TactileInput from '../components/TactileInput';
@@ -115,11 +114,6 @@ function OuvertureCaisse() {
         setMessage('Erreur de communication avec le serveur.');
       }
     }
-  };
-
-  // Guard pour CompteEspeces: ne prend la main que si non secondaire
-  const handleEspecesChange = (total) => {
-    if (!isSecondaire) setFondInitial(total);
   };
 
   return (

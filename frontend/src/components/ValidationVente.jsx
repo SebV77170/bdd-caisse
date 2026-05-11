@@ -244,35 +244,6 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   // 🧮💶 ==================  Calculette "Espèces"  ==================
   const cashGivenCents = parseMontant(montantDonne);
   const changeCents = Math.max(cashGivenCents - totalAvecReduction, 0);
-  const manqueCents = Math.max(totalAvecReduction - cashGivenCents, 0);
-  const peutValiderCash = cashGivenCents >= totalAvecReduction;
-
-  const addToMontantDonne = (addCents) => {
-    const newCents = cashGivenCents + addCents;
-    setMontantDonne(fmtEuros(newCents));
-  };
-  const setExact = () => setMontantDonne(fmtEuros(totalAvecReduction));
-  const clearMontant = () => setMontantDonne('');
-
-  const appendChar = (char) => {
-    // mini pavé numérique
-    if (char === '←') {
-      setMontantDonne((prev) => (prev || '').slice(0, -1));
-    } else if (char === ',' && !(montantDonne || '').includes(',')) {
-      setMontantDonne((prev) => (prev || '') + ',');
-    } else if (/^\d$/.test(char)) {
-      setMontantDonne((prev) => (prev || '') + char);
-    } else if (char === 'C') {
-      clearMontant();
-    }
-  };
-
-  const quickNextMultiple = (stepCents) => {
-    const due = totalAvecReduction;
-    const next = Math.ceil(due / stepCents) * stepCents;
-    return next;
-  };
-
   // =================================================================
 
   const formulairePaiements = (

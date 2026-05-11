@@ -7,7 +7,7 @@ import BoutonsCaisse from '../components/BoutonsCaisse';
 import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
 import { toast } from 'react-toastify';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useConfirm } from "../contexts/ConfirmContext";
 
@@ -22,8 +22,6 @@ function Caisse() {
   const [ventes, setVentes] = useState([]);
   const [venteActive, setVenteActive] = useState(null);
   const [ouvert, setOuvert] = useState(false);
-  const sessionCaisseOuverte = activeSession;
-
     console.log("🧪 activeSession:", activeSession);
 
 
