@@ -63,11 +63,12 @@ npm run release
 
 Le script :
 
-1. lance `electron-builder --publish never`,
-2. génère les artefacts dans `electron-app/dist/`,
-3. demande si tu veux publier la mise à jour sur WebDAV,
-4. si tu réponds oui, ajoute les notes dans `latest.yml`,
-5. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL`.
+1. demande si tu veux publier la mise à jour sur WebDAV (sauf avec `release:publish` ou `release:no-publish`),
+2. lance `electron-builder --publish never`,
+3. si la publication est demandée, fournit à `electron-builder` une configuration temporaire `publish` de type `generic` avec `BDD_CAISSE_UPDATE_URL` pour générer `latest.yml`,
+4. génère les artefacts dans `electron-app/dist/`,
+5. si tu publies, ajoute les notes dans `latest.yml`,
+6. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL`.
 
 ## 5) Publication automatique sans question
 

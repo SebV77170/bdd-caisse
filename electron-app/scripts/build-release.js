@@ -5,6 +5,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const readline = require('readline');
+const os = require('os');
 const { spawnSync } = require('child_process');
 
 const args = new Set(process.argv.slice(2));
@@ -123,56 +124,87 @@ function cleanDistDir() {
   fs.rmSync(distDir, { recursive: true, force: true });
 }
 
-function getElectronBuilderCommand() {
+function createElectronBuilderConfig(updateUrl) {
+  if (!updateUrl) return null;
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bdd-caisse-builder-'));
+  const configPath = path.join(tempDir, 'electron-builder.release.json');
+  const buildConfig = {
+    ...packageJson.build,
+    publish: [
+      {
+        provider: 'generic',
+        url: updateUrl
+      }
+    ]
+  };
+
+  fs.writeFileSync(configPath, JSON.stringify(buildConfig, null, 2), 'utf8');
+  return { configPath, tempDir };
+}
+
+function getElectronBuilderCommand(configPath) {
   const binaryName = process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder';
   const localBinary = path.join(appDir, 'node_modules', '.bin', binaryName);
+  const builderArgs = configPath
+    ? ['--config', configPath, '--publish', 'never']
+    : ['--publish', 'never'];
 
   if (fs.existsSync(localBinary)) {
-    return { command: localBinary, args: ['--publish', 'never'], shell: process.platform === 'win32' };
+    return { command: localBinary, args: builderArgs, shell: process.platform === 'win32' };
   }
 
   return {
     command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
-    args: ['electron-builder', '--publish', 'never'],
+    args: ['electron-builder', ...builderArgs],
     shell: process.platform === 'win32'
   };
 }
 
-function assertElectronBuilderArtifacts() {
+function assertElectronBuilderArtifacts(expectLatest) {
   if (!fs.existsSync(distDir)) {
     throw new Error(`electron-builder s'est terminé sans créer le dossier ${distDir}.`);
   }
 
+  if (!expectLatest) return;
+
   const latestPath = path.join(distDir, 'latest.yml');
   if (!fs.existsSync(latestPath)) {
     const files = fs.readdirSync(distDir).join(', ') || 'aucun fichier';
-    throw new Error(`electron-builder s'est terminé sans créer latest.yml dans ${distDir}. Fichiers présents : ${files}.`);
+    throw new Error(`electron-builder s'est terminé sans créer latest.yml dans ${distDir}. Vérifie que la configuration publish generic est appliquée. Fichiers présents : ${files}.`);
   }
 }
 
-function runElectronBuilder() {
+function runElectronBuilder(updateUrl = null) {
   console.log('🏗️ Construction des artefacts Electron avec electron-builder...');
   cleanDistDir();
 
-  const { command, args: builderArgs, shell } = getElectronBuilderCommand();
+  const tempConfig = createElectronBuilderConfig(updateUrl);
+  const { command, args: builderArgs, shell } = getElectronBuilderCommand(tempConfig?.configPath);
   console.log(`ℹ️ Commande: ${command} ${builderArgs.join(' ')}`);
 
-  const result = spawnSync(command, builderArgs, {
-    cwd: appDir,
-    stdio: 'inherit',
-    shell
-  });
+  try {
+    const result = spawnSync(command, builderArgs, {
+      cwd: appDir,
+      stdio: 'inherit',
+      shell
+    });
 
-  if (result.error) {
-    throw new Error(`Impossible de lancer electron-builder (${result.error.message}).`);
+    if (result.error) {
+      throw new Error(`Impossible de lancer electron-builder (${result.error.message}).`);
+    }
+
+    if (result.status !== 0) {
+      throw new Error(`electron-builder a échoué avec le code ${result.status || 1}. Aucun artefact n'a été publié.`);
+    }
+
+    assertElectronBuilderArtifacts(Boolean(updateUrl));
+    console.log('✅ Artefacts Electron générés dans electron-app/dist/.');
+  } finally {
+    if (tempConfig) {
+      fs.rmSync(tempConfig.tempDir, { recursive: true, force: true });
+    }
   }
-
-  if (result.status !== 0) {
-    throw new Error(`electron-builder a échoué avec le code ${result.status || 1}. Aucun artefact n'a été publié.`);
-  }
-
-  assertElectronBuilderArtifacts();
-  console.log('✅ Artefacts Electron générés dans electron-app/dist/.');
 }
 
 function getReleaseNotes() {
@@ -297,18 +329,18 @@ async function main() {
   let shouldPublish = args.has('--publish');
   if (args.has('--no-publish')) shouldPublish = false;
 
+  if (!args.has('--publish') && !args.has('--no-publish')) {
+    const answer = await ask('Publier cette mise à jour sur le serveur WebDAV ? [o/N] ', 'n');
+    shouldPublish = ['o', 'oui', 'y', 'yes'].includes(answer.toLowerCase());
+  }
+
   if (shouldPublish) applyWebdavReleaseDefaults();
 
   if (shouldPublish && !process.env.BDD_CAISSE_UPDATE_URL) {
     throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release avant de lancer --publish. Utilise npm run package:no-publish pour construire sans publier.');
   }
 
-  runElectronBuilder();
-
-  if (!args.has('--publish') && !args.has('--no-publish')) {
-    const answer = await ask('Publier cette mise à jour sur le serveur WebDAV ? [o/N] ', 'n');
-    shouldPublish = ['o', 'oui', 'y', 'yes'].includes(answer.toLowerCase());
-  }
+  runElectronBuilder(shouldPublish ? process.env.BDD_CAISSE_UPDATE_URL : null);
 
   if (!shouldPublish) {
     console.log('ℹ️ Publication WebDAV ignorée. Les artefacts sont disponibles dans electron-app/dist/.');
