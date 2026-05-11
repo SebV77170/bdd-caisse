@@ -119,19 +119,59 @@ function ask(question, defaultValue = '') {
   });
 }
 
-function runElectronBuilder() {
-  console.log('🏗️ Construction des artefacts Electron avec electron-builder...');
-  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const result = spawnSync(npx, ['electron-builder', '--publish', 'never'], {
-    cwd: appDir,
-    stdio: 'inherit',
-    shell: false
-  });
+function cleanDistDir() {
+  fs.rmSync(distDir, { recursive: true, force: true });
+}
 
-  if (result.status !== 0) {
-    process.exit(result.status || 1);
+function getElectronBuilderCommand() {
+  const binaryName = process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder';
+  const localBinary = path.join(appDir, 'node_modules', '.bin', binaryName);
+
+  if (fs.existsSync(localBinary)) {
+    return { command: localBinary, args: ['--publish', 'never'], shell: process.platform === 'win32' };
   }
 
+  return {
+    command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    args: ['electron-builder', '--publish', 'never'],
+    shell: process.platform === 'win32'
+  };
+}
+
+function assertElectronBuilderArtifacts() {
+  if (!fs.existsSync(distDir)) {
+    throw new Error(`electron-builder s'est terminé sans créer le dossier ${distDir}.`);
+  }
+
+  const latestPath = path.join(distDir, 'latest.yml');
+  if (!fs.existsSync(latestPath)) {
+    const files = fs.readdirSync(distDir).join(', ') || 'aucun fichier';
+    throw new Error(`electron-builder s'est terminé sans créer latest.yml dans ${distDir}. Fichiers présents : ${files}.`);
+  }
+}
+
+function runElectronBuilder() {
+  console.log('🏗️ Construction des artefacts Electron avec electron-builder...');
+  cleanDistDir();
+
+  const { command, args: builderArgs, shell } = getElectronBuilderCommand();
+  console.log(`ℹ️ Commande: ${command} ${builderArgs.join(' ')}`);
+
+  const result = spawnSync(command, builderArgs, {
+    cwd: appDir,
+    stdio: 'inherit',
+    shell
+  });
+
+  if (result.error) {
+    throw new Error(`Impossible de lancer electron-builder (${result.error.message}).`);
+  }
+
+  if (result.status !== 0) {
+    throw new Error(`electron-builder a échoué avec le code ${result.status || 1}. Aucun artefact n'a été publié.`);
+  }
+
+  assertElectronBuilderArtifacts();
   console.log('✅ Artefacts Electron générés dans electron-app/dist/.');
 }
 
