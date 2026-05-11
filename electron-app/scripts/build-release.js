@@ -267,37 +267,126 @@ function getFilesToUpload() {
     .map((fileName) => ({ fileName, fullPath: path.join(distDir, fileName) }));
 }
 
-function uploadFile(baseUrl, file) {
+function getWebdavAuthHeader() {
+  const username = process.env.BDD_CAISSE_WEBDAV_USER || process.env.WEBDAV_USERNAME;
+  const password = process.env.BDD_CAISSE_WEBDAV_PASSWORD || process.env.WEBDAV_PASSWORD;
+
+  if (!username && !password) return {};
+  return { Authorization: `Basic ${Buffer.from(`${username || ''}:${password || ''}`).toString('base64')}` };
+}
+
+function getUploadTimeoutMs() {
+  return Number(process.env.BDD_CAISSE_UPLOAD_TIMEOUT_MS || 300000);
+}
+
+function getUploadRetryCount() {
+  return Number(process.env.BDD_CAISSE_UPLOAD_RETRIES || 3);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildTargetUrl(baseUrl, fileName = '') {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return new URL(fileName ? encodeURIComponent(fileName) : '', normalizedBase);
+}
+
+function requestWebdav(targetUrl, method, headers = {}, bodyPath = null) {
   return new Promise((resolve, reject) => {
-    const targetUrl = new URL(encodeURIComponent(file.fileName), baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
     const client = targetUrl.protocol === 'https:' ? https : http;
-    const headers = { 'Content-Length': fs.statSync(file.fullPath).size };
-    const username = process.env.BDD_CAISSE_WEBDAV_USER || process.env.WEBDAV_USERNAME;
-    const password = process.env.BDD_CAISSE_WEBDAV_PASSWORD || process.env.WEBDAV_PASSWORD;
-
-    if (username || password) {
-      headers.Authorization = `Basic ${Buffer.from(`${username || ''}:${password || ''}`).toString('base64')}`;
-    }
-
-    const request = client.request(targetUrl, { method: 'PUT', headers }, (response) => {
-      response.resume();
+    const request = client.request(targetUrl, { method, headers }, (response) => {
+      const chunks = [];
+      let collectedBytes = 0;
+      response.on('data', (chunk) => {
+        if (collectedBytes >= 2048) return;
+        chunks.push(chunk);
+        collectedBytes += chunk.length;
+      });
       response.on('end', () => {
+        const responseBody = Buffer.concat(chunks, collectedBytes).toString('utf8', 0, 2048).trim();
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          resolve();
+          resolve({ statusCode: response.statusCode, responseBody });
         } else {
-          reject(new Error(`Upload ${file.fileName} refusé (${response.statusCode})`));
+          const error = new Error(`${method} ${targetUrl.href} refusé (${response.statusCode}${response.statusMessage ? ` ${response.statusMessage}` : ''})${responseBody ? `: ${responseBody}` : ''}`);
+          error.statusCode = response.statusCode;
+          error.responseBody = responseBody;
+          reject(error);
         }
       });
     });
 
-    const timeoutMs = Number(process.env.BDD_CAISSE_UPLOAD_TIMEOUT_MS || 120000);
-    request.setTimeout(timeoutMs, () => {
-      request.destroy(new Error(`Upload ${file.fileName} interrompu après ${timeoutMs / 1000}s sans réponse.`));
+    request.setTimeout(getUploadTimeoutMs(), () => {
+      request.destroy(new Error(`${method} ${targetUrl.href} interrompu après ${getUploadTimeoutMs() / 1000}s sans réponse.`));
     });
 
     request.on('error', reject);
-    fs.createReadStream(file.fullPath).pipe(request);
+
+    if (bodyPath) {
+      const stream = fs.createReadStream(bodyPath);
+      stream.on('error', reject);
+      stream.pipe(request);
+    } else {
+      request.end();
+    }
   });
+}
+
+async function ensureWebdavReleaseDir(baseUrl) {
+  const base = buildTargetUrl(baseUrl);
+  const segments = base.pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return;
+
+  const headers = getWebdavAuthHeader();
+  let currentPath = '';
+
+  for (const segment of segments) {
+    currentPath += `/${segment}`;
+    const targetUrl = new URL(base.href);
+    targetUrl.pathname = currentPath;
+
+    try {
+      await requestWebdav(targetUrl, 'MKCOL', headers);
+      console.log(`📁 Dossier WebDAV créé : ${targetUrl.pathname}`);
+    } catch (error) {
+      if ([405, 301, 302, 409].includes(error.statusCode)) continue;
+      throw new Error(`Impossible de préparer le dossier WebDAV ${targetUrl.pathname}: ${error.message}`);
+    }
+  }
+}
+
+async function uploadFileOnce(baseUrl, file) {
+  const targetUrl = buildTargetUrl(baseUrl, file.fileName);
+  const size = fs.statSync(file.fullPath).size;
+  const headers = {
+    ...getWebdavAuthHeader(),
+    'Content-Length': size,
+    'Content-Type': 'application/octet-stream',
+    Connection: 'close'
+  };
+
+  await requestWebdav(targetUrl, 'PUT', headers, file.fullPath);
+}
+
+async function uploadFile(baseUrl, file) {
+  const maxAttempts = Math.max(1, getUploadRetryCount());
+  const sizeMb = (fs.statSync(file.fullPath).size / 1024 / 1024).toFixed(1);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      if (attempt > 1) process.stdout.write(`retry ${attempt}/${maxAttempts}... `);
+      await uploadFileOnce(baseUrl, file);
+      return;
+    } catch (error) {
+      const message = error.code ? `${error.code} (${error.message})` : error.message;
+      if (attempt >= maxAttempts) {
+        throw new Error(`Upload ${file.fileName} (${sizeMb} Mo) échoué après ${maxAttempts} tentative(s): ${message}`);
+      }
+
+      process.stdout.write(`échec ${message}; `);
+      await wait(1000 * attempt);
+    }
+  }
 }
 
 async function publishToWebdav() {
@@ -309,6 +398,7 @@ async function publishToWebdav() {
   }
 
   console.log(`🌐 Publication WebDAV vers ${updateUrl}`);
+  await ensureWebdavReleaseDir(updateUrl);
 
   const releaseNotes = getReleaseNotes();
   injectReleaseNotes(releaseNotes);

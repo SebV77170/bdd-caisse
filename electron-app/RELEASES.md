@@ -27,6 +27,8 @@ Le script de publication utilise aussi :
 - `BDD_CAISSE_WEBDAV_PASSWORD` ou `WEBDAV_PASSWORD` : mot de passe WebDAV (optionnel si accès public en écriture).
 - `BDD_CAISSE_RELEASE_NOTES` : texte des dernières modifications à afficher à l'utilisateur après mise à jour.
 - `BDD_CAISSE_RELEASE_NOTES_FILE` : chemin vers un fichier de notes si tu préfères écrire un message plus long.
+- `BDD_CAISSE_UPLOAD_RETRIES` : nombre de tentatives par fichier en cas d'erreur réseau (`3` par défaut).
+- `BDD_CAISSE_UPLOAD_TIMEOUT_MS` : délai maximum sans réponse pour un upload (`300000`, soit 5 minutes, par défaut).
 
 Exemple :
 
@@ -67,8 +69,9 @@ Le script :
 2. lance `electron-builder --publish never`,
 3. si la publication est demandée, fournit à `electron-builder` une configuration temporaire `publish` de type `generic` avec `BDD_CAISSE_UPDATE_URL` pour générer `latest.yml`,
 4. génère les artefacts dans `electron-app/dist/`,
-5. si tu publies, ajoute les notes dans `latest.yml`,
-6. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL`.
+5. si tu publies, prépare le dossier WebDAV distant avec `MKCOL`,
+6. ajoute les notes dans `latest.yml`,
+7. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL` avec retry en cas d'erreur réseau (`ECONNRESET`, timeout, etc.).
 
 ## 5) Publication automatique sans question
 
