@@ -35,6 +35,7 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [webdavMessage, setWebdavMessage] = useState('');
   const [webdavModes, setWebdavModes] = useState([]);
   const [webdavState, setWebdavState] = useState(null);
+  const [updateMessage, setUpdateMessage] = useState('');
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
@@ -243,6 +244,24 @@ const [showBoutons, setShowBoutons] = useState(false);
       setWebdavMessage('❌ Erreur pendant la synchronisation');
     }
   };
+  const checkForAppUpdates = async () => {
+    setUpdateMessage('');
+    if (!window.electron?.checkForUpdates) {
+      setUpdateMessage("❌ Vérification indisponible hors application Electron packagée.");
+      return;
+    }
+
+    try {
+      const result = await window.electron.checkForUpdates();
+      if (result?.success) {
+        setUpdateMessage(`✅ Vérification lancée (version distante: ${result.version || 'inconnue'}).`);
+      } else {
+        setUpdateMessage(`❌ ${result?.message || 'Impossible de vérifier la mise à jour.'}`);
+      }
+    } catch {
+      setUpdateMessage('❌ Erreur lors de la vérification de mise à jour.');
+    }
+  };
 
   useEffect(() => {
   console.log('🧪 window.electron:', window.electron);
@@ -336,6 +355,13 @@ const [showBoutons, setShowBoutons] = useState(false);
           <small>Dernier envoi : {new Date(webdavState.lastRun).toLocaleString()} {webdavState.lastResult === 'error' && `- ${webdavState.error || ''}`}</small>
         </div>
       )}
+
+      <hr />
+
+      <h3>⬆️ Mise à jour application</h3>
+      <p className="mb-2">Vérifie immédiatement s'il existe une nouvelle version sur le serveur de release WebDAV.</p>
+      <Button variant="secondary" onClick={checkForAppUpdates}>🔎 Rechercher une mise à jour</Button>
+      {updateMessage && <div className="mt-2">{updateMessage}</div>}
 
       <hr />
 

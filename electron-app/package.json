@@ -11,7 +11,10 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "copy-react-build": "rm -rf build && cp -r ../frontend/build ./build"
+    "copy-react-build": "rm -rf build && cp -r ../frontend/build ./build",
+    "release": "node scripts/build-release.js",
+    "release:publish": "node scripts/build-release.js --publish",
+    "release:no-publish": "node scripts/build-release.js --no-publish"
   },
   "build": {
     "appId": "com.bdd.caisse",
@@ -39,25 +42,25 @@
         "to": "node.exe"
       },
       {
-      "from": "../backend/database/ressourcebrie-sqlite-template.db",
-      "to": "database"
-    },
-    {
-      "from": "../backend/inserts_categories_boutons.sql",
-      "to": "."
-    },
-    {
-      "from": "../backend/inserts_users.sql",
-      "to": "."
-    },
-    {
-      "from": "../frontend/src/images",
-      "to": "images"
-    },
-    {
-    "from": "../frontend/build",
-    "to": "frontend_build"
-  }
+        "from": "../backend/database/ressourcebrie-sqlite-template.db",
+        "to": "database"
+      },
+      {
+        "from": "../backend/inserts_categories_boutons.sql",
+        "to": "."
+      },
+      {
+        "from": "../backend/inserts_users.sql",
+        "to": "."
+      },
+      {
+        "from": "../frontend/src/images",
+        "to": "images"
+      },
+      {
+        "from": "../frontend/build",
+        "to": "frontend_build"
+      }
     ],
     "directories": {
       "buildResources": "assets"
