@@ -82,7 +82,7 @@ function applyWebdavReleaseDefaults() {
   const endpoints = loadWebdavEndpoints();
   const profileName = process.env.BDD_CAISSE_RELEASE_WEBDAV_PROFILE
     || process.env.WEBDAV_PROFILE
-    || Object.keys(endpoints)[0];
+    || (endpoints.prod ? 'prod' : Object.keys(endpoints)[0]);
   const profile = profileName ? endpoints[profileName] : null;
 
   if (!profile || typeof profile !== 'object' || !profile.url) return;

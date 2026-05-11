@@ -20,8 +20,8 @@ Le script de publication charge automatiquement `.env`, `backend/.env`, puis `el
 
 Le script de publication utilise aussi :
 
-- `BDD_CAISSE_UPDATE_URL` : si absente, elle est dérivée de `WEBDAV_ENDPOINTS` avec le premier profil disponible et le chemin `/releases`.
-- `BDD_CAISSE_RELEASE_WEBDAV_PROFILE` ou `WEBDAV_PROFILE` : nom du profil `WEBDAV_ENDPOINTS` à utiliser pour publier la release (par défaut : premier profil).
+- `BDD_CAISSE_UPDATE_URL` : si absente, elle est dérivée de `WEBDAV_ENDPOINTS` avec le profil `prod` (ou le premier profil disponible si `prod` est absent) et le chemin `/releases`.
+- `BDD_CAISSE_RELEASE_WEBDAV_PROFILE` ou `WEBDAV_PROFILE` : nom du profil `WEBDAV_ENDPOINTS` à utiliser pour publier la release (par défaut : `prod`, ou le premier profil disponible si `prod` est absent).
 - `BDD_CAISSE_RELEASE_WEBDAV_PATH` ou `BDD_CAISSE_UPDATE_PATH` : chemin du dossier de release à ajouter à l'URL du profil (par défaut : `/releases`).
 - `BDD_CAISSE_WEBDAV_USER` ou `WEBDAV_USERNAME` : identifiant WebDAV (optionnel si accès public en écriture).
 - `BDD_CAISSE_WEBDAV_PASSWORD` ou `WEBDAV_PASSWORD` : mot de passe WebDAV (optionnel si accès public en écriture).
