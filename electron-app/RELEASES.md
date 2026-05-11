@@ -16,8 +16,13 @@ L'auto-update lit cette variable au runtime (dans `electron-app/main.js`) :
 
 - `BDD_CAISSE_UPDATE_URL` : URL du dossier WebDAV qui contient `latest.yml`.
 
+Le script de publication charge automatiquement `.env`, `backend/.env`, puis `electron-app/.env` (sans écraser les variables déjà définies). Il peut donc réutiliser les profils `WEBDAV_ENDPOINTS` déjà présents dans `backend/.env`.
+
 Le script de publication utilise aussi :
 
+- `BDD_CAISSE_UPDATE_URL` : si absente, elle est dérivée de `WEBDAV_ENDPOINTS` avec le premier profil disponible et le chemin `/releases`.
+- `BDD_CAISSE_RELEASE_WEBDAV_PROFILE` ou `WEBDAV_PROFILE` : nom du profil `WEBDAV_ENDPOINTS` à utiliser pour publier la release (par défaut : premier profil).
+- `BDD_CAISSE_RELEASE_WEBDAV_PATH` ou `BDD_CAISSE_UPDATE_PATH` : chemin du dossier de release à ajouter à l'URL du profil (par défaut : `/releases`).
 - `BDD_CAISSE_WEBDAV_USER` ou `WEBDAV_USERNAME` : identifiant WebDAV (optionnel si accès public en écriture).
 - `BDD_CAISSE_WEBDAV_PASSWORD` ou `WEBDAV_PASSWORD` : mot de passe WebDAV (optionnel si accès public en écriture).
 - `BDD_CAISSE_RELEASE_NOTES` : texte des dernières modifications à afficher à l'utilisateur après mise à jour.
@@ -30,6 +35,10 @@ export BDD_CAISSE_UPDATE_URL=https://mon-serveur/webdav/bdd-caisse/releases/
 export BDD_CAISSE_WEBDAV_USER=mon-utilisateur
 export BDD_CAISSE_WEBDAV_PASSWORD=mon-mot-de-passe
 export BDD_CAISSE_RELEASE_NOTES="Correction de la clôture de caisse et ajout du bouton de mise à jour."
+
+# Variante si backend/.env contient déjà WEBDAV_ENDPOINTS :
+export BDD_CAISSE_RELEASE_WEBDAV_PROFILE=prod
+export BDD_CAISSE_RELEASE_WEBDAV_PATH=/releases
 ```
 
 ## 3) Incrémenter la version

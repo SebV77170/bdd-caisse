@@ -12,6 +12,101 @@ const appDir = path.resolve(__dirname, '..');
 const distDir = path.join(appDir, 'dist');
 const packageJson = require(path.join(appDir, 'package.json'));
 
+function parseDotEnvValue(value) {
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'") && trimmed[trimmed.length - 1] === quote) {
+    const unquoted = trimmed.slice(1, -1);
+    return quote === '"'
+      ? unquoted.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      : unquoted;
+  }
+
+  return trimmed;
+}
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const line of content.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)?\s*$/);
+    if (!match) continue;
+
+    const [, key, rawValue = ''] = match;
+    if (Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+    process.env[key] = parseDotEnvValue(rawValue);
+  }
+}
+
+function loadReleaseEnv() {
+  const repoDir = path.resolve(appDir, '..');
+  [
+    path.join(repoDir, '.env'),
+    path.join(repoDir, 'backend', '.env'),
+    path.join(appDir, '.env')
+  ].forEach(loadEnvFile);
+}
+
+function normalizeUrlPath(pathValue) {
+  const normalized = String(pathValue || '').trim();
+  if (!normalized) return '/releases';
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+function joinUrlPath(baseUrl, pathValue) {
+  const url = new URL(baseUrl);
+  const currentPath = url.pathname.replace(/\/+$/, '');
+  const nextPath = normalizeUrlPath(pathValue).replace(/^\/+/, '');
+  url.pathname = `${currentPath}/${nextPath}`.replace(/\/+/g, '/');
+  return url.toString();
+}
+
+function loadWebdavEndpoints() {
+  const raw = process.env.WEBDAV_ENDPOINTS || process.env.WEBDAV_CONFIG;
+  if (!raw) return {};
+
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('WEBDAV_ENDPOINTS doit être un objet JSON de profils WebDAV.');
+  }
+
+  return parsed;
+}
+
+function applyWebdavReleaseDefaults() {
+  if (process.env.BDD_CAISSE_UPDATE_URL) return;
+
+  const endpoints = loadWebdavEndpoints();
+  const profileName = process.env.BDD_CAISSE_RELEASE_WEBDAV_PROFILE
+    || process.env.WEBDAV_PROFILE
+    || Object.keys(endpoints)[0];
+  const profile = profileName ? endpoints[profileName] : null;
+
+  if (!profile || typeof profile !== 'object' || !profile.url) return;
+
+  const releasePath = process.env.BDD_CAISSE_RELEASE_WEBDAV_PATH
+    || process.env.BDD_CAISSE_UPDATE_PATH
+    || profile.releasePath
+    || profile.updatePath
+    || '/releases';
+
+  process.env.BDD_CAISSE_UPDATE_URL = profile.releaseUrl || profile.updateUrl || joinUrlPath(profile.url, releasePath);
+
+  if (!process.env.BDD_CAISSE_WEBDAV_USER && !process.env.WEBDAV_USERNAME && profile.username) {
+    process.env.BDD_CAISSE_WEBDAV_USER = profile.username;
+  }
+  if (!process.env.BDD_CAISSE_WEBDAV_PASSWORD && !process.env.WEBDAV_PASSWORD && profile.password) {
+    process.env.BDD_CAISSE_WEBDAV_PASSWORD = profile.password;
+  }
+
+  console.log(`ℹ️ BDD_CAISSE_UPDATE_URL dérivée du profil WEBDAV_ENDPOINTS "${profileName}" (${process.env.BDD_CAISSE_UPDATE_URL}).`);
+}
+
+loadReleaseEnv();
+
 function ask(question, defaultValue = '') {
   if (!process.stdin.isTTY || args.has('--yes')) return Promise.resolve(defaultValue);
 
@@ -134,6 +229,8 @@ function uploadFile(baseUrl, file) {
 }
 
 async function publishToWebdav() {
+  applyWebdavReleaseDefaults();
+
   const updateUrl = process.env.BDD_CAISSE_UPDATE_URL;
   if (!updateUrl) {
     throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release.');
@@ -160,6 +257,8 @@ async function main() {
   let shouldPublish = args.has('--publish');
   if (args.has('--no-publish')) shouldPublish = false;
 
+  if (shouldPublish) applyWebdavReleaseDefaults();
+
   if (shouldPublish && !process.env.BDD_CAISSE_UPDATE_URL) {
     throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release avant de lancer --publish. Utilise npm run package:no-publish pour construire sans publier.');
   }
@@ -175,6 +274,8 @@ async function main() {
     console.log('ℹ️ Publication WebDAV ignorée. Les artefacts sont disponibles dans electron-app/dist/.');
     return;
   }
+
+  applyWebdavReleaseDefaults();
 
   await publishToWebdav();
   console.log('✅ Mise à jour publiée sur le serveur WebDAV.');
