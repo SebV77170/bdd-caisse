@@ -1,5 +1,6 @@
-const { app, BrowserWindow, Menu, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, shell, dialog } = require('electron');
 const { session: electronSession } = require('electron');
+const { autoUpdater } = require('electron-updater');
 
 const path = require('path');
 const fs = require('fs');
@@ -11,6 +12,131 @@ let mainWindow;
 let backendProcess;
 let _ensuring = false;
 let _lastEnsure = 0;
+
+const UPDATE_BASE_URL = process.env.BDD_CAISSE_UPDATE_URL;
+function getPendingReleaseNotesPath() {
+  return path.join(app.getPath('userData'), 'pending-release-notes.json');
+}
+let autoUpdaterConfigured = false;
+let releaseNotesDialogShown = false;
+
+function formatReleaseNotes(releaseNotes) {
+  if (Array.isArray(releaseNotes)) {
+    return releaseNotes
+      .map((note) => (typeof note === 'string' ? note : note?.note || note?.notes || ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  return typeof releaseNotes === 'string' ? releaseNotes.trim() : '';
+}
+
+function savePendingReleaseNotes(info) {
+  const notes = formatReleaseNotes(info?.releaseNotes);
+  if (!notes) return;
+
+  try {
+    fs.writeFileSync(getPendingReleaseNotesPath(), JSON.stringify({
+      version: info.version,
+      notes
+    }, null, 2), 'utf8');
+  } catch (error) {
+    console.error('❌ Impossible de sauvegarder les notes de version :', error?.message || error);
+  }
+}
+
+async function showPendingReleaseNotes() {
+  const pendingReleaseNotesPath = getPendingReleaseNotesPath();
+  if (releaseNotesDialogShown || !fs.existsSync(pendingReleaseNotesPath)) return;
+  releaseNotesDialogShown = true;
+
+  const raw = fs.readFileSync(pendingReleaseNotesPath, 'utf8');
+  fs.unlinkSync(pendingReleaseNotesPath);
+
+  const release = JSON.parse(raw);
+  if (!release.notes) return;
+
+  await dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Application mise à jour',
+    message: `L'application a été mise à jour en version ${release.version || app.getVersion()}.`,
+    detail: release.notes
+  });
+}
+
+function setupAutoUpdaterLogs() {
+  autoUpdater.on('checking-for-update', () => {
+    console.log('🔎 Vérification des mises à jour WebDAV...');
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log(`✅ Version locale à jour (${info?.version || app.getVersion()})`);
+  });
+
+  autoUpdater.on('error', (error) => {
+    console.error('❌ Erreur pendant la mise à jour automatique :', error?.message || error);
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    const percent = Math.round(progress?.percent || 0);
+    console.log(`⬇️ Téléchargement mise à jour : ${percent}%`);
+  });
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    console.log(`📦 Mise à jour ${info.version} téléchargée. Installation...`);
+    savePendingReleaseNotes(info);
+    await dialog.showMessageBox({
+      type: 'info',
+      title: 'Mise à jour disponible',
+      message: `La version ${info.version} a été téléchargée. L'application va redémarrer pour finaliser la mise à jour.`
+    });
+
+    setImmediate(() => autoUpdater.quitAndInstall());
+  });
+}
+
+function configureAutoUpdater() {
+  if (autoUpdaterConfigured) return true;
+
+  if (!UPDATE_BASE_URL) {
+    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_UPDATE_URL.');
+    return false;
+  }
+
+  setupAutoUpdaterLogs();
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+  autoUpdater.setFeedURL({
+    provider: 'generic',
+    url: UPDATE_BASE_URL
+  });
+  autoUpdaterConfigured = true;
+  console.log(`🌐 Source de mise à jour configurée : ${UPDATE_BASE_URL}`);
+  return true;
+}
+
+async function checkForAppUpdate(source = 'startup') {
+  if (!app.isPackaged) {
+    console.log(`ℹ️ Mode développement: vérification de mise à jour ignorée (${source}).`);
+    return { success: false, message: 'Mode développement' };
+  }
+
+  if (!configureAutoUpdater()) {
+    return { success: false, message: 'BDD_CAISSE_UPDATE_URL manquante' };
+  }
+
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    if (result?.updateInfo?.version) {
+      console.log(`🆚 Version locale ${app.getVersion()} / distante ${result.updateInfo.version} (${source})`);
+    }
+    return { success: true, version: result?.updateInfo?.version || app.getVersion() };
+  } catch (error) {
+    console.error('❌ Impossible de vérifier les mises à jour distantes :', error?.message || error);
+    return { success: false, message: error?.message || 'Erreur inconnue' };
+  }
+}
 
 
 function ensureInteractiveLight() {
@@ -48,6 +174,9 @@ function ensureInteractiveRaise() {
 // IPC
 ipcMain.handle('ui/ensure-interactive-light', () => { ensureInteractiveLight(); return true; });
 ipcMain.handle('ui/ensure-interactive-raise', () => { ensureInteractiveRaise(); return true; });
+ipcMain.handle('app/check-for-updates', async () => {
+  return checkForAppUpdate('manual');
+});
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -68,7 +197,12 @@ function createWindow() {
    // Dans createWindow(), garde seulement des accroches calmes :
 mainWindow.on('focus', () => ensureInteractiveLight());
 mainWindow.on('show',  () => ensureInteractiveLight());
-mainWindow.webContents.on('did-finish-load',      () => ensureInteractiveLight());
+mainWindow.webContents.on('did-finish-load',      () => {
+  ensureInteractiveLight();
+  showPendingReleaseNotes().catch((error) => {
+    console.error('❌ Impossible d’afficher les notes de version :', error?.message || error);
+  });
+});
 mainWindow.webContents.on('did-navigate',         () => ensureInteractiveLight());
 mainWindow.webContents.on('did-navigate-in-page', () => ensureInteractiveLight());
 
@@ -263,7 +397,9 @@ function waitForBackendReady(callback) {
 }
 
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await checkForAppUpdate();
+
   if (!isDev) {
     launchBackend();
     waitForBackendReady(() => {

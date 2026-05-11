@@ -11,7 +11,11 @@
     "dev:full": "run-s init-template move-template && run-p server client electron",
     "build": "cd frontend && npm run build",
     "copy-react": "xcopy /E /I /Y frontend\\build electron-app\\build",
-    "package": "npm run build && npm run copy-react && cd electron-app && npm run dist"
+    "package": "npm run build && npm run copy-react && cd electron-app && npm run release",
+    "release": "npm run build && npm run copy-react && cd electron-app && npm run release",
+    "release:publish": "npm run build && npm run copy-react && cd electron-app && npm run release:publish",
+    "package:publish": "npm run build && npm run copy-react && cd electron-app && npm run release:publish",
+    "package:no-publish": "npm run build && npm run copy-react && cd electron-app && npm run release:no-publish"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
