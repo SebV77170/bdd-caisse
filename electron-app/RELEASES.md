@@ -67,7 +67,7 @@ Le script :
 
 1. demande si tu veux publier la mise à jour sur WebDAV (sauf avec `release:publish` ou `release:no-publish`),
 2. lance `electron-builder --publish never`,
-3. si la publication est demandée, fournit à `electron-builder` une configuration temporaire `publish` de type `generic` avec `BDD_CAISSE_UPDATE_URL` pour générer `latest.yml`,
+3. si une URL de mise à jour est disponible (`BDD_CAISSE_UPDATE_URL` explicite ou dérivée de `WEBDAV_ENDPOINTS`), fournit à `electron-builder` une configuration temporaire `publish` de type `generic` pour générer `latest.yml`, même avec `release:no-publish`,
 4. génère les artefacts dans `electron-app/dist/`,
 5. si tu publies, prépare le dossier WebDAV distant avec `MKCOL`,
 6. ajoute les notes dans `latest.yml`,
@@ -81,7 +81,7 @@ Pour publier automatiquement depuis la racine (utile en CI/CD ou si tu sais déj
 npm run package:publish
 ```
 
-Pour construire sans jamais publier depuis la racine :
+Pour construire sans jamais publier depuis la racine (génère aussi `latest.yml` si l'URL de mise à jour est configurée ou dérivable) :
 
 ```bash
 npm run package:no-publish

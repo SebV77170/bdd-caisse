@@ -424,16 +424,24 @@ async function main() {
     shouldPublish = ['o', 'oui', 'y', 'yes'].includes(answer.toLowerCase());
   }
 
-  if (shouldPublish) applyWebdavReleaseDefaults();
+  applyWebdavReleaseDefaults();
 
   if (shouldPublish && !process.env.BDD_CAISSE_UPDATE_URL) {
     throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release avant de lancer --publish. Utilise npm run package:no-publish pour construire sans publier.');
   }
 
-  runElectronBuilder(shouldPublish ? process.env.BDD_CAISSE_UPDATE_URL : null);
+  const buildUpdateUrl = process.env.BDD_CAISSE_UPDATE_URL || null;
+  runElectronBuilder(buildUpdateUrl);
+
+  if (buildUpdateUrl) {
+    injectReleaseNotes(getReleaseNotes());
+  }
 
   if (!shouldPublish) {
-    console.log('ℹ️ Publication WebDAV ignorée. Les artefacts sont disponibles dans electron-app/dist/.');
+    const metadataMessage = buildUpdateUrl
+      ? 'latest.yml a été généré car une URL de mise à jour est configurée.'
+      : 'latest.yml n’a pas été généré car aucune URL de mise à jour n’est configurée.';
+    console.log(`ℹ️ Publication WebDAV ignorée. Les artefacts sont disponibles dans electron-app/dist/. ${metadataMessage}`);
     return;
   }
 
