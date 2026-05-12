@@ -7,5 +7,10 @@ contextBridge.exposeInMainWorld('electron', {
   ouvrirDevTools: () => ipcRenderer.send('devtools-open'),
   ensureInteractiveLight: () => ipcRenderer.invoke('ui/ensure-interactive-light'),
   ensureInteractiveRaise: () => ipcRenderer.invoke('ui/ensure-interactive-raise'),
-  checkForUpdates: () => ipcRenderer.invoke('app/check-for-updates')
+  checkForUpdates: () => ipcRenderer.invoke('app/check-for-updates'),
+  onUpdateStatus: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('app/update-status', listener);
+    return () => ipcRenderer.removeListener('app/update-status', listener);
+  }
 });

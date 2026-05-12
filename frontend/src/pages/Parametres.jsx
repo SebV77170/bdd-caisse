@@ -100,6 +100,17 @@ const [showBoutons, setShowBoutons] = useState(false);
     refreshMotifs();
   }, []);
 
+  useEffect(() => {
+    if (!window.electron?.onUpdateStatus) return undefined;
+
+    return window.electron.onUpdateStatus((status) => {
+      if (!status?.message) return;
+      const prefix = status.success === false ? '❌' : 'ℹ️';
+      setUpdateMessage(`${prefix} ${status.message}`);
+      setUpdateChecking(['checking', 'download-started', 'update-available', 'download-progress'].includes(status.status));
+    });
+  }, []);
+
   const save = async () => {
     setMessage('');
     try {
@@ -257,12 +268,13 @@ const [showBoutons, setShowBoutons] = useState(false);
       const result = await window.electron.checkForUpdates();
       if (result?.success) {
         setUpdateMessage(`✅ ${result.message || `Vérification terminée (version distante: ${result.version || 'inconnue'}).`}`);
+        setUpdateChecking(result.status === 'update-available');
       } else {
         setUpdateMessage(`❌ ${result?.message || 'Impossible de vérifier la mise à jour.'}`);
+        setUpdateChecking(false);
       }
     } catch {
       setUpdateMessage('❌ Erreur lors de la vérification de mise à jour.');
-    } finally {
       setUpdateChecking(false);
     }
   };

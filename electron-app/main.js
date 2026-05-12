@@ -174,26 +174,63 @@ async function showPendingReleaseNotes() {
   });
 }
 
+function sendUpdateStatus(payload) {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send('app/update-status', payload);
+}
+
 function setupAutoUpdaterLogs() {
   autoUpdater.on('checking-for-update', () => {
     console.log('🔎 Vérification des mises à jour WebDAV...');
+    sendUpdateStatus({ success: true, status: 'checking', message: 'Vérification de la mise à jour...' });
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    const version = info?.version || 'inconnue';
+    console.log(`⬆️ Mise à jour disponible (${version})`);
+    sendUpdateStatus({
+      success: true,
+      status: 'update-available',
+      version,
+      message: `Mise à jour ${version} trouvée. Téléchargement en cours...`
+    });
   });
 
   autoUpdater.on('update-not-available', (info) => {
     console.log(`✅ Version locale à jour (${info?.version || app.getVersion()})`);
+    sendUpdateStatus({
+      success: true,
+      status: 'up-to-date',
+      version: info?.version || app.getVersion(),
+      message: `Vous utilisez déjà la dernière version (${app.getVersion()}).`
+    });
   });
 
   autoUpdater.on('error', (error) => {
-    console.error('❌ Erreur pendant la mise à jour automatique :', error?.message || error);
+    const message = error?.message || 'Erreur inconnue';
+    console.error('❌ Erreur pendant la mise à jour automatique :', message);
+    sendUpdateStatus({ success: false, status: 'error', message: `Erreur pendant la mise à jour automatique : ${message}` });
   });
 
   autoUpdater.on('download-progress', (progress) => {
     const percent = Math.round(progress?.percent || 0);
     console.log(`⬇️ Téléchargement mise à jour : ${percent}%`);
+    sendUpdateStatus({
+      success: true,
+      status: 'download-progress',
+      percent,
+      message: `Téléchargement de la mise à jour : ${percent}%`
+    });
   });
 
   autoUpdater.on('update-downloaded', async (info) => {
     console.log(`📦 Mise à jour ${info.version} téléchargée. Installation...`);
+    sendUpdateStatus({
+      success: true,
+      status: 'downloaded',
+      version: info.version,
+      message: `Mise à jour ${info.version} téléchargée. Redémarrage en cours...`
+    });
     savePendingReleaseNotes(info);
     await dialog.showMessageBox({
       type: 'info',
@@ -216,12 +253,15 @@ function configureAutoUpdater() {
   }
 
   setupAutoUpdaterLogs();
+  const requestHeaders = getWebdavAuthHeader();
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
+  autoUpdater.requestHeaders = requestHeaders;
   autoUpdater.setFeedURL({
     provider: 'generic',
-    url: resolvedUpdateBaseUrl
+    url: resolvedUpdateBaseUrl,
+    requestHeaders
   });
   autoUpdaterConfigured = true;
   console.log(`🌐 Source de mise à jour configurée : ${resolvedUpdateBaseUrl}`);
@@ -316,13 +356,16 @@ async function preflightLatestYmlCheck() {
 }
 
 function startAutoUpdaterCheckInBackground(source) {
+  sendUpdateStatus({ success: true, status: 'download-started', message: 'Téléchargement de la mise à jour en préparation...' });
   autoUpdater.checkForUpdates()
     .then((result) => {
       const version = result?.updateInfo?.version || 'inconnue';
       console.log(`🆚 Version locale ${app.getVersion()} / distante ${version} (${source})`);
     })
     .catch((error) => {
-      console.error('❌ Impossible de lancer le téléchargement de mise à jour :', error?.message || error);
+      const message = error?.message || 'Erreur inconnue';
+      console.error('❌ Impossible de lancer le téléchargement de mise à jour :', message);
+      sendUpdateStatus({ success: false, status: 'error', message: `Impossible de lancer le téléchargement : ${message}` });
     });
 }
 
