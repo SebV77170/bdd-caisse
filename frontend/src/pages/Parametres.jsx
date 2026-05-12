@@ -267,7 +267,8 @@ const [showBoutons, setShowBoutons] = useState(false);
     try {
       const result = await window.electron.checkForUpdates();
       if (result?.success) {
-        setUpdateMessage(`✅ ${result.message || `Vérification terminée (version distante: ${result.version || 'inconnue'}).`}`);
+        const prefix = result.status === 'update-declined' ? 'ℹ️' : '✅';
+        setUpdateMessage(`${prefix} ${result.message || `Vérification terminée (version distante: ${result.version || 'inconnue'}).`}`);
         setUpdateChecking(result.status === 'update-available');
       } else {
         setUpdateMessage(`❌ ${result?.message || 'Impossible de vérifier la mise à jour.'}`);

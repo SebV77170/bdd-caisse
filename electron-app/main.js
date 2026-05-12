@@ -351,8 +351,27 @@ async function preflightLatestYmlCheck() {
     success: true,
     status: 'update-available',
     version: remoteVersion,
-    message: `Une mise à jour est disponible (version ${remoteVersion}). Le téléchargement va démarrer automatiquement.`
+    message: `Une mise à jour est disponible (version ${remoteVersion}).`
   };
+}
+
+
+async function askForUpdatePermission(version) {
+  const message = version && version !== 'inconnue'
+    ? `Une mise à jour de l'application est disponible (version ${version}). Voulez-vous vraiment mettre à jour l'application ?`
+    : "Une mise à jour de l'application est disponible. Voulez-vous vraiment mettre à jour l'application ?";
+
+  const result = await dialog.showMessageBox(mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined, {
+    type: 'question',
+    buttons: ['Oui, mettre à jour', 'Non, plus tard'],
+    defaultId: 1,
+    cancelId: 1,
+    title: 'Confirmer la mise à jour',
+    message,
+    detail: "L'application téléchargera la mise à jour puis redémarrera pour l'installer."
+  });
+
+  return result.response === 0;
 }
 
 function startAutoUpdaterCheckInBackground(source) {
@@ -458,8 +477,21 @@ async function checkForAppUpdate(source = 'startup') {
     const preflight = await preflightLatestYmlCheck();
     if (preflight?.status === 'up-to-date' || preflight?.success === false) return preflight;
     if (preflight?.status === 'update-available') {
+      const accepted = await askForUpdatePermission(preflight.version);
+      if (!accepted) {
+        return {
+          success: true,
+          status: 'update-declined',
+          version: preflight.version,
+          message: 'Mise à jour annulée. Vous pourrez la relancer plus tard depuis les paramètres.'
+        };
+      }
+
       startAutoUpdaterCheckInBackground(source);
-      return preflight;
+      return {
+        ...preflight,
+        message: `Mise à jour ${preflight.version || ''} acceptée. Téléchargement en cours...`.replace('  ', ' ')
+      };
     }
 
     const result = await waitForUpdateCheckResult(source);
