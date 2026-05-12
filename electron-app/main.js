@@ -651,13 +651,11 @@ function launchBackend() {
   backendProcess = spawn(command, args, {
   cwd: path.dirname(backendPath),
   env: { ...process.env, NODE_ENV: 'production' },
-  detached: true,
+  detached: false,
   stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
   shell: false
 });
 console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
-
-  backendProcess.unref(); // ← permet au processus de continuer seul et silencieux
 
 
   backendProcess.on('close', (code) => {
