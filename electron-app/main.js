@@ -4,13 +4,15 @@ const { autoUpdater } = require('electron-updater');
 
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const http = require('http');
 const https = require('https');
 
 
 let mainWindow;
 let backendProcess;
+let isQuitting = false;
+let isInstallingUpdate = false;
 let _ensuring = false;
 let _lastEnsure = 0;
 
@@ -174,6 +176,29 @@ async function showPendingReleaseNotes() {
   });
 }
 
+function stopBackendProcess() {
+  if (!backendProcess) return;
+
+  try {
+    if (process.platform === 'win32') {
+      spawnSync('taskkill', ['/PID', String(backendProcess.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else {
+      backendProcess.kill();
+    }
+    console.log('🛑 Backend arrêté avant fermeture de l’application.');
+  } catch (error) {
+    console.error('❌ Impossible d’arrêter le backend :', error?.message || error);
+  } finally {
+    backendProcess = null;
+  }
+}
+
+function prepareForUpdateInstall() {
+  isInstallingUpdate = true;
+  isQuitting = true;
+  stopBackendProcess();
+}
+
 function sendUpdateStatus(payload) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send('app/update-status', payload);
@@ -238,9 +263,15 @@ function setupAutoUpdaterLogs() {
       message: `La version ${info.version} a été téléchargée. L'application va redémarrer pour finaliser la mise à jour.`
     });
 
-    setImmediate(() => autoUpdater.quitAndInstall());
+    prepareForUpdateInstall();
+    setImmediate(() => autoUpdater.quitAndInstall(false, true));
   });
 }
+
+autoUpdater.on('before-quit-for-update', () => {
+  console.log('🔄 Fermeture de l’application pour installer la mise à jour...');
+  prepareForUpdateInstall();
+});
 
 function configureAutoUpdater() {
   if (autoUpdaterConfigured) return true;
@@ -670,9 +701,12 @@ function verifierSessionUtilisateur() {
 
 
 
-let isQuitting = false;
-
 app.on('before-quit', (event) => {
+  if (isInstallingUpdate) {
+    stopBackendProcess();
+    return;
+  }
+
   if (isQuitting) return;
   isQuitting = true;
   event.preventDefault();
@@ -684,7 +718,7 @@ app.on('before-quit', (event) => {
 
       if (!sessionCookie) {
         console.warn('⚠️ Aucun cookie de session trouvé, fermeture directe');
-        if (backendProcess) backendProcess.kill();
+        stopBackendProcess();
         return app.exit();
       }
 
@@ -700,13 +734,13 @@ app.on('before-quit', (event) => {
 
       const req = http.request(options, (res) => {
         console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
-        if (backendProcess) backendProcess.kill();
+        stopBackendProcess();
         app.exit();
       });
 
       req.on('error', (err) => {
         console.error('❌ Échec suppression session utilisateur :', err.message);
-        if (backendProcess) backendProcess.kill();
+        stopBackendProcess();
         app.exit();
       });
 
@@ -714,7 +748,7 @@ app.on('before-quit', (event) => {
     })
     .catch((err) => {
       console.error('❌ Impossible de récupérer le cookie de session :', err.message);
-      if (backendProcess) backendProcess.kill();
+      stopBackendProcess();
       app.exit();
     });
 });
