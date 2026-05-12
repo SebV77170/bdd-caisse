@@ -145,8 +145,20 @@ function incrementReleaseVersion(version) {
   return version;
 }
 
+function parseReleaseVersion(version) {
+  return String(version).trim().match(/^(\d+)\.(\d+)(?:\.(\d+))?([-.+][0-9A-Za-z.-]+)?$/);
+}
+
 function isValidReleaseVersion(version) {
-  return /^\d+\.\d+(?:\.\d+)?(?:[-.+][0-9A-Za-z.-]+)?$/.test(String(version));
+  return Boolean(parseReleaseVersion(version));
+}
+
+function normalizeReleaseVersionForBuilder(version) {
+  const match = parseReleaseVersion(version);
+  if (!match) return String(version).trim();
+
+  const [, major, minor, patch, suffix = ''] = match;
+  return `${major}.${minor}.${patch || '0'}${suffix}`;
 }
 
 function writeJsonFile(filePath, data) {
@@ -178,11 +190,16 @@ async function prepareReleaseMetadata(shouldPublish) {
     throw new Error(`Version invalide : ${nextVersion}. Exemples acceptés : 1.3, 2.0, 1.2.3.`);
   }
 
-  if (nextVersion !== currentVersion) {
-    packageJson.version = nextVersion;
+  const normalizedVersion = normalizeReleaseVersionForBuilder(nextVersion);
+  if (normalizedVersion !== nextVersion) {
+    console.log(`ℹ️ Version ${nextVersion} normalisée en ${normalizedVersion} pour electron-builder.`);
+  }
+
+  if (normalizedVersion !== currentVersion) {
+    packageJson.version = normalizedVersion;
     writeJsonFile(packageJsonPath, packageJson);
-    updatePackageLockVersion(nextVersion);
-    console.log(`🔖 Version Electron mise à jour : ${currentVersion} -> ${nextVersion}`);
+    updatePackageLockVersion(normalizedVersion);
+    console.log(`🔖 Version Electron mise à jour : ${currentVersion} -> ${normalizedVersion}`);
   } else {
     console.log(`🔖 Version Electron conservée : ${currentVersion}`);
   }
