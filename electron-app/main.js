@@ -307,7 +307,23 @@ async function preflightLatestYmlCheck() {
     };
   }
 
-  return { success: true, status: 'remote-version', version: remoteVersion };
+  return {
+    success: true,
+    status: 'update-available',
+    version: remoteVersion,
+    message: `Une mise à jour est disponible (version ${remoteVersion}). Le téléchargement va démarrer automatiquement.`
+  };
+}
+
+function startAutoUpdaterCheckInBackground(source) {
+  autoUpdater.checkForUpdates()
+    .then((result) => {
+      const version = result?.updateInfo?.version || 'inconnue';
+      console.log(`🆚 Version locale ${app.getVersion()} / distante ${version} (${source})`);
+    })
+    .catch((error) => {
+      console.error('❌ Impossible de lancer le téléchargement de mise à jour :', error?.message || error);
+    });
 }
 
 function waitForUpdateCheckResult(source) {
@@ -398,6 +414,10 @@ async function checkForAppUpdate(source = 'startup') {
   try {
     const preflight = await preflightLatestYmlCheck();
     if (preflight?.status === 'up-to-date' || preflight?.success === false) return preflight;
+    if (preflight?.status === 'update-available') {
+      startAutoUpdaterCheckInBackground(source);
+      return preflight;
+    }
 
     const result = await waitForUpdateCheckResult(source);
     if (result?.version) {
