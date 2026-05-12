@@ -13,7 +13,109 @@ let backendProcess;
 let _ensuring = false;
 let _lastEnsure = 0;
 
-const UPDATE_BASE_URL = process.env.BDD_CAISSE_UPDATE_URL;
+let updateBaseUrl = null;
+let runtimeEnvLoaded = false;
+
+function parseDotEnvValue(value) {
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'") && trimmed[trimmed.length - 1] === quote) {
+    const unquoted = trimmed.slice(1, -1);
+    return quote === '"'
+      ? unquoted.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      : unquoted;
+  }
+
+  return trimmed;
+}
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const line of content.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)?\s*$/);
+    if (!match) continue;
+
+    const [, key, rawValue = ''] = match;
+    if (Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+    process.env[key] = parseDotEnvValue(rawValue);
+  }
+}
+
+function getRuntimeEnvFileCandidates() {
+  return [
+    path.resolve(__dirname, '..', '.env'),
+    path.resolve(__dirname, '..', 'backend', '.env'),
+    path.resolve(__dirname, '.env'),
+    path.join(process.resourcesPath || '', '.env'),
+    path.join(process.resourcesPath || '', 'backend', '.env'),
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'backend', '.env')
+  ];
+}
+
+function loadRuntimeEnv() {
+  if (runtimeEnvLoaded) return;
+  runtimeEnvLoaded = true;
+  getRuntimeEnvFileCandidates().forEach(loadEnvFile);
+}
+
+function normalizeUrlPath(pathValue) {
+  const normalized = String(pathValue || '').trim();
+  if (!normalized) return '/releases';
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+function joinUrlPath(baseUrl, pathValue) {
+  const url = new URL(baseUrl);
+  const currentPath = url.pathname.replace(/\/+$/, '');
+  const nextPath = normalizeUrlPath(pathValue).replace(/^\/+/, '');
+  url.pathname = `${currentPath}/${nextPath}`.replace(/\/+/g, '/');
+  return url.toString();
+}
+
+function loadWebdavEndpoints() {
+  const raw = process.env.WEBDAV_ENDPOINTS || process.env.WEBDAV_CONFIG;
+  if (!raw) return {};
+
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  return parsed;
+}
+
+function resolveUpdateBaseUrl() {
+  if (updateBaseUrl) return updateBaseUrl;
+
+  loadRuntimeEnv();
+
+  if (process.env.BDD_CAISSE_UPDATE_URL) {
+    updateBaseUrl = process.env.BDD_CAISSE_UPDATE_URL;
+    return updateBaseUrl;
+  }
+
+  const endpoints = loadWebdavEndpoints();
+  const profileName = process.env.BDD_CAISSE_RELEASE_WEBDAV_PROFILE
+    || process.env.WEBDAV_PROFILE
+    || (endpoints.prod ? 'prod' : Object.keys(endpoints)[0]);
+  const profile = profileName ? endpoints[profileName] : null;
+
+  if (!profile || typeof profile !== 'object' || !profile.url) return null;
+
+  const releasePath = process.env.BDD_CAISSE_RELEASE_WEBDAV_PATH
+    || process.env.BDD_CAISSE_UPDATE_PATH
+    || profile.releasePath
+    || profile.updatePath
+    || '/releases';
+
+  updateBaseUrl = profile.releaseUrl || profile.updateUrl || joinUrlPath(profile.url, releasePath);
+  process.env.BDD_CAISSE_UPDATE_URL = updateBaseUrl;
+
+  console.log(`ℹ️ BDD_CAISSE_UPDATE_URL runtime dérivée du profil WEBDAV_ENDPOINTS "${profileName}" (${updateBaseUrl}).`);
+  return updateBaseUrl;
+}
+
 function getPendingReleaseNotesPath() {
   return path.join(app.getPath('userData'), 'pending-release-notes.json');
 }
@@ -98,8 +200,10 @@ function setupAutoUpdaterLogs() {
 function configureAutoUpdater() {
   if (autoUpdaterConfigured) return true;
 
-  if (!UPDATE_BASE_URL) {
-    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_UPDATE_URL.');
+  const resolvedUpdateBaseUrl = resolveUpdateBaseUrl();
+
+  if (!resolvedUpdateBaseUrl) {
+    console.warn('⚠️ Mise à jour auto désactivée: définissez BDD_CAISSE_UPDATE_URL ou un profil WEBDAV_ENDPOINTS avec un dossier de release.');
     return false;
   }
 
@@ -109,10 +213,10 @@ function configureAutoUpdater() {
   autoUpdater.allowPrerelease = false;
   autoUpdater.setFeedURL({
     provider: 'generic',
-    url: UPDATE_BASE_URL
+    url: resolvedUpdateBaseUrl
   });
   autoUpdaterConfigured = true;
-  console.log(`🌐 Source de mise à jour configurée : ${UPDATE_BASE_URL}`);
+  console.log(`🌐 Source de mise à jour configurée : ${resolvedUpdateBaseUrl}`);
   return true;
 }
 

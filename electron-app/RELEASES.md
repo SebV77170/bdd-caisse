@@ -16,7 +16,7 @@ L'auto-update lit cette variable au runtime (dans `electron-app/main.js`) :
 
 - `BDD_CAISSE_UPDATE_URL` : URL du dossier WebDAV qui contient `latest.yml`.
 
-Le script de publication charge automatiquement `.env`, `backend/.env`, puis `electron-app/.env` (sans écraser les variables déjà définies). Il peut donc réutiliser les profils `WEBDAV_ENDPOINTS` déjà présents dans `backend/.env`.
+L'application packagée et le script de publication chargent automatiquement `.env`, `backend/.env`, puis `electron-app/.env` (sans écraser les variables déjà définies). Si `BDD_CAISSE_UPDATE_URL` est absente, ils la dérivent du profil `prod` de `WEBDAV_ENDPOINTS` et du chemin `/releases`. Le bouton "Rechercher une mise à jour" utilise donc la même URL dérivée que `npm run package:publish`.
 
 Le script de publication utilise aussi :
 
@@ -118,6 +118,6 @@ Sans `latest.yml`, `electron-updater` ne peut pas déterminer la version/URL de 
 
 ## 8) Vérification côté app
 
-Lancer l'application packagée avec `BDD_CAISSE_UPDATE_URL` pointant vers le dossier WebDAV qui contient `latest.yml`.
+Lancer l'application packagée avec `BDD_CAISSE_UPDATE_URL` pointant vers le dossier WebDAV qui contient `latest.yml`, ou avec un `WEBDAV_ENDPOINTS` contenant le profil `prod` pour que l'URL soit dérivée automatiquement.
 
 Au démarrage, elle doit logguer la vérification de MAJ et télécharger automatiquement si la version distante est plus récente. Tu peux aussi lancer la recherche depuis le bouton des paramètres.
