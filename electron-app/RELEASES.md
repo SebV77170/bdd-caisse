@@ -47,7 +47,7 @@ export BDD_CAISSE_RELEASE_WEBDAV_PATH=/releases
 
 Avant de lancer `electron-builder`, le script de release prépare les métadonnées :
 
-- avec `release:publish` / `package:publish`, il propose automatiquement d'incrémenter la version de `electron-app/package.json` (par défaut : patch +1, ex. `1.2.2` -> `1.2.3`) ;
+- avec `release:publish` / `package:publish`, il propose automatiquement d'incrémenter la version de `electron-app/package.json` (par défaut : incrément automatique, ex. `1.2.2` -> `1.2.3` ou `1.3` -> `1.4`) ;
 - il met aussi à jour `electron-app/package-lock.json` si présent ;
 - il demande les évolutions de la version pour les injecter dans `latest.yml` (`releaseNotes`) et les afficher à l'utilisateur après mise à jour.
 
@@ -55,6 +55,7 @@ Options utiles :
 
 ```bash
 npm run package:publish -- --version=1.2.3 --notes="Correction de la mise à jour automatique"
+npm run package:publish -- --version=2.0 --notes="Nouvelle version majeure"
 npm run package:no-publish -- --bump-version
 npm run package:publish -- --no-version-bump
 ```

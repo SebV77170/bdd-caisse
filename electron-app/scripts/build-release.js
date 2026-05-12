@@ -129,11 +129,24 @@ function getArgValue(name) {
   return arg ? arg.slice(prefix.length).trim() : '';
 }
 
-function incrementPatchVersion(version) {
-  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)(.*)$/);
-  if (!match) return version;
-  const [, major, minor, patch, suffix] = match;
-  return `${major}.${minor}.${Number(patch) + 1}${suffix || ''}`;
+function incrementReleaseVersion(version) {
+  const patchMatch = String(version).match(/^(\d+)\.(\d+)\.(\d+)(.*)$/);
+  if (patchMatch) {
+    const [, major, minor, patch, suffix] = patchMatch;
+    return `${major}.${minor}.${Number(patch) + 1}${suffix || ''}`;
+  }
+
+  const minorMatch = String(version).match(/^(\d+)\.(\d+)(.*)$/);
+  if (minorMatch) {
+    const [, major, minor, suffix] = minorMatch;
+    return `${major}.${Number(minor) + 1}${suffix || ''}`;
+  }
+
+  return version;
+}
+
+function isValidReleaseVersion(version) {
+  return /^\d+\.\d+(?:\.\d+)?(?:[-.+][0-9A-Za-z.-]+)?$/.test(String(version));
 }
 
 function writeJsonFile(filePath, data) {
@@ -158,11 +171,11 @@ async function prepareReleaseMetadata(shouldPublish) {
   const currentVersion = packageJson.version;
   const defaultVersion = process.env.BDD_CAISSE_RELEASE_VERSION
     || getArgValue('--version')
-    || incrementPatchVersion(currentVersion);
+    || incrementReleaseVersion(currentVersion);
   const nextVersion = await ask(`Version de release Electron [${defaultVersion}] : `, defaultVersion);
 
-  if (!/^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$/.test(nextVersion)) {
-    throw new Error(`Version invalide : ${nextVersion}`);
+  if (!isValidReleaseVersion(nextVersion)) {
+    throw new Error(`Version invalide : ${nextVersion}. Exemples acceptés : 1.3, 2.0, 1.2.3.`);
   }
 
   if (nextVersion !== currentVersion) {
