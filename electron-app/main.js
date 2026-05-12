@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
+const https = require('https');
 
 
 let mainWindow;
@@ -111,6 +112,13 @@ function resolveUpdateBaseUrl() {
 
   updateBaseUrl = profile.releaseUrl || profile.updateUrl || joinUrlPath(profile.url, releasePath);
   process.env.BDD_CAISSE_UPDATE_URL = updateBaseUrl;
+
+  if (!process.env.BDD_CAISSE_WEBDAV_USER && !process.env.WEBDAV_USERNAME && profile.username) {
+    process.env.BDD_CAISSE_WEBDAV_USER = profile.username;
+  }
+  if (!process.env.BDD_CAISSE_WEBDAV_PASSWORD && !process.env.WEBDAV_PASSWORD && profile.password) {
+    process.env.BDD_CAISSE_WEBDAV_PASSWORD = profile.password;
+  }
 
   console.log(`ℹ️ BDD_CAISSE_UPDATE_URL runtime dérivée du profil WEBDAV_ENDPOINTS "${profileName}" (${updateBaseUrl}).`);
   return updateBaseUrl;
@@ -220,8 +228,90 @@ function configureAutoUpdater() {
   return true;
 }
 
+
+function getWebdavAuthHeader() {
+  const username = process.env.BDD_CAISSE_WEBDAV_USER || process.env.WEBDAV_USERNAME;
+  const password = process.env.BDD_CAISSE_WEBDAV_PASSWORD || process.env.WEBDAV_PASSWORD;
+
+  if (!username && !password) return {};
+  return { Authorization: `Basic ${Buffer.from(`${username || ''}:${password || ''}`).toString('base64')}` };
+}
+
+function getUpdateCheckTimeoutMs() {
+  return Number(process.env.BDD_CAISSE_UPDATE_CHECK_TIMEOUT_MS || 45000);
+}
+
+function buildLatestYmlUrl(baseUrl) {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return new URL('latest.yml', normalizedBase);
+}
+
+function parseLatestYmlVersion(latestYml) {
+  const match = String(latestYml).match(/^version:\s*["']?([^\r\n"']+)/m);
+  return match ? match[1].trim() : null;
+}
+
+function fetchLatestYml(baseUrl) {
+  return new Promise((resolve, reject) => {
+    const targetUrl = buildLatestYmlUrl(baseUrl);
+    const client = targetUrl.protocol === 'https:' ? https : http;
+    const request = client.request(targetUrl, {
+      method: 'GET',
+      headers: getWebdavAuthHeader()
+    }, (response) => {
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => {
+        const body = Buffer.concat(chunks).toString('utf8');
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          resolve(body);
+          return;
+        }
+
+        reject(new Error(`latest.yml refusé (${response.statusCode}${response.statusMessage ? ` ${response.statusMessage}` : ''})${body ? `: ${body.slice(0, 500)}` : ''}`));
+      });
+    });
+
+    request.setTimeout(getUpdateCheckTimeoutMs(), () => {
+      request.destroy(new Error(`Aucune réponse de ${targetUrl.href} après ${Math.round(getUpdateCheckTimeoutMs() / 1000)} secondes.`));
+    });
+
+    request.on('error', reject);
+    request.end();
+  });
+}
+
+async function preflightLatestYmlCheck() {
+  const resolvedUpdateBaseUrl = resolveUpdateBaseUrl();
+  if (!resolvedUpdateBaseUrl) return null;
+
+  const latestYml = await fetchLatestYml(resolvedUpdateBaseUrl);
+  const remoteVersion = parseLatestYmlVersion(latestYml);
+  if (!remoteVersion) {
+    return {
+      success: false,
+      status: 'invalid-latest-yml',
+      message: 'latest.yml est accessible, mais le champ version est introuvable.'
+    };
+  }
+
+  const localVersion = app.getVersion();
+  console.log(`🧾 latest.yml WebDAV indique la version ${remoteVersion} (locale ${localVersion}).`);
+
+  if (remoteVersion === localVersion) {
+    return {
+      success: true,
+      status: 'up-to-date',
+      version: remoteVersion,
+      message: `Vous utilisez déjà la dernière version (${localVersion}).`
+    };
+  }
+
+  return { success: true, status: 'remote-version', version: remoteVersion };
+}
+
 function waitForUpdateCheckResult(source) {
-  const timeoutMs = Number(process.env.BDD_CAISSE_UPDATE_CHECK_TIMEOUT_MS || 45000);
+  const timeoutMs = getUpdateCheckTimeoutMs();
 
   return new Promise((resolve) => {
     let settled = false;
@@ -306,6 +396,9 @@ async function checkForAppUpdate(source = 'startup') {
   }
 
   try {
+    const preflight = await preflightLatestYmlCheck();
+    if (preflight?.status === 'up-to-date' || preflight?.success === false) return preflight;
+
     const result = await waitForUpdateCheckResult(source);
     if (result?.version) {
       console.log(`🆚 Version locale ${app.getVersion()} / distante ${result.version} (${source})`);

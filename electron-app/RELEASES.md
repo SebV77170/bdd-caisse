@@ -120,4 +120,4 @@ Sans `latest.yml`, `electron-updater` ne peut pas déterminer la version/URL de 
 
 Lancer l'application packagée avec `BDD_CAISSE_UPDATE_URL` pointant vers le dossier WebDAV qui contient `latest.yml`, ou avec un `WEBDAV_ENDPOINTS` contenant le profil `prod` pour que l'URL soit dérivée automatiquement.
 
-Au démarrage, elle doit logguer la vérification de MAJ et télécharger automatiquement si la version distante est plus récente. Tu peux aussi lancer la recherche depuis le bouton des paramètres.
+Au démarrage, elle doit logguer la vérification de MAJ et télécharger automatiquement si la version distante est plus récente. Tu peux aussi lancer la recherche depuis le bouton des paramètres : l'application lit d'abord `latest.yml` pour afficher immédiatement "déjà à jour" quand la version WebDAV est identique à la version installée, puis déclenche `electron-updater` seulement si une autre version est détectée.
