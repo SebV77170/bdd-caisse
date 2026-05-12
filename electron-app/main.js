@@ -220,6 +220,81 @@ function configureAutoUpdater() {
   return true;
 }
 
+function waitForUpdateCheckResult(source) {
+  const timeoutMs = Number(process.env.BDD_CAISSE_UPDATE_CHECK_TIMEOUT_MS || 45000);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeout = null;
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      autoUpdater.removeListener('update-available', onUpdateAvailable);
+      autoUpdater.removeListener('update-not-available', onUpdateNotAvailable);
+      autoUpdater.removeListener('error', onError);
+    };
+
+    const finish = (payload) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(payload);
+    };
+
+    const onUpdateAvailable = (info) => {
+      const version = info?.version || 'inconnue';
+      finish({
+        success: true,
+        status: 'update-available',
+        version,
+        message: `Une mise à jour est disponible (version ${version}). Le téléchargement va démarrer automatiquement.`
+      });
+    };
+
+    const onUpdateNotAvailable = (info) => {
+      const version = info?.version || app.getVersion();
+      finish({
+        success: true,
+        status: 'up-to-date',
+        version,
+        message: `Vous utilisez déjà la dernière version (${app.getVersion()}).`
+      });
+    };
+
+    const onError = (error) => {
+      finish({ success: false, message: error?.message || 'Erreur inconnue' });
+    };
+
+    timeout = setTimeout(() => {
+      finish({
+        success: false,
+        status: 'timeout',
+        message: `Aucune réponse du serveur de mise à jour après ${Math.round(timeoutMs / 1000)} secondes.`
+      });
+    }, timeoutMs);
+
+    autoUpdater.once('update-available', onUpdateAvailable);
+    autoUpdater.once('update-not-available', onUpdateNotAvailable);
+    autoUpdater.once('error', onError);
+
+    autoUpdater.checkForUpdates()
+      .then((result) => {
+        if (settled) return;
+        const version = result?.updateInfo?.version || app.getVersion();
+        console.log(`🆚 Version locale ${app.getVersion()} / distante ${version} (${source})`);
+        finish({
+          success: true,
+          status: version === app.getVersion() ? 'up-to-date' : 'checked',
+          version,
+          message: version === app.getVersion()
+            ? `Vous utilisez déjà la dernière version (${app.getVersion()}).`
+            : `Vérification terminée (version distante: ${version}).`
+        });
+      })
+      .catch(onError);
+  });
+}
+
 async function checkForAppUpdate(source = 'startup') {
   if (!app.isPackaged) {
     console.log(`ℹ️ Mode développement: vérification de mise à jour ignorée (${source}).`);
@@ -231,11 +306,11 @@ async function checkForAppUpdate(source = 'startup') {
   }
 
   try {
-    const result = await autoUpdater.checkForUpdates();
-    if (result?.updateInfo?.version) {
-      console.log(`🆚 Version locale ${app.getVersion()} / distante ${result.updateInfo.version} (${source})`);
+    const result = await waitForUpdateCheckResult(source);
+    if (result?.version) {
+      console.log(`🆚 Version locale ${app.getVersion()} / distante ${result.version} (${source})`);
     }
-    return { success: true, version: result?.updateInfo?.version || app.getVersion() };
+    return result;
   } catch (error) {
     console.error('❌ Impossible de vérifier les mises à jour distantes :', error?.message || error);
     return { success: false, message: error?.message || 'Erreur inconnue' };
