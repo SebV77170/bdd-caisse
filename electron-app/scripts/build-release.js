@@ -11,7 +11,9 @@ const { spawnSync } = require('child_process');
 const args = new Set(process.argv.slice(2));
 const appDir = path.resolve(__dirname, '..');
 const distDir = path.join(appDir, 'dist');
-const packageJson = require(path.join(appDir, 'package.json'));
+const packageJsonPath = path.join(appDir, 'package.json');
+const packageLockPath = path.join(appDir, 'package-lock.json');
+const packageJson = require(packageJsonPath);
 
 function parseDotEnvValue(value) {
   const trimmed = String(value).trim();
@@ -120,6 +122,65 @@ function ask(question, defaultValue = '') {
   });
 }
 
+
+function getArgValue(name) {
+  const prefix = `${name}=`;
+  const arg = process.argv.find((value) => value.startsWith(prefix));
+  return arg ? arg.slice(prefix.length).trim() : '';
+}
+
+function incrementPatchVersion(version) {
+  const match = String(version).match(/^(\d+)\.(\d+)\.(\d+)(.*)$/);
+  if (!match) return version;
+  const [, major, minor, patch, suffix] = match;
+  return `${major}.${minor}.${Number(patch) + 1}${suffix || ''}`;
+}
+
+function writeJsonFile(filePath, data) {
+  fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+function updatePackageLockVersion(version) {
+  if (!fs.existsSync(packageLockPath)) return;
+
+  const lock = JSON.parse(fs.readFileSync(packageLockPath, 'utf8'));
+  lock.version = version;
+  if (lock.packages?.['']) {
+    lock.packages[''].version = version;
+  }
+  writeJsonFile(packageLockPath, lock);
+}
+
+async function prepareReleaseMetadata(shouldPublish) {
+  const shouldPrepare = shouldPublish || args.has('--bump-version') || process.env.BDD_CAISSE_BUMP_VERSION === '1';
+  if (!shouldPrepare || args.has('--no-version-bump')) return;
+
+  const currentVersion = packageJson.version;
+  const defaultVersion = process.env.BDD_CAISSE_RELEASE_VERSION
+    || getArgValue('--version')
+    || incrementPatchVersion(currentVersion);
+  const nextVersion = await ask(`Version de release Electron [${defaultVersion}] : `, defaultVersion);
+
+  if (!/^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$/.test(nextVersion)) {
+    throw new Error(`Version invalide : ${nextVersion}`);
+  }
+
+  if (nextVersion !== currentVersion) {
+    packageJson.version = nextVersion;
+    writeJsonFile(packageJsonPath, packageJson);
+    updatePackageLockVersion(nextVersion);
+    console.log(`🔖 Version Electron mise à jour : ${currentVersion} -> ${nextVersion}`);
+  } else {
+    console.log(`🔖 Version Electron conservée : ${currentVersion}`);
+  }
+
+  if (!process.env.BDD_CAISSE_RELEASE_NOTES && !process.env.BDD_CAISSE_RELEASE_NOTES_FILE && !getArgValue('--notes')) {
+    const defaultNotes = `Mise à jour ${packageJson.version}`;
+    const notes = await ask('Évolutions de cette version (affichées après mise à jour) : ', defaultNotes);
+    process.env.BDD_CAISSE_RELEASE_NOTES = notes || defaultNotes;
+  }
+}
+
 function cleanDistDir() {
   fs.rmSync(distDir, { recursive: true, force: true });
 }
@@ -210,9 +271,14 @@ function runElectronBuilder(updateUrl = null) {
 function getReleaseNotes() {
   const notesFileArg = process.argv.find((arg) => arg.startsWith('--notes-file='));
   const notesFile = notesFileArg ? notesFileArg.split('=').slice(1).join('=') : process.env.BDD_CAISSE_RELEASE_NOTES_FILE;
+  const notesArg = getArgValue('--notes');
 
   if (notesFile) {
     return fs.readFileSync(path.resolve(process.cwd(), notesFile), 'utf8').trim();
+  }
+
+  if (notesArg) {
+    return notesArg;
   }
 
   if (process.env.BDD_CAISSE_RELEASE_NOTES) {
@@ -423,6 +489,8 @@ async function main() {
     const answer = await ask('Publier cette mise à jour sur le serveur WebDAV ? [o/N] ', 'n');
     shouldPublish = ['o', 'oui', 'y', 'yes'].includes(answer.toLowerCase());
   }
+
+  await prepareReleaseMetadata(shouldPublish);
 
   applyWebdavReleaseDefaults();
 

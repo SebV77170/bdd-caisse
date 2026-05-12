@@ -43,9 +43,23 @@ export BDD_CAISSE_RELEASE_WEBDAV_PROFILE=prod
 export BDD_CAISSE_RELEASE_WEBDAV_PATH=/releases
 ```
 
-## 3) Incrémenter la version
+## 3) Version et notes de version
 
-Mettre à jour la version dans `electron-app/package.json` (ex: `1.2.2` -> `1.2.3`).
+Avant de lancer `electron-builder`, le script de release prépare les métadonnées :
+
+- avec `release:publish` / `package:publish`, il propose automatiquement d'incrémenter la version de `electron-app/package.json` (par défaut : patch +1, ex. `1.2.2` -> `1.2.3`) ;
+- il met aussi à jour `electron-app/package-lock.json` si présent ;
+- il demande les évolutions de la version pour les injecter dans `latest.yml` (`releaseNotes`) et les afficher à l'utilisateur après mise à jour.
+
+Options utiles :
+
+```bash
+npm run package:publish -- --version=1.2.3 --notes="Correction de la mise à jour automatique"
+npm run package:no-publish -- --bump-version
+npm run package:publish -- --no-version-bump
+```
+
+Tu peux aussi utiliser `BDD_CAISSE_RELEASE_VERSION`, `BDD_CAISSE_RELEASE_NOTES` ou `BDD_CAISSE_RELEASE_NOTES_FILE` en CI.
 
 ## 4) Build avec question de publication
 
@@ -66,12 +80,13 @@ npm run release
 Le script :
 
 1. demande si tu veux publier la mise à jour sur WebDAV (sauf avec `release:publish` ou `release:no-publish`),
-2. lance `electron-builder --publish never`,
-3. si une URL de mise à jour est disponible (`BDD_CAISSE_UPDATE_URL` explicite ou dérivée de `WEBDAV_ENDPOINTS`), fournit à `electron-builder` une configuration temporaire `publish` de type `generic` pour générer `latest.yml`, même avec `release:no-publish`,
-4. génère les artefacts dans `electron-app/dist/`,
-5. si tu publies, prépare le dossier WebDAV distant avec `MKCOL`,
-6. ajoute les notes dans `latest.yml`,
-7. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL` avec retry en cas d'erreur réseau (`ECONNRESET`, timeout, etc.).
+2. prépare la version et les notes de version avant le build,
+3. lance `electron-builder --publish never`,
+4. si une URL de mise à jour est disponible (`BDD_CAISSE_UPDATE_URL` explicite ou dérivée de `WEBDAV_ENDPOINTS`), fournit à `electron-builder` une configuration temporaire `publish` de type `generic` pour générer `latest.yml`, même avec `release:no-publish`,
+5. génère les artefacts dans `electron-app/dist/`,
+6. si tu publies, prépare le dossier WebDAV distant avec `MKCOL`,
+7. ajoute les notes dans `latest.yml`,
+8. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL` avec retry en cas d'erreur réseau (`ECONNRESET`, timeout, etc.).
 
 ## 5) Publication automatique sans question
 
