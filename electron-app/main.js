@@ -701,28 +701,17 @@ function verifierSessionUtilisateur() {
 
 
 
-app.on('before-quit', (event) => {
-  if (isInstallingUpdate) {
-    stopBackendProcess();
-    return;
-  }
-
-  if (isQuitting) return;
-  isQuitting = true;
-  event.preventDefault();
-
-  // Accède aux cookies de la session Electron
+function closeSessionInBackground() {
   electronSession.defaultSession.cookies.get({ name: 'connect.sid' })
     .then((cookies) => {
       const sessionCookie = cookies[0]?.value;
 
       if (!sessionCookie) {
-        console.warn('⚠️ Aucun cookie de session trouvé, fermeture directe');
-        stopBackendProcess();
-        return app.exit();
+        console.warn('⚠️ Aucun cookie de session trouvé pendant la fermeture');
+        return;
       }
 
-      const options = {
+      const req = http.request({
         hostname: 'localhost',
         port: 3001,
         path: '/api/session',
@@ -730,27 +719,32 @@ app.on('before-quit', (event) => {
         headers: {
           Cookie: `connect.sid=${sessionCookie}`
         }
-      };
-
-      const req = http.request(options, (res) => {
+      }, (res) => {
         console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
-        stopBackendProcess();
-        app.exit();
+        res.resume();
+      });
+
+      req.setTimeout(1000, () => {
+        req.destroy(new Error('Timeout suppression session pendant fermeture'));
       });
 
       req.on('error', (err) => {
-        console.error('❌ Échec suppression session utilisateur :', err.message);
-        stopBackendProcess();
-        app.exit();
+        console.warn('⚠️ Suppression session ignorée pendant la fermeture :', err.message);
       });
 
       req.end();
     })
     .catch((err) => {
-      console.error('❌ Impossible de récupérer le cookie de session :', err.message);
-      stopBackendProcess();
-      app.exit();
+      console.warn('⚠️ Impossible de récupérer le cookie de session pendant la fermeture :', err.message);
     });
+}
+
+app.on('before-quit', () => {
+  if (isQuitting) return;
+  isQuitting = true;
+
+  closeSessionInBackground();
+  stopBackendProcess();
 });
 
 
