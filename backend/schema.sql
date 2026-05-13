@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS users (
   prenom VARCHAR(255),
   nom VARCHAR(255),
   pseudo VARCHAR(255),
+  pseudo_normalise TEXT,
   password TEXT,
   admin TINYINT NOT NULL,
   mail VARCHAR(255),
