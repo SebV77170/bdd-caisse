@@ -5,12 +5,110 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const readline = require('readline');
+const os = require('os');
 const { spawnSync } = require('child_process');
 
 const args = new Set(process.argv.slice(2));
 const appDir = path.resolve(__dirname, '..');
 const distDir = path.join(appDir, 'dist');
-const packageJson = require(path.join(appDir, 'package.json'));
+const packageJsonPath = path.join(appDir, 'package.json');
+const packageLockPath = path.join(appDir, 'package-lock.json');
+const packageJson = require(packageJsonPath);
+
+function parseDotEnvValue(value) {
+  const trimmed = String(value).trim();
+  if (!trimmed) return '';
+
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'") && trimmed[trimmed.length - 1] === quote) {
+    const unquoted = trimmed.slice(1, -1);
+    return quote === '"'
+      ? unquoted.replace(/\\n/g, '\n').replace(/\\r/g, '\r').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+      : unquoted;
+  }
+
+  return trimmed;
+}
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const line of content.split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)?\s*$/);
+    if (!match) continue;
+
+    const [, key, rawValue = ''] = match;
+    if (Object.prototype.hasOwnProperty.call(process.env, key)) continue;
+    process.env[key] = parseDotEnvValue(rawValue);
+  }
+}
+
+function loadReleaseEnv() {
+  const repoDir = path.resolve(appDir, '..');
+  [
+    path.join(repoDir, '.env'),
+    path.join(repoDir, 'backend', '.env'),
+    path.join(appDir, '.env')
+  ].forEach(loadEnvFile);
+}
+
+function normalizeUrlPath(pathValue) {
+  const normalized = String(pathValue || '').trim();
+  if (!normalized) return '/releases';
+  return normalized.startsWith('/') ? normalized : `/${normalized}`;
+}
+
+function joinUrlPath(baseUrl, pathValue) {
+  const url = new URL(baseUrl);
+  const currentPath = url.pathname.replace(/\/+$/, '');
+  const nextPath = normalizeUrlPath(pathValue).replace(/^\/+/, '');
+  url.pathname = `${currentPath}/${nextPath}`.replace(/\/+/g, '/');
+  return url.toString();
+}
+
+function loadWebdavEndpoints() {
+  const raw = process.env.WEBDAV_ENDPOINTS || process.env.WEBDAV_CONFIG;
+  if (!raw) return {};
+
+  const parsed = JSON.parse(raw);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('WEBDAV_ENDPOINTS doit être un objet JSON de profils WebDAV.');
+  }
+
+  return parsed;
+}
+
+function applyWebdavReleaseDefaults() {
+  if (process.env.BDD_CAISSE_UPDATE_URL) return;
+
+  const endpoints = loadWebdavEndpoints();
+  const profileName = process.env.BDD_CAISSE_RELEASE_WEBDAV_PROFILE
+    || process.env.WEBDAV_PROFILE
+    || (endpoints.prod ? 'prod' : Object.keys(endpoints)[0]);
+  const profile = profileName ? endpoints[profileName] : null;
+
+  if (!profile || typeof profile !== 'object' || !profile.url) return;
+
+  const releasePath = process.env.BDD_CAISSE_RELEASE_WEBDAV_PATH
+    || process.env.BDD_CAISSE_UPDATE_PATH
+    || profile.releasePath
+    || profile.updatePath
+    || '/releases';
+
+  process.env.BDD_CAISSE_UPDATE_URL = profile.releaseUrl || profile.updateUrl || joinUrlPath(profile.url, releasePath);
+
+  if (!process.env.BDD_CAISSE_WEBDAV_USER && !process.env.WEBDAV_USERNAME && profile.username) {
+    process.env.BDD_CAISSE_WEBDAV_USER = profile.username;
+  }
+  if (!process.env.BDD_CAISSE_WEBDAV_PASSWORD && !process.env.WEBDAV_PASSWORD && profile.password) {
+    process.env.BDD_CAISSE_WEBDAV_PASSWORD = profile.password;
+  }
+
+  console.log(`ℹ️ BDD_CAISSE_UPDATE_URL dérivée du profil WEBDAV_ENDPOINTS "${profileName}" (${process.env.BDD_CAISSE_UPDATE_URL}).`);
+}
+
+loadReleaseEnv();
 
 function ask(question, defaultValue = '') {
   if (!process.stdin.isTTY || args.has('--yes')) return Promise.resolve(defaultValue);
@@ -24,28 +122,213 @@ function ask(question, defaultValue = '') {
   });
 }
 
-function runElectronBuilder() {
-  console.log('🏗️ Construction des artefacts Electron avec electron-builder...');
-  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const result = spawnSync(npx, ['electron-builder', '--publish', 'never'], {
-    cwd: appDir,
-    stdio: 'inherit',
-    shell: false
-  });
 
-  if (result.status !== 0) {
-    process.exit(result.status || 1);
+function getArgValue(name) {
+  const prefix = `${name}=`;
+  const arg = process.argv.find((value) => value.startsWith(prefix));
+  return arg ? arg.slice(prefix.length).trim() : '';
+}
+
+function incrementReleaseVersion(version) {
+  const patchMatch = String(version).match(/^(\d+)\.(\d+)\.(\d+)(.*)$/);
+  if (patchMatch) {
+    const [, major, minor, patch, suffix] = patchMatch;
+    return `${major}.${minor}.${Number(patch) + 1}${suffix || ''}`;
   }
 
-  console.log('✅ Artefacts Electron générés dans electron-app/dist/.');
+  const minorMatch = String(version).match(/^(\d+)\.(\d+)(.*)$/);
+  if (minorMatch) {
+    const [, major, minor, suffix] = minorMatch;
+    return `${major}.${Number(minor) + 1}${suffix || ''}`;
+  }
+
+  return version;
+}
+
+function parseReleaseVersion(version) {
+  return String(version).trim().match(/^(\d+)\.(\d+)(?:\.(\d+))?([-.+][0-9A-Za-z.-]+)?$/);
+}
+
+function isValidReleaseVersion(version) {
+  return Boolean(parseReleaseVersion(version));
+}
+
+function normalizeReleaseVersionForBuilder(version) {
+  const match = parseReleaseVersion(version);
+  if (!match) return String(version).trim();
+
+  const [, major, minor, patch, suffix = ''] = match;
+  return `${major}.${minor}.${patch || '0'}${suffix}`;
+}
+
+function writeJsonFile(filePath, data) {
+  fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+function updatePackageLockVersion(version) {
+  if (!fs.existsSync(packageLockPath)) return;
+
+  const lock = JSON.parse(fs.readFileSync(packageLockPath, 'utf8'));
+  lock.version = version;
+  if (lock.packages?.['']) {
+    lock.packages[''].version = version;
+  }
+  writeJsonFile(packageLockPath, lock);
+}
+
+async function prepareReleaseMetadata(shouldPublish) {
+  const shouldPrepare = shouldPublish || args.has('--bump-version') || process.env.BDD_CAISSE_BUMP_VERSION === '1';
+  if (!shouldPrepare || args.has('--no-version-bump')) return;
+
+  const currentVersion = packageJson.version;
+  const defaultVersion = process.env.BDD_CAISSE_RELEASE_VERSION
+    || getArgValue('--version')
+    || incrementReleaseVersion(currentVersion);
+  const nextVersion = await ask(`Version de release Electron [${defaultVersion}] : `, defaultVersion);
+
+  if (!isValidReleaseVersion(nextVersion)) {
+    throw new Error(`Version invalide : ${nextVersion}. Exemples acceptés : 1.3, 2.0, 1.2.3.`);
+  }
+
+  const normalizedVersion = normalizeReleaseVersionForBuilder(nextVersion);
+  if (normalizedVersion !== nextVersion) {
+    console.log(`ℹ️ Version ${nextVersion} normalisée en ${normalizedVersion} pour electron-builder.`);
+  }
+
+  if (normalizedVersion !== currentVersion) {
+    packageJson.version = normalizedVersion;
+    writeJsonFile(packageJsonPath, packageJson);
+    updatePackageLockVersion(normalizedVersion);
+    console.log(`🔖 Version Electron mise à jour : ${currentVersion} -> ${normalizedVersion}`);
+  } else {
+    console.log(`🔖 Version Electron conservée : ${currentVersion}`);
+  }
+
+  if (!process.env.BDD_CAISSE_RELEASE_NOTES && !process.env.BDD_CAISSE_RELEASE_NOTES_FILE && !getArgValue('--notes')) {
+    const defaultNotes = `Mise à jour ${packageJson.version}`;
+    const notes = await ask('Évolutions de cette version (affichées après mise à jour) : ', defaultNotes);
+    process.env.BDD_CAISSE_RELEASE_NOTES = notes || defaultNotes;
+  }
+}
+
+function cleanDistDir() {
+  fs.rmSync(distDir, { recursive: true, force: true });
+}
+
+function createElectronBuilderConfig(updateUrl) {
+  if (!updateUrl) return null;
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bdd-caisse-builder-'));
+  const configPath = path.join(tempDir, 'electron-builder.release.json');
+  const buildConfig = {
+    ...packageJson.build,
+    publish: [
+      {
+        provider: 'generic',
+        url: updateUrl
+      }
+    ]
+  };
+
+  fs.writeFileSync(configPath, JSON.stringify(buildConfig, null, 2), 'utf8');
+  return { configPath, tempDir };
+}
+
+function getElectronBuilderCommand(configPath) {
+  const binaryName = process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder';
+  const localBinary = path.join(appDir, 'node_modules', '.bin', binaryName);
+  const builderArgs = configPath
+    ? ['--config', configPath, '--publish', 'never']
+    : ['--publish', 'never'];
+
+  if (fs.existsSync(localBinary)) {
+    if (process.platform === 'win32') {
+      return {
+        command: 'cmd.exe',
+        args: ['/c', localBinary, ...builderArgs],
+        shell: false
+      };
+    }
+
+    return {
+      command: localBinary,
+      args: builderArgs,
+      shell: false
+    };
+  }
+
+  if (process.platform === 'win32') {
+    return {
+      command: 'cmd.exe',
+      args: ['/c', 'npx.cmd', 'electron-builder', ...builderArgs],
+      shell: false
+    };
+  }
+
+  return {
+    command: 'npx',
+    args: ['electron-builder', ...builderArgs],
+    shell: false
+  };
+}
+
+function assertElectronBuilderArtifacts(expectLatest) {
+  if (!fs.existsSync(distDir)) {
+    throw new Error(`electron-builder s'est terminé sans créer le dossier ${distDir}.`);
+  }
+
+  if (!expectLatest) return;
+
+  const latestPath = path.join(distDir, 'latest.yml');
+  if (!fs.existsSync(latestPath)) {
+    const files = fs.readdirSync(distDir).join(', ') || 'aucun fichier';
+    throw new Error(`electron-builder s'est terminé sans créer latest.yml dans ${distDir}. Vérifie que la configuration publish generic est appliquée. Fichiers présents : ${files}.`);
+  }
+}
+
+function runElectronBuilder(updateUrl = null) {
+  console.log('🏗️ Construction des artefacts Electron avec electron-builder...');
+  cleanDistDir();
+
+  const tempConfig = createElectronBuilderConfig(updateUrl);
+  const { command, args: builderArgs, shell } = getElectronBuilderCommand(tempConfig?.configPath);
+  console.log(`ℹ️ Commande: ${command} ${builderArgs.join(' ')}`);
+
+  try {
+    const result = spawnSync(command, builderArgs, {
+      cwd: appDir,
+      stdio: 'inherit',
+      shell
+    });
+
+    if (result.error) {
+      throw new Error(`Impossible de lancer electron-builder (${result.error.message}).`);
+    }
+
+    if (result.status !== 0) {
+      throw new Error(`electron-builder a échoué avec le code ${result.status || 1}. Aucun artefact n'a été publié.`);
+    }
+
+    assertElectronBuilderArtifacts(Boolean(updateUrl));
+    console.log('✅ Artefacts Electron générés dans electron-app/dist/.');
+  } finally {
+    if (tempConfig) {
+      fs.rmSync(tempConfig.tempDir, { recursive: true, force: true });
+    }
+  }
 }
 
 function getReleaseNotes() {
   const notesFileArg = process.argv.find((arg) => arg.startsWith('--notes-file='));
   const notesFile = notesFileArg ? notesFileArg.split('=').slice(1).join('=') : process.env.BDD_CAISSE_RELEASE_NOTES_FILE;
+  const notesArg = getArgValue('--notes');
 
   if (notesFile) {
     return fs.readFileSync(path.resolve(process.cwd(), notesFile), 'utf8').trim();
+  }
+
+  if (notesArg) {
+    return notesArg;
   }
 
   if (process.env.BDD_CAISSE_RELEASE_NOTES) {
@@ -100,46 +383,138 @@ function getFilesToUpload() {
     .map((fileName) => ({ fileName, fullPath: path.join(distDir, fileName) }));
 }
 
-function uploadFile(baseUrl, file) {
+function getWebdavAuthHeader() {
+  const username = process.env.BDD_CAISSE_WEBDAV_USER || process.env.WEBDAV_USERNAME;
+  const password = process.env.BDD_CAISSE_WEBDAV_PASSWORD || process.env.WEBDAV_PASSWORD;
+
+  if (!username && !password) return {};
+  return { Authorization: `Basic ${Buffer.from(`${username || ''}:${password || ''}`).toString('base64')}` };
+}
+
+function getUploadTimeoutMs() {
+  return Number(process.env.BDD_CAISSE_UPLOAD_TIMEOUT_MS || 300000);
+}
+
+function getUploadRetryCount() {
+  return Number(process.env.BDD_CAISSE_UPLOAD_RETRIES || 3);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildTargetUrl(baseUrl, fileName = '') {
+  const normalizedBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+  return new URL(fileName ? encodeURIComponent(fileName) : '', normalizedBase);
+}
+
+function requestWebdav(targetUrl, method, headers = {}, bodyPath = null) {
   return new Promise((resolve, reject) => {
-    const targetUrl = new URL(encodeURIComponent(file.fileName), baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
     const client = targetUrl.protocol === 'https:' ? https : http;
-    const headers = { 'Content-Length': fs.statSync(file.fullPath).size };
-    const username = process.env.BDD_CAISSE_WEBDAV_USER || process.env.WEBDAV_USERNAME;
-    const password = process.env.BDD_CAISSE_WEBDAV_PASSWORD || process.env.WEBDAV_PASSWORD;
-
-    if (username || password) {
-      headers.Authorization = `Basic ${Buffer.from(`${username || ''}:${password || ''}`).toString('base64')}`;
-    }
-
-    const request = client.request(targetUrl, { method: 'PUT', headers }, (response) => {
-      response.resume();
+    const request = client.request(targetUrl, { method, headers }, (response) => {
+      const chunks = [];
+      let collectedBytes = 0;
+      response.on('data', (chunk) => {
+        if (collectedBytes >= 2048) return;
+        chunks.push(chunk);
+        collectedBytes += chunk.length;
+      });
       response.on('end', () => {
+        const responseBody = Buffer.concat(chunks, collectedBytes).toString('utf8', 0, 2048).trim();
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          resolve();
+          resolve({ statusCode: response.statusCode, responseBody });
         } else {
-          reject(new Error(`Upload ${file.fileName} refusé (${response.statusCode})`));
+          const error = new Error(`${method} ${targetUrl.href} refusé (${response.statusCode}${response.statusMessage ? ` ${response.statusMessage}` : ''})${responseBody ? `: ${responseBody}` : ''}`);
+          error.statusCode = response.statusCode;
+          error.responseBody = responseBody;
+          reject(error);
         }
       });
     });
 
-    const timeoutMs = Number(process.env.BDD_CAISSE_UPLOAD_TIMEOUT_MS || 120000);
-    request.setTimeout(timeoutMs, () => {
-      request.destroy(new Error(`Upload ${file.fileName} interrompu après ${timeoutMs / 1000}s sans réponse.`));
+    request.setTimeout(getUploadTimeoutMs(), () => {
+      request.destroy(new Error(`${method} ${targetUrl.href} interrompu après ${getUploadTimeoutMs() / 1000}s sans réponse.`));
     });
 
     request.on('error', reject);
-    fs.createReadStream(file.fullPath).pipe(request);
+
+    if (bodyPath) {
+      const stream = fs.createReadStream(bodyPath);
+      stream.on('error', reject);
+      stream.pipe(request);
+    } else {
+      request.end();
+    }
   });
 }
 
+async function ensureWebdavReleaseDir(baseUrl) {
+  const base = buildTargetUrl(baseUrl);
+  const segments = base.pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return;
+
+  const headers = getWebdavAuthHeader();
+  let currentPath = '';
+
+  for (const segment of segments) {
+    currentPath += `/${segment}`;
+    const targetUrl = new URL(base.href);
+    targetUrl.pathname = currentPath;
+
+    try {
+      await requestWebdav(targetUrl, 'MKCOL', headers);
+      console.log(`📁 Dossier WebDAV créé : ${targetUrl.pathname}`);
+    } catch (error) {
+      if ([405, 301, 302, 409].includes(error.statusCode)) continue;
+      throw new Error(`Impossible de préparer le dossier WebDAV ${targetUrl.pathname}: ${error.message}`);
+    }
+  }
+}
+
+async function uploadFileOnce(baseUrl, file) {
+  const targetUrl = buildTargetUrl(baseUrl, file.fileName);
+  const size = fs.statSync(file.fullPath).size;
+  const headers = {
+    ...getWebdavAuthHeader(),
+    'Content-Length': size,
+    'Content-Type': 'application/octet-stream',
+    Connection: 'close'
+  };
+
+  await requestWebdav(targetUrl, 'PUT', headers, file.fullPath);
+}
+
+async function uploadFile(baseUrl, file) {
+  const maxAttempts = Math.max(1, getUploadRetryCount());
+  const sizeMb = (fs.statSync(file.fullPath).size / 1024 / 1024).toFixed(1);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      if (attempt > 1) process.stdout.write(`retry ${attempt}/${maxAttempts}... `);
+      await uploadFileOnce(baseUrl, file);
+      return;
+    } catch (error) {
+      const message = error.code ? `${error.code} (${error.message})` : error.message;
+      if (attempt >= maxAttempts) {
+        throw new Error(`Upload ${file.fileName} (${sizeMb} Mo) échoué après ${maxAttempts} tentative(s): ${message}`);
+      }
+
+      process.stdout.write(`échec ${message}; `);
+      await wait(1000 * attempt);
+    }
+  }
+}
+
 async function publishToWebdav() {
+  applyWebdavReleaseDefaults();
+
   const updateUrl = process.env.BDD_CAISSE_UPDATE_URL;
   if (!updateUrl) {
     throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release.');
   }
 
   console.log(`🌐 Publication WebDAV vers ${updateUrl}`);
+  await ensureWebdavReleaseDir(updateUrl);
 
   const releaseNotes = getReleaseNotes();
   injectReleaseNotes(releaseNotes);
@@ -160,21 +535,35 @@ async function main() {
   let shouldPublish = args.has('--publish');
   if (args.has('--no-publish')) shouldPublish = false;
 
-  if (shouldPublish && !process.env.BDD_CAISSE_UPDATE_URL) {
-    throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release avant de lancer --publish. Utilise npm run package:no-publish pour construire sans publier.');
-  }
-
-  runElectronBuilder();
-
   if (!args.has('--publish') && !args.has('--no-publish')) {
     const answer = await ask('Publier cette mise à jour sur le serveur WebDAV ? [o/N] ', 'n');
     shouldPublish = ['o', 'oui', 'y', 'yes'].includes(answer.toLowerCase());
   }
 
+  await prepareReleaseMetadata(shouldPublish);
+
+  applyWebdavReleaseDefaults();
+
+  if (shouldPublish && !process.env.BDD_CAISSE_UPDATE_URL) {
+    throw new Error('BDD_CAISSE_UPDATE_URL doit pointer vers le dossier WebDAV de release avant de lancer --publish. Utilise npm run package:no-publish pour construire sans publier.');
+  }
+
+  const buildUpdateUrl = process.env.BDD_CAISSE_UPDATE_URL || null;
+  runElectronBuilder(buildUpdateUrl);
+
+  if (buildUpdateUrl) {
+    injectReleaseNotes(getReleaseNotes());
+  }
+
   if (!shouldPublish) {
-    console.log('ℹ️ Publication WebDAV ignorée. Les artefacts sont disponibles dans electron-app/dist/.');
+    const metadataMessage = buildUpdateUrl
+      ? 'latest.yml a été généré car une URL de mise à jour est configurée.'
+      : 'latest.yml n’a pas été généré car aucune URL de mise à jour n’est configurée.';
+    console.log(`ℹ️ Publication WebDAV ignorée. Les artefacts sont disponibles dans electron-app/dist/. ${metadataMessage}`);
     return;
   }
+
+  applyWebdavReleaseDefaults();
 
   await publishToWebdav();
   console.log('✅ Mise à jour publiée sur le serveur WebDAV.');

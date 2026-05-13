@@ -35,6 +35,7 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [webdavModes, setWebdavModes] = useState([]);
   const [webdavState, setWebdavState] = useState(null);
   const [updateMessage, setUpdateMessage] = useState('');
+  const [updateChecking, setUpdateChecking] = useState(false);
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
@@ -97,6 +98,17 @@ const [showBoutons, setShowBoutons] = useState(false);
       .catch(() => {});
 
     refreshMotifs();
+  }, []);
+
+  useEffect(() => {
+    if (!window.electron?.onUpdateStatus) return undefined;
+
+    return window.electron.onUpdateStatus((status) => {
+      if (!status?.message) return;
+      const prefix = status.success === false ? '❌' : 'ℹ️';
+      setUpdateMessage(`${prefix} ${status.message}`);
+      setUpdateChecking(['checking', 'download-started', 'update-available', 'download-progress'].includes(status.status));
+    });
   }, []);
 
   const save = async () => {
@@ -244,21 +256,27 @@ const [showBoutons, setShowBoutons] = useState(false);
     }
   };
   const checkForAppUpdates = async () => {
-    setUpdateMessage('');
+    setUpdateMessage('🔎 Recherche de mise à jour en cours...');
+    setUpdateChecking(true);
     if (!window.electron?.checkForUpdates) {
       setUpdateMessage("❌ Vérification indisponible hors application Electron packagée.");
+      setUpdateChecking(false);
       return;
     }
 
     try {
       const result = await window.electron.checkForUpdates();
       if (result?.success) {
-        setUpdateMessage(`✅ Vérification lancée (version distante: ${result.version || 'inconnue'}).`);
+        const prefix = result.status === 'update-declined' ? 'ℹ️' : '✅';
+        setUpdateMessage(`${prefix} ${result.message || `Vérification terminée (version distante: ${result.version || 'inconnue'}).`}`);
+        setUpdateChecking(result.status === 'update-available');
       } else {
         setUpdateMessage(`❌ ${result?.message || 'Impossible de vérifier la mise à jour.'}`);
+        setUpdateChecking(false);
       }
     } catch {
       setUpdateMessage('❌ Erreur lors de la vérification de mise à jour.');
+      setUpdateChecking(false);
     }
   };
 
@@ -359,7 +377,9 @@ const [showBoutons, setShowBoutons] = useState(false);
 
       <h3>⬆️ Mise à jour application</h3>
       <p className="mb-2">Vérifie immédiatement s'il existe une nouvelle version sur le serveur de release WebDAV.</p>
-      <Button variant="secondary" onClick={checkForAppUpdates}>🔎 Rechercher une mise à jour</Button>
+      <Button variant="secondary" onClick={checkForAppUpdates} disabled={updateChecking}>
+        {updateChecking ? '🔎 Recherche en cours...' : '🔎 Rechercher une mise à jour'}
+      </Button>
       {updateMessage && <div className="mt-2">{updateMessage}</div>}
 
       <hr />
