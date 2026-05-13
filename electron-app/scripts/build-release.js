@@ -242,13 +242,33 @@ function getElectronBuilderCommand(configPath) {
     : ['--publish', 'never'];
 
   if (fs.existsSync(localBinary)) {
-    return { command: localBinary, args: builderArgs, shell: process.platform === 'win32' };
+    if (process.platform === 'win32') {
+      return {
+        command: 'cmd.exe',
+        args: ['/c', localBinary, ...builderArgs],
+        shell: false
+      };
+    }
+
+    return {
+      command: localBinary,
+      args: builderArgs,
+      shell: false
+    };
+  }
+
+  if (process.platform === 'win32') {
+    return {
+      command: 'cmd.exe',
+      args: ['/c', 'npx.cmd', 'electron-builder', ...builderArgs],
+      shell: false
+    };
   }
 
   return {
-    command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    command: 'npx',
     args: ['electron-builder', ...builderArgs],
-    shell: process.platform === 'win32'
+    shell: false
   };
 }
 
