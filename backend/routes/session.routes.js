@@ -25,6 +25,15 @@ function normalizePseudo(pseudo) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function getUserByPseudo(pseudo) {
+  const pseudoNormalise = normalizePseudo(pseudo);
+
+  return sqlite
+    .prepare('SELECT * FROM users')
+    .all()
+    .find((user) => normalizePseudo(user.pseudo_normalise || user.pseudo) === pseudoNormalise);
+}
+
 // ----------------------
 // Connexion
 // ----------------------
@@ -35,11 +44,7 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Pseudo et mot de passe requis' });
   }
 
-  const pseudoNormalise = normalizePseudo(pseudo);
-
-  const user = sqlite
-    .prepare('SELECT * FROM users WHERE pseudo_normalise = ?')
-    .get(pseudoNormalise);
+  const user = getUserByPseudo(pseudo);
 
   if (!user) {
     return res.status(404).json({ error: 'Utilisateur non trouvé' });
