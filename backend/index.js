@@ -19,6 +19,16 @@ app.set('socketio', io);
 const recevoirDeSecondaire = require('./routes/recevoir-de-secondaire')(io);
 app.use('/api/sync/recevoir-de-secondaire', recevoirDeSecondaire);
 
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Le port backend ${PORT} est déjà utilisé. Ferme l'ancienne instance de Bdd-caisse puis relance l'application.`);
+    process.exit(1);
+  }
+
+  console.error('❌ Erreur serveur backend :', error);
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log(`Serveur backend lancé sur http://localhost:${PORT}`);
   startScheduler(PORT, io);

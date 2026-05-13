@@ -77,6 +77,16 @@ const webdavRoutes = require('./routes/webdav.routes');
 
 // Montage des routes API
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    app: 'bdd-caisse-backend',
+    pid: process.pid,
+    node: process.version,
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.use('/api/produits', produitsRoutes);
 app.use('/api/ticket', ticketRoutes);
 app.use('/api/valider', validerVenteRoutes);
