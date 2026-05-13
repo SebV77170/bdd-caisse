@@ -43,25 +43,9 @@ export BDD_CAISSE_RELEASE_WEBDAV_PROFILE=prod
 export BDD_CAISSE_RELEASE_WEBDAV_PATH=/releases
 ```
 
-## 3) Version et notes de version
+## 3) Incrémenter la version
 
-Avant de lancer `electron-builder`, le script de release prépare les métadonnées :
-
-- avec `release:publish` / `package:publish`, il propose automatiquement d'incrémenter la version de `electron-app/package.json` (par défaut : incrément automatique, ex. `1.2.2` -> `1.2.3` ou `1.3` -> `1.4`) ;
-- il met aussi à jour `electron-app/package-lock.json` si présent ;
-- tu peux saisir une version courte (`1.3`, `2.0`) ; elle sera normalisée pour `electron-builder` (`1.3.0`, `2.0.0`) car l'outil exige une version semver complète ;
-- il demande les évolutions de la version pour les injecter dans `latest.yml` (`releaseNotes`) et les afficher à l'utilisateur après mise à jour.
-
-Options utiles :
-
-```bash
-npm run package:publish -- --version=1.2.3 --notes="Correction de la mise à jour automatique"
-npm run package:publish -- --version=2.0 --notes="Nouvelle version majeure"
-npm run package:no-publish -- --bump-version
-npm run package:publish -- --no-version-bump
-```
-
-Tu peux aussi utiliser `BDD_CAISSE_RELEASE_VERSION`, `BDD_CAISSE_RELEASE_NOTES` ou `BDD_CAISSE_RELEASE_NOTES_FILE` en CI.
+Mettre à jour la version dans `electron-app/package.json` (ex: `1.2.2` -> `1.2.3`).
 
 ## 4) Build avec question de publication
 
@@ -82,13 +66,12 @@ npm run release
 Le script :
 
 1. demande si tu veux publier la mise à jour sur WebDAV (sauf avec `release:publish` ou `release:no-publish`),
-2. prépare la version et les notes de version avant le build,
-3. lance `electron-builder --publish never`,
-4. si une URL de mise à jour est disponible (`BDD_CAISSE_UPDATE_URL` explicite ou dérivée de `WEBDAV_ENDPOINTS`), fournit à `electron-builder` une configuration temporaire `publish` de type `generic` pour générer `latest.yml`, même avec `release:no-publish`,
-5. génère les artefacts dans `electron-app/dist/`,
-6. si tu publies, prépare le dossier WebDAV distant avec `MKCOL`,
-7. ajoute les notes dans `latest.yml`,
-8. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL` avec retry en cas d'erreur réseau (`ECONNRESET`, timeout, etc.).
+2. lance `electron-builder --publish never`,
+3. si une URL de mise à jour est disponible (`BDD_CAISSE_UPDATE_URL` explicite ou dérivée de `WEBDAV_ENDPOINTS`), fournit à `electron-builder` une configuration temporaire `publish` de type `generic` pour générer `latest.yml`, même avec `release:no-publish`,
+4. génère les artefacts dans `electron-app/dist/`,
+5. si tu publies, prépare le dossier WebDAV distant avec `MKCOL`,
+6. ajoute les notes dans `latest.yml`,
+7. upload `latest.yml`, l'installateur et les fichiers `.blockmap` vers `BDD_CAISSE_UPDATE_URL` avec retry en cas d'erreur réseau (`ECONNRESET`, timeout, etc.).
 
 ## 5) Publication automatique sans question
 
@@ -137,4 +120,4 @@ Sans `latest.yml`, `electron-updater` ne peut pas déterminer la version/URL de 
 
 Lancer l'application packagée avec `BDD_CAISSE_UPDATE_URL` pointant vers le dossier WebDAV qui contient `latest.yml`, ou avec un `WEBDAV_ENDPOINTS` contenant le profil `prod` pour que l'URL soit dérivée automatiquement.
 
-Au démarrage, elle doit logguer la vérification de MAJ et télécharger automatiquement si la version distante est plus récente. Tu peux aussi lancer la recherche depuis le bouton des paramètres : l'application lit d'abord `latest.yml` pour afficher immédiatement "déjà à jour" quand la version WebDAV est identique à la version installée, ou "mise à jour disponible" dès qu'une version différente est détectée. Dans ce second cas, l'application demande d'abord confirmation avec la boîte de dialogue "Voulez-vous vraiment mettre à jour l'application ?". Si l'utilisateur accepte, `electron-updater` est lancé en arrière-plan avec les identifiants WebDAV dérivés du profil, et l'écran Paramètres affiche ensuite l'état du téléchargement (progression, erreur ou redémarrage). Au moment de l'installation, qu'elle soit lancée par `electron-updater` ou manuellement via le `.exe`, l'application n'intercepte plus `before-quit` : elle tente la fermeture de session en arrière-plan, arrête immédiatement son backend local, puis laisse Windows/l'installeur fermer `Bdd-caisse.exe`. L'installeur NSIS inclut aussi un script qui force la fermeture de `Bdd-caisse.exe` avant de remplacer les fichiers, ce qui évite le message Windows indiquant que Bdd-caisse ne peut pas être fermé.
+Au démarrage, elle doit logguer la vérification de MAJ et télécharger automatiquement si la version distante est plus récente. Tu peux aussi lancer la recherche depuis le bouton des paramètres : l'application lit d'abord `latest.yml` pour afficher immédiatement "déjà à jour" quand la version WebDAV est identique à la version installée, ou "mise à jour disponible" dès qu'une version différente est détectée. Dans ce second cas, l'application demande d'abord confirmation avec la boîte de dialogue "Voulez-vous vraiment mettre à jour l'application ?". Si l'utilisateur accepte, `electron-updater` est lancé en arrière-plan avec les identifiants WebDAV dérivés du profil, et l'écran Paramètres affiche ensuite l'état du téléchargement (progression, erreur ou redémarrage).

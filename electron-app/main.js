@@ -4,15 +4,13 @@ const { autoUpdater } = require('electron-updater');
 
 const path = require('path');
 const fs = require('fs');
-const { spawn, spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 const http = require('http');
 const https = require('https');
 
 
 let mainWindow;
 let backendProcess;
-let isQuitting = false;
-let isInstallingUpdate = false;
 let _ensuring = false;
 let _lastEnsure = 0;
 
@@ -176,29 +174,6 @@ async function showPendingReleaseNotes() {
   });
 }
 
-function stopBackendProcess() {
-  if (!backendProcess) return;
-
-  try {
-    if (process.platform === 'win32') {
-      spawnSync('taskkill', ['/PID', String(backendProcess.pid), '/T', '/F'], { stdio: 'ignore' });
-    } else {
-      backendProcess.kill();
-    }
-    console.log('🛑 Backend arrêté avant fermeture de l’application.');
-  } catch (error) {
-    console.error('❌ Impossible d’arrêter le backend :', error?.message || error);
-  } finally {
-    backendProcess = null;
-  }
-}
-
-function prepareForUpdateInstall() {
-  isInstallingUpdate = true;
-  isQuitting = true;
-  stopBackendProcess();
-}
-
 function sendUpdateStatus(payload) {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.send('app/update-status', payload);
@@ -263,15 +238,9 @@ function setupAutoUpdaterLogs() {
       message: `La version ${info.version} a été téléchargée. L'application va redémarrer pour finaliser la mise à jour.`
     });
 
-    prepareForUpdateInstall();
-    setImmediate(() => autoUpdater.quitAndInstall(false, true));
+    setImmediate(() => autoUpdater.quitAndInstall());
   });
 }
-
-autoUpdater.on('before-quit-for-update', () => {
-  console.log('🔄 Fermeture de l’application pour installer la mise à jour...');
-  prepareForUpdateInstall();
-});
 
 function configureAutoUpdater() {
   if (autoUpdaterConfigured) return true;
@@ -651,11 +620,13 @@ function launchBackend() {
   backendProcess = spawn(command, args, {
   cwd: path.dirname(backendPath),
   env: { ...process.env, NODE_ENV: 'production' },
-  detached: false,
+  detached: true,
   stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
   shell: false
 });
 console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
+
+  backendProcess.unref(); // ← permet au processus de continuer seul et silencieux
 
 
   backendProcess.on('close', (code) => {
@@ -699,17 +670,25 @@ function verifierSessionUtilisateur() {
 
 
 
-function closeSessionInBackground() {
+let isQuitting = false;
+
+app.on('before-quit', (event) => {
+  if (isQuitting) return;
+  isQuitting = true;
+  event.preventDefault();
+
+  // Accède aux cookies de la session Electron
   electronSession.defaultSession.cookies.get({ name: 'connect.sid' })
     .then((cookies) => {
       const sessionCookie = cookies[0]?.value;
 
       if (!sessionCookie) {
-        console.warn('⚠️ Aucun cookie de session trouvé pendant la fermeture');
-        return;
+        console.warn('⚠️ Aucun cookie de session trouvé, fermeture directe');
+        if (backendProcess) backendProcess.kill();
+        return app.exit();
       }
 
-      const req = http.request({
+      const options = {
         hostname: 'localhost',
         port: 3001,
         path: '/api/session',
@@ -717,32 +696,27 @@ function closeSessionInBackground() {
         headers: {
           Cookie: `connect.sid=${sessionCookie}`
         }
-      }, (res) => {
-        console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
-        res.resume();
-      });
+      };
 
-      req.setTimeout(1000, () => {
-        req.destroy(new Error('Timeout suppression session pendant fermeture'));
+      const req = http.request(options, (res) => {
+        console.log(`🧹 Session utilisateur supprimée (statut ${res.statusCode})`);
+        if (backendProcess) backendProcess.kill();
+        app.exit();
       });
 
       req.on('error', (err) => {
-        console.warn('⚠️ Suppression session ignorée pendant la fermeture :', err.message);
+        console.error('❌ Échec suppression session utilisateur :', err.message);
+        if (backendProcess) backendProcess.kill();
+        app.exit();
       });
 
       req.end();
     })
     .catch((err) => {
-      console.warn('⚠️ Impossible de récupérer le cookie de session pendant la fermeture :', err.message);
+      console.error('❌ Impossible de récupérer le cookie de session :', err.message);
+      if (backendProcess) backendProcess.kill();
+      app.exit();
     });
-}
-
-app.on('before-quit', () => {
-  if (isQuitting) return;
-  isQuitting = true;
-
-  closeSessionInBackground();
-  stopBackendProcess();
 });
 
 
