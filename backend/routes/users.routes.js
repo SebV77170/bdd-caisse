@@ -13,6 +13,35 @@ function normalizePseudo(pseudo) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+function sqliteTableHasColumn(tableName, columnName) {
+  return sqlite
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all()
+    .some((column) => column.name === columnName);
+}
+
+function normalizeUserForCompare(user) {
+  return {
+    ...user,
+    pseudo_normalise: user.pseudo_normalise || normalizePseudo(user.pseudo)
+  };
+}
+
+function getUsersSelectSql() {
+  return `
+      SELECT
+        uuid_user,
+        prenom,
+        nom,
+        pseudo,
+        password,
+        admin,
+        mail,
+        tel
+      FROM users
+    `;
+}
+
 // GET /api/users — retourne la liste pour la page de login
 router.get('/', (req, res) => {
   try {
@@ -32,7 +61,13 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Champs manquants' });
   }
 
-  const exist = sqlite.prepare('SELECT uuid_user FROM users WHERE pseudo = ?').get(pseudo);
+  const pseudoNormalise = normalizePseudo(pseudo);
+  const hasPseudoNormalise = sqliteTableHasColumn('users', 'pseudo_normalise');
+  const existingUsers = hasPseudoNormalise
+    ? sqlite.prepare('SELECT pseudo, pseudo_normalise FROM users').all()
+    : sqlite.prepare('SELECT pseudo FROM users').all();
+  const exist = existingUsers
+    .some((user) => normalizePseudo(user.pseudo_normalise || user.pseudo) === pseudoNormalise);
   if (exist) {
     return res.status(409).json({ error: 'Pseudo déjà utilisé' });
   }
@@ -40,14 +75,21 @@ router.post('/', (req, res) => {
   const uuid = require('uuid').v4();
   const hash = bcrypt.hashSync(mot_de_passe.trim(), 10);
 
-  sqlite.prepare(
-    'INSERT INTO users (prenom, nom, pseudo, password, admin, mail, tel, uuid_user) VALUES (?,?,?,?,?,?,?,?)'
-  ).run(prenom, nom, pseudo, hash, 1, mail, tel, uuid);
+  if (hasPseudoNormalise) {
+    sqlite.prepare(
+      'INSERT INTO users (prenom, nom, pseudo, pseudo_normalise, password, admin, mail, tel, uuid_user) VALUES (?,?,?,?,?,?,?,?,?)'
+    ).run(prenom, nom, pseudo, pseudoNormalise, hash, 1, mail, tel, uuid);
+  } else {
+    sqlite.prepare(
+      'INSERT INTO users (prenom, nom, pseudo, password, admin, mail, tel, uuid_user) VALUES (?,?,?,?,?,?,?,?)'
+    ).run(prenom, nom, pseudo, hash, 1, mail, tel, uuid);
+  }
 
   logSync('users', 'INSERT', {
     prenom: prenom,
     nom: nom,
     pseudo: pseudo,
+    pseudo_normalise: pseudoNormalise,
     password: hash,
     admin: 1,
     mail: mail,
@@ -63,33 +105,11 @@ router.get('/compare', async (req, res) => {
   try {
     const pool = getMysqlPool();
 
-    const [mysqlUsers] = await pool.query(`
-      SELECT
-        uuid_user,
-        prenom,
-        nom,
-        pseudo,
-        pseudo_normalise,
-        password,
-        admin,
-        mail,
-        tel
-      FROM users
-    `);
+    const [mysqlRows] = await pool.query(getUsersSelectSql());
+    const sqliteRows = sqlite.prepare(getUsersSelectSql()).all();
 
-    const sqliteUsers = sqlite.prepare(`
-      SELECT
-        uuid_user,
-        prenom,
-        nom,
-        pseudo,
-        pseudo_normalise,
-        password,
-        admin,
-        mail,
-        tel
-      FROM users
-    `).all();
+    const mysqlUsers = mysqlRows.map(normalizeUserForCompare);
+    const sqliteUsers = sqliteRows.map(normalizeUserForCompare);
 
     const localMap = new Map(sqliteUsers.map(u => [u.uuid_user, u]));
     const remoteMap = new Map(mysqlUsers.map(u => [u.uuid_user, u]));
@@ -112,18 +132,8 @@ router.get('/compare', async (req, res) => {
       const lu = localMap.get(u.uuid_user);
       if (!lu) return false;
 
-      const remoteUser = {
-        ...u,
-        pseudo_normalise: u.pseudo_normalise || normalizePseudo(u.pseudo)
-      };
-
-      const localUser = {
-        ...lu,
-        pseudo_normalise: lu.pseudo_normalise || normalizePseudo(lu.pseudo)
-      };
-
       return fieldsToCompare.some(
-        f => String(remoteUser[f] ?? '') !== String(localUser[f] ?? '')
+        f => String(u[f] ?? '') !== String(lu[f] ?? '')
       );
     });
 
@@ -151,49 +161,58 @@ router.post('/sync', async (req, res) => {
   try {
     const pool = getMysqlPool();
 
-    const [mysqlUsers] = await pool.query(`
-      SELECT
-        uuid_user,
-        prenom,
-        nom,
-        pseudo,
-        pseudo_normalise,
-        password,
-        admin,
-        mail,
-        tel
-      FROM users
-    `);
+    const [mysqlRows] = await pool.query(getUsersSelectSql());
+    const mysqlUsers = mysqlRows.map(normalizeUserForCompare);
+    const hasPseudoNormalise = sqliteTableHasColumn('users', 'pseudo_normalise');
 
-    const insert = sqlite.prepare(`
-      INSERT OR REPLACE INTO users (
-        uuid_user,
-        prenom,
-        nom,
-        pseudo,
-        pseudo_normalise,
-        password,
-        admin,
-        mail,
-        tel
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    const insert = hasPseudoNormalise
+      ? sqlite.prepare(`
+        INSERT OR REPLACE INTO users (
+          uuid_user,
+          prenom,
+          nom,
+          pseudo,
+          pseudo_normalise,
+          password,
+          admin,
+          mail,
+          tel
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      : sqlite.prepare(`
+        INSERT OR REPLACE INTO users (
+          uuid_user,
+          prenom,
+          nom,
+          pseudo,
+          password,
+          admin,
+          mail,
+          tel
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
 
     const replaceAll = sqlite.transaction(users => {
       sqlite.prepare('DELETE FROM users').run();
 
       for (const u of users) {
-        insert.run(
+        const values = [
           u.uuid_user,
           u.prenom ?? '',
           u.nom ?? '',
-          u.pseudo ?? '',
-          u.pseudo_normalise || normalizePseudo(u.pseudo),
+          u.pseudo ?? ''
+        ];
+
+        if (hasPseudoNormalise) values.push(u.pseudo_normalise);
+
+        values.push(
           u.password ?? '',
           u.admin ?? 0,
           u.mail ?? '',
           u.tel ?? ''
         );
+
+        insert.run(...values);
       }
     });
 

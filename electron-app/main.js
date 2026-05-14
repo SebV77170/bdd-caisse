@@ -4,7 +4,7 @@ const { autoUpdater } = require('electron-updater');
 
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, execFileSync } = require('child_process');
 const http = require('http');
 const https = require('https');
 
@@ -596,42 +596,144 @@ if (isDev) {
 
 }
 
+function getBackendLogPaths() {
+  const logDir = path.join(app.getPath('userData'), 'logs');
+  fs.mkdirSync(logDir, { recursive: true });
+
+  return {
+    out: path.join(logDir, 'backend-out.log'),
+    err: path.join(logDir, 'backend-err.log')
+  };
+}
+
+function getProductionNodeCommand() {
+  const executableName = process.platform === 'win32' ? 'node.exe' : 'node';
+  return path.join(process.resourcesPath, executableName);
+}
+
+function requestBackendHealth(timeoutMs = 700) {
+  return new Promise((resolve) => {
+    const req = http.get('http://localhost:3001/api/health', { timeout: timeoutMs }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const payload = JSON.parse(data);
+          resolve(res.statusCode === 200 && payload?.app === 'bdd-caisse-backend' ? payload : null);
+        } catch {
+          resolve(null);
+        }
+      });
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(null);
+    });
+    req.on('error', () => resolve(null));
+  });
+}
+
+function stopProcessListeningOnBackendPort() {
+  if (process.platform !== 'win32') return false;
+
+  try {
+    const output = execFileSync('netstat', ['-ano', '-p', 'tcp'], { encoding: 'utf8' });
+    const pids = new Set();
+
+    for (const line of output.split(/\r?\n/)) {
+      const columns = line.trim().split(/\s+/);
+      if (columns.length < 5) continue;
+
+      const [protocol, localAddress, , state, pid] = columns;
+      if (protocol.toUpperCase() !== 'TCP') continue;
+      if (state.toUpperCase() !== 'LISTENING') continue;
+      if (!/(^|:)3001$/.test(localAddress)) continue;
+      if (/^\d+$/.test(pid)) pids.add(pid);
+    }
+
+    for (const pid of pids) {
+      console.warn(`⚠️ Arrêt d'un ancien backend bloquant le port 3001 (PID ${pid})`);
+      execFileSync('taskkill', ['/PID', pid, '/T', '/F'], { stdio: 'ignore' });
+    }
+
+    return pids.size > 0;
+  } catch (error) {
+    console.error('❌ Impossible de libérer le port 3001 :', error?.message || error);
+    return false;
+  }
+}
+
 // ✅ Lancement du backend
-function launchBackend() {
+async function launchBackend() {
 
   if (backendProcess) {
     console.log('⚠️ Backend déjà lancé, on ne relance pas');
-    return;
+    return true;
   }
+
+  const existingHealth = await requestBackendHealth();
+  if (existingHealth) {
+    console.log(`✅ Backend déjà disponible sur le port 3001 (PID ${existingHealth.pid || 'inconnu'})`);
+    return true;
+  }
+
+  stopProcessListeningOnBackendPort();
   const isDev = !app.isPackaged;
 
   const backendPath = isDev
     ? path.join(__dirname, '../backend/index.js')
     : path.join(process.resourcesPath, 'backend', 'index.js');
 
-  const command = isDev
-    ? 'node'
-    : path.join(process.resourcesPath, 'node.exe');
+  const command = isDev ? 'node' : getProductionNodeCommand();
 
-  const args = isDev ? [backendPath] : [backendPath]; // ✅ ici aussi !
+  if (!fs.existsSync(backendPath)) {
+    console.error(`❌ Backend introuvable : ${backendPath}`);
+    return false;
+  }
+
+  if (!isDev && !fs.existsSync(command)) {
+    console.error(`❌ Runtime Node embarqué introuvable : ${command}`);
+    return false;
+  }
+
+  const args = [backendPath];
+  const logPaths = getBackendLogPaths();
 
   console.log(`🚀 Lancement backend : ${command} ${args.join(' ')}`);
+  console.log(`🧾 Logs backend : ${logPaths.out} / ${logPaths.err}`);
 
-  backendProcess = spawn(command, args, {
-  cwd: path.dirname(backendPath),
-  env: { ...process.env, NODE_ENV: 'production' },
-  detached: true,
-  stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
-  shell: false
-});
-console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
+  try {
+    backendProcess = spawn(command, args, {
+      cwd: path.dirname(backendPath),
+      env: {
+        ...process.env,
+        NODE_ENV: 'production',
+        BDD_CAISSE_BACKEND_OWNER_PID: String(process.pid)
+      },
+      detached: false,
+      stdio: ['ignore', fs.openSync(logPaths.out, 'a'), fs.openSync(logPaths.err, 'a')],
+      shell: false
+    });
+  } catch (error) {
+    backendProcess = null;
+    console.error('❌ Échec du lancement backend :', error?.message || error);
+    return false;
+  }
 
-  backendProcess.unref(); // ← permet au processus de continuer seul et silencieux
+  console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
 
+  backendProcess.on('error', (error) => {
+    console.error('❌ Processus backend impossible à lancer :', error?.message || error);
+    backendProcess = null;
+  });
 
   backendProcess.on('close', (code) => {
     console.log(`🚪 Backend fermé avec le code ${code}`);
+    backendProcess = null;
   });
+
+  return true;
 }
 
 function verifierSessionUtilisateur() {
@@ -768,7 +870,12 @@ app.whenReady().then(async () => {
   await checkForAppUpdate();
 
   if (!isDev) {
-    launchBackend();
+    const backendLaunchStarted = await launchBackend();
+    if (!backendLaunchStarted) {
+      console.error('❌ Le backend n’a pas pu être démarré.');
+      return;
+    }
+
     waitForBackendReady(() => {
       verifierSessionUtilisateur(); // optionnel mais logique ici
       console.log('✅ Le backend a répondu, ouverture de la fenêtre Electron');
