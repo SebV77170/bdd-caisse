@@ -52,6 +52,7 @@ const DbConfig = () => {
       const data = await res.json();
       if (data.success) {
         setMessage('Configuration enregistrée');
+        window.dispatchEvent(new Event('mysql-config-updated'));
         checkDbStatus(); // ✅ test de connexion après sauvegarde
       } else {
         setMessage(data.error || 'Erreur');
@@ -75,6 +76,7 @@ const DbConfig = () => {
         const conf = await fetch('http://localhost:3001/api/dbconfig').then(r => r.json());
         setConfig(conf);
         setMessage('Preset appliqué');
+        window.dispatchEvent(new Event('mysql-config-updated'));
         checkDbStatus(); // ✅ test après application preset
       } else {
         setMessage(data.error || 'Erreur');
