@@ -8,7 +8,8 @@ router.get('/', (req, res) => {
     user: conf.user,
     password: '',
     database: conf.database,
-    port: conf.port
+    port: conf.port,
+    runtimeEnv: process.env.NODE_ENV || 'development'
   });
 });
 

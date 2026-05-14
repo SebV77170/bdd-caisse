@@ -619,7 +619,7 @@ function launchBackend() {
 
   backendProcess = spawn(command, args, {
   cwd: path.dirname(backendPath),
-  env: { ...process.env, NODE_ENV: 'production' },
+  env: { ...process.env, NODE_ENV: isDev ? 'development' : 'production' },
   detached: true,
   stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
   shell: false

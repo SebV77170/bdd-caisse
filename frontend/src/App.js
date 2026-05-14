@@ -5,6 +5,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/App.scss';
 import BilanJour from './components/BilanJour';
+import RemoteMysqlWarning from './components/RemoteMysqlWarning';
 import { SyncModalProvider } from './contexts/SyncModalContext';
 import ModalSyncSecondaire from './components/ModalSyncSecondaire';
 //import FocusHud from './components/FocusHud';
@@ -36,6 +37,7 @@ useEffect(() => {
         {/* <FocusHud /> */}
         <MainNavbar />
         <BilanJour />
+        <RemoteMysqlWarning />
         <SyncModalProvider>
           <ModalSyncSecondaire />
           <MainRoutes />

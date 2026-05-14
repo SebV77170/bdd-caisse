@@ -15,12 +15,16 @@ function getMysqlPresets() {
   for (const key of Object.keys(process.env)) {
     if (key.startsWith('MYSQL_PRESET_')) {
       const name = key.substring('MYSQL_PRESET_'.length).toLowerCase();
-      const [host = '', user = '', password = '', database = ''] =
+      const [host = '', user = '', password = '', database = '', port = ''] =
         process.env[key].split('|');
-      presets.push({ name, host, user, password, database });
+      presets.push(cleanMysqlConfig({ name, host, user, password, database, port }));
     }
   }
   return presets;
+}
+
+function getMysqlPreset(name) {
+  return getMysqlPresets().find(p => p.name === name);
 }
 
 const bundledDbConfigPath = path.join(__dirname, 'dbConfig.json');
@@ -77,17 +81,38 @@ function readEnvMysqlConfig() {
   });
 }
 
+function isProductionRuntime() {
+  return process.env.NODE_ENV === 'production';
+}
+
+function getAutomaticMysqlConfig() {
+  const presetName = isProductionRuntime() ? 'remote' : 'local';
+  const presetConfig = getMysqlPreset(presetName);
+
+  if (presetConfig) {
+    return presetConfig;
+  }
+
+  if (isProductionRuntime()) {
+    return readJsonConfig(bundledDbConfigPath);
+  }
+
+  return readEnvMysqlConfig();
+}
+
 function loadMysqlConfig() {
-  return cleanMysqlConfig({
+  const defaultConfig = {
     host: 'localhost',
     user: 'root',
     password: '',
     database: 'objets',
     port: 3306,
-    connectTimeout: 5000,
-    ...readEnvMysqlConfig(),
-    ...readJsonConfig(bundledDbConfigPath),
-    ...readJsonConfig(dbConfigPath)
+    connectTimeout: 5000
+  };
+
+  return cleanMysqlConfig({
+    ...defaultConfig,
+    ...getAutomaticMysqlConfig()
   });
 }
 
