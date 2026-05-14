@@ -15,12 +15,16 @@ function getMysqlPresets() {
   for (const key of Object.keys(process.env)) {
     if (key.startsWith('MYSQL_PRESET_')) {
       const name = key.substring('MYSQL_PRESET_'.length).toLowerCase();
-      const [host = '', user = '', password = '', database = ''] =
+      const [host = '', user = '', password = '', database = '', port = ''] =
         process.env[key].split('|');
-      presets.push({ name, host, user, password, database });
+      presets.push(cleanMysqlConfig({ name, host, user, password, database, port }));
     }
   }
   return presets;
+}
+
+function getMysqlPreset(name) {
+  return getMysqlPresets().find(p => p.name === name);
 }
 
 const bundledDbConfigPath = path.join(__dirname, 'dbConfig.json');
@@ -81,6 +85,21 @@ function isProductionRuntime() {
   return process.env.NODE_ENV === 'production';
 }
 
+function getAutomaticMysqlConfig() {
+  const presetName = isProductionRuntime() ? 'remote' : 'local';
+  const presetConfig = getMysqlPreset(presetName);
+
+  if (presetConfig) {
+    return presetConfig;
+  }
+
+  if (isProductionRuntime()) {
+    return readJsonConfig(bundledDbConfigPath);
+  }
+
+  return readEnvMysqlConfig();
+}
+
 function loadMysqlConfig() {
   const defaultConfig = {
     host: 'localhost',
@@ -90,23 +109,11 @@ function loadMysqlConfig() {
     port: 3306,
     connectTimeout: 5000
   };
-  const envConfig = readEnvMysqlConfig();
-  const bundledConfig = readJsonConfig(bundledDbConfigPath);
-  const userConfig = readJsonConfig(dbConfigPath);
 
-  return cleanMysqlConfig(isProductionRuntime()
-    ? {
-        ...defaultConfig,
-        ...envConfig,
-        ...bundledConfig,
-        ...userConfig
-      }
-    : {
-        ...defaultConfig,
-        ...bundledConfig,
-        ...envConfig,
-        ...userConfig
-      });
+  return cleanMysqlConfig({
+    ...defaultConfig,
+    ...getAutomaticMysqlConfig()
+  });
 }
 
 let mysqlConfig = loadMysqlConfig();
