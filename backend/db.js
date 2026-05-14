@@ -23,24 +23,75 @@ function getMysqlPresets() {
   return presets;
 }
 
-// Config par défaut
-let mysqlConfig = {
-  host: process.env.MYSQL_HOST || 'localhost',
-  user: process.env.MYSQL_USER || 'root',
-  password: process.env.MYSQL_PASS || '',
-  database: process.env.MYSQL_DB || 'objets'
-};
+const bundledDbConfigPath = path.join(__dirname, 'dbConfig.json');
 
-// Surcharge avec config locale si présente
-if (fs.existsSync(dbConfigPath)) {
+function readJsonConfig(configPath) {
+  if (!fs.existsSync(configPath)) return {};
+
   try {
-    const conf = JSON.parse(fs.readFileSync(dbConfigPath, 'utf8'));
-    mysqlConfig = { ...mysqlConfig, ...conf };
+    return JSON.parse(fs.readFileSync(configPath, 'utf8'));
   } catch (err) {
-    console.error('Erreur lecture dbConfig.json:', err);
+    console.error(`Erreur lecture ${configPath}:`, err);
+    return {};
   }
 }
 
+function cleanMysqlConfig(config) {
+  const cleaned = {};
+
+  for (const [key, value] of Object.entries(config)) {
+    if (value !== undefined && value !== null && value !== '') {
+      cleaned[key] = value;
+    }
+  }
+
+  if (cleaned.port !== undefined) {
+    const port = Number(cleaned.port);
+    if (Number.isInteger(port) && port > 0) {
+      cleaned.port = port;
+    } else {
+      delete cleaned.port;
+    }
+  }
+
+  if (cleaned.connectTimeout !== undefined) {
+    const connectTimeout = Number(cleaned.connectTimeout);
+    if (Number.isInteger(connectTimeout) && connectTimeout > 0) {
+      cleaned.connectTimeout = connectTimeout;
+    } else {
+      delete cleaned.connectTimeout;
+    }
+  }
+
+  return cleaned;
+}
+
+function readEnvMysqlConfig() {
+  return cleanMysqlConfig({
+    host: process.env.MYSQL_HOST,
+    user: process.env.MYSQL_USER,
+    password: process.env.MYSQL_PASS,
+    database: process.env.MYSQL_DB,
+    port: process.env.MYSQL_PORT,
+    connectTimeout: process.env.MYSQL_CONNECT_TIMEOUT
+  });
+}
+
+function loadMysqlConfig() {
+  return cleanMysqlConfig({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'objets',
+    port: 3306,
+    connectTimeout: 5000,
+    ...readEnvMysqlConfig(),
+    ...readJsonConfig(bundledDbConfigPath),
+    ...readJsonConfig(dbConfigPath)
+  });
+}
+
+let mysqlConfig = loadMysqlConfig();
 let pool = createMysqlPool(mysqlConfig);
 
 function createMysqlPool(config) {
@@ -49,21 +100,35 @@ function createMysqlPool(config) {
     user: config.user,
     password: config.password,
     database: config.database,
+    port: config.port,
+    connectTimeout: config.connectTimeout,
     waitForConnections: true,
     connectionLimit: 10
   });
 }
 
 function updateMysqlConfig(newConfig) {
-  mysqlConfig = { ...mysqlConfig, ...newConfig };
+  const previousPool = pool;
+  mysqlConfig = cleanMysqlConfig({ ...mysqlConfig, ...newConfig });
   fs.writeFileSync(dbConfigPath, JSON.stringify(mysqlConfig, null, 2));
   pool = createMysqlPool(mysqlConfig); // recrée le pool
+
+  if (previousPool) {
+    previousPool.end().catch(err => {
+      console.error('Erreur fermeture ancien pool MySQL:', err.message);
+    });
+  }
+
   console.log('✅ Nouvelle configuration MySQL appliquée');
 }
 
 // ✅ nouvelle fonction dynamique
 function getMysqlPool() {
   return pool;
+}
+
+function getMysqlConfig() {
+  return { ...mysqlConfig };
 }
 
 // Connexion SQLite
@@ -143,6 +208,7 @@ module.exports = db;
 module.exports = {
   sqlite: db,
   getMysqlPool, // ✅ export dynamique
+  getMysqlConfig,
   updateMysqlConfig,
   getMysqlPresets
 };

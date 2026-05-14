@@ -1,7 +1,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { sqlite, getMysqlPool } = require('../db');
+const { sqlite, getMysqlPool, getMysqlConfig } = require('../db');
 const bcrypt = require('bcrypt');
 const logSync = require('../logsync');
 
@@ -134,10 +134,14 @@ router.get('/compare', async (req, res) => {
       different
     });
   } catch (err) {
+    const conf = getMysqlConfig();
     console.error('Erreur comparaison users:', err);
     res.status(500).json({
       success: false,
-      error: err.message || 'Erreur comparaison users'
+      error: err.message || 'Erreur comparaison users',
+      code: err.code,
+      host: conf.host,
+      port: conf.port
     });
   }
 });
@@ -200,10 +204,14 @@ router.post('/sync', async (req, res) => {
       count: mysqlUsers.length
     });
   } catch (err) {
+    const conf = getMysqlConfig();
     console.error('Erreur sync users:', err);
     res.status(500).json({
       success: false,
-      error: err.message || 'Erreur mise à jour users'
+      error: err.message || 'Erreur mise à jour users',
+      code: err.code,
+      host: conf.host,
+      port: conf.port
     });
   }
 });

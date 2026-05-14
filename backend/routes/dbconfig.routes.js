@@ -1,30 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { updateMysqlConfig, getMysqlPresets, getMysqlPool } = require('../db');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-
-const baseDir = path.join(os.homedir(), '.bdd-caisse');
-const configPath = path.join(baseDir, 'dbConfig.json');
-fs.mkdirSync(baseDir, { recursive: true });
-
+const { updateMysqlConfig, getMysqlPresets, getMysqlPool, getMysqlConfig } = require('../db');
 router.get('/', (req, res) => {
-  let conf;
-  if (fs.existsSync(configPath)) {
-    try {
-      conf = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch {
-      conf = {};
-    }
-  } else {
-    conf = {};
-  }
+  const conf = getMysqlConfig();
   res.json({
-    host: conf.host || process.env.MYSQL_HOST || 'localhost',
-    user: conf.user || process.env.MYSQL_USER || 'root',
+    host: conf.host,
+    user: conf.user,
     password: '',
-    database: conf.database || process.env.MYSQL_DB || 'objets'
+    database: conf.database,
+    port: conf.port
   });
 });
 
@@ -48,11 +32,15 @@ router.get('/presets', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { host, user, password, database } = req.body || {};
+  const { host, user, password, database, port } = req.body || {};
   if (!host || !user || !database) {
     return res.status(400).json({ error: 'Champs requis manquants' });
   }
-  updateMysqlConfig({ host, user, password, database });
+  const nextConfig = { host, user, database, port };
+  if (password) {
+    nextConfig.password = password;
+  }
+  updateMysqlConfig(nextConfig);
   res.json({ success: true });
 });
 
@@ -78,8 +66,15 @@ router.get('/test', async (req, res) => {
     connection.release();
     res.json({ success: true });
   } catch (err) {
+    const conf = getMysqlConfig();
     console.error('Erreur de connexion MySQL :', err);
-    res.status(500).json({ success: false, error: 'Connexion échouée' });
+    res.status(500).json({
+      success: false,
+      error: 'Connexion échouée',
+      code: err.code,
+      host: conf.host,
+      port: conf.port
+    });
   }
 });
 
