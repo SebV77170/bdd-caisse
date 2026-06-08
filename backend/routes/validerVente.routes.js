@@ -8,24 +8,10 @@ const path = require('path');
 const session = require('../session');
 const logSync = require('../logsync');
 const { v4: uuidv4 } = require('uuid');
-const nodemailer = require('nodemailer');
 const PDFDocument = require('pdfkit');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const genererTicketPdf = require('../utils/genererTicketPdf');
-
-
-// Configuration du transporteur d'emails (SMTP)
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: 'magasin@ressourcebrie.fr',
-    pass: 'Magasin7#'
-  },
-  logger: true,
-  debug: true
-});
+const { getSmtpTransporter, getSmtpFrom } = require('../smtp');
 
 // Fonction de normalisation des moyens de paiement
 const normalizePaymentMethod = (moyen) => {
@@ -106,8 +92,8 @@ function applyReduction(type, prixTotal) {
 
 // Fonction pour envoyer le ticket par email
 function sendTicketEmail(to, pdfPath, uuid_ticket) {
-  return transporter.sendMail({
-    from: 'magasin@ressourcebrie.fr',
+  return getSmtpTransporter().sendMail({
+    from: getSmtpFrom(),
     to,
     subject: "Votre ticket de caisse - Ressource'Brie",
     text: "Veuillez trouver ci-joint votre ticket de caisse en PDF.",

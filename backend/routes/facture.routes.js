@@ -5,18 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 const genererFacturePdf = require('../utils/genererFacturePdf');
 const path = require('path');
 const fs = require('fs');
-const nodemailer = require('nodemailer');
 const logSync = require('../logsync');
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: 'magasin@ressourcebrie.fr',
-    pass: 'Magasin7#'
-  }
-});
+const { getSmtpTransporter, getSmtpFrom } = require('../smtp');
 
 router.post('/:uuid_ticket', async (req, res) => {
   const { uuid_ticket } = req.params;
@@ -42,11 +32,11 @@ router.post('/:uuid_ticket', async (req, res) => {
     if (email) {
       const pdfPath = path.join(__dirname, '../../', lien);
       if (fs.existsSync(pdfPath)) {
-        await transporter.sendMail({
-          from: '"RessourceBrie" <magasin@ressourcebrie.fr>',
+        await getSmtpTransporter().sendMail({
+          from: `"RessourceBrie" <${getSmtpFrom()}>`,
           to: email,
           subject: "Votre facture - Ressource'Brie",
-          text: "Veuillez trouver ci-joint votre facture au format PDF.",
+          text: "Veuillez trouver ci-joint votre facture au format PDF. Merci de ne pas faire - répondre à ce mail - mais d'utiliser l'adresse contact@ressourcebrie.fr pour toute question.",
           attachments: [{ filename: `Facture-${raison_sociale}-${friendlyId}.pdf`, path: pdfPath }]
         });
       }

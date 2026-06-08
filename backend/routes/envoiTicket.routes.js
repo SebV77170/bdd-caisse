@@ -2,20 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { sqlite } = require('../db');
 const path = require('path');
-const nodemailer = require('nodemailer');
 const fs = require('fs');
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: 'magasin@ressourcebrie.fr',
-    pass: 'Magasin7#'
-  },
-  logger: true,
-  debug: true
-});
+const { getSmtpTransporter, getSmtpFrom } = require('../smtp');
 
 router.post('/:uuid_ticket/envoyer', (req, res) => {
   const { uuid_ticket } = req.params;
@@ -37,11 +25,11 @@ router.post('/:uuid_ticket/envoyer', (req, res) => {
     return res.status(404).json({ error: 'Fichier PDF introuvable sur le disque' });
   }
 
-  transporter.sendMail({
-    from: '"Ressource\'Brie" <magasin@ressourcebrie.fr>',
+  getSmtpTransporter().sendMail({
+    from: `"Ressource'Brie" <${getSmtpFrom()}>`,
     to: email,
     subject: "Votre ticket de caisse - Ressource'Brie",
-    text: "Veuillez trouver ci-joint votre ticket de caisse en PDF.",
+    text: "Veuillez trouver ci-joint votre ticket de caisse en PDF. Merci de ne pas faire - répondre à ce mail - mais d'utiliser l'adresse contact@ressourcebrie.fr pour toute question.",
     attachments: [
       {
         filename: path.basename(pdfPath),
