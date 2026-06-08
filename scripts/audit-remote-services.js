@@ -22,6 +22,30 @@ function result(service, check, ok, details) {
   return { service, check, ok, details };
 }
 
+function printSummary(results) {
+  const successes = results.filter(entry => entry.ok);
+  const failures = results.filter(entry => !entry.ok);
+
+  process.stdout.write('\n=== Synthèse des tests distants ===\n');
+  for (const entry of results) {
+    const status = entry.ok ? 'RÉUSSI' : 'ÉCHOUÉ';
+    process.stdout.write(`[${status}] ${entry.service} - ${entry.check}\n`);
+    if (!entry.ok && entry.details?.message) {
+      process.stdout.write(`         ${entry.details.message}\n`);
+    }
+  }
+
+  process.stdout.write('\n');
+  process.stdout.write(`Tests réussis : ${successes.length}\n`);
+  process.stdout.write(`Tests échoués : ${failures.length}\n`);
+  process.stdout.write(`Total         : ${results.length}\n`);
+  process.stdout.write(
+    failures.length === 0
+      ? 'Résultat global : RÉUSSI\n'
+      : 'Résultat global : ÉCHOUÉ\n'
+  );
+}
+
 function parseRemoteMysqlPreset() {
   const raw = process.env.MYSQL_PRESET_REMOTE;
   if (!raw) throw new Error('MYSQL_PRESET_REMOTE absent');
@@ -265,6 +289,7 @@ async function main() {
     success: failures.length === 0,
     results
   }, null, 2)}\n`);
+  printSummary(results);
   process.exitCode = failures.length === 0 ? 0 : 1;
 }
 

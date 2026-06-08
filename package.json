@@ -5,6 +5,7 @@
     "test": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-all.ps1",
     "test:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-production.ps1",
     "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-e2e.ps1",
+    "test:remote": ".\\electron-app\\vendor\\node.exe .\\scripts\\audit-remote-services.js",
     "test:production": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-production.ps1",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
