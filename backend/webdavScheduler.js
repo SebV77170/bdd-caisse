@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const cron = require('node-cron');
-const { uploadTickets } = require('./webdavSync');
+const { uploadTicketsAndFactures } = require('./webdavSync');
 const { getWebdavConfig, updateWebdavConfig, getActiveCredentials } = require('./webdavConfig');
 
 const baseDir = path.join(os.homedir(), '.bdd-caisse');
@@ -25,7 +25,7 @@ async function runSync() {
   isRunning = true;
   const start = new Date();
   try {
-    const count = await uploadTickets();
+    const count = await uploadTicketsAndFactures();
     const end = new Date();
     saveState({ lastRun: start.toISOString(), lastDurationMs: end - start, lastResult: 'success', lastCount: count });
     return { success: true, count };
