@@ -10,6 +10,8 @@ electron-app/node_modules
 
 # testing
 /coverage
+/.e2e-runtime
+/e2e-artifacts
 
 
 

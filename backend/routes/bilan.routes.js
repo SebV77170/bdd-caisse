@@ -88,7 +88,7 @@ router.get('/', (req, res) => {
         um_annule.id_friendly AS id_friendly_annule,
 
         -- Si ce ticket est une correction
-        jc_corr.uuid_ticket_original AS annulation_de,
+        jc_corr.uuid_ticket_original AS correction_de,
         um_corrige.id_friendly AS id_friendly_corrige,
 
         -- Si ce ticket a été corrigé par un autre

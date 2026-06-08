@@ -3,8 +3,8 @@ const path = require('path');
 const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
-const axios = require('axios');
 const { getFriendlyIdFromUuid } = require('./genererFriendlyIds');
+const getBilanSession = require('./bilanSession');
 
 function formatMontant(cents) {
   const v = Number(cents || 0);
@@ -31,11 +31,8 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
 
   const friendlyId = getFriendlyIdFromUuid(id_session);
 
-  // Bilan de la session (attendus en centimes)
-  const bilanResponse = await axios.get(
-    `http://localhost:3001/api/bilan/bilan_session_caisse?uuid_session_caisse=${id_session}`
-  );
-  const bilan = bilanResponse.data || {};
+  // Calcul direct pour ne pas dépendre d'un appel HTTP du serveur vers lui-même.
+  const bilan = getBilanSession(id_session);
 
   // Date/heure de fermeture : on part de closed_at_utc
   // (si absent, on utilise maintenant pour éviter un crash en dev)

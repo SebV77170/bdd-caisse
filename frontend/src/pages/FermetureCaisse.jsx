@@ -7,7 +7,6 @@ import BilanSessionCaisse from '../components/BilanSessionCaisse';
 import BilanReductionsSession from '../components/BilanReductionsSession';
 import TactileInput from '../components/TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
-import { euro } from '../utils/euro';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 import SiCaisseSecondaire from '../utils/SiCaisseSecondaire';
 import ResponsableForm from "../components/ResponsableForm";
@@ -62,10 +61,10 @@ function FermetureCaisse() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          montant_reel: euro(montantReel).intValue,
-          montant_reel_carte: euro(montantReelCarte).intValue,
-          montant_reel_cheque: euro(montantReelCheque).intValue,
-          montant_reel_virement: euro(montantReelVirement).intValue,
+          montant_reel: eurosStringToCents(montantReel),
+          montant_reel_carte: eurosStringToCents(montantReelCarte),
+          montant_reel_cheque: eurosStringToCents(montantReelCheque),
+          montant_reel_virement: eurosStringToCents(montantReelVirement),
           commentaire,
           uuid_session_caisse: uuidSessionCaisse,
           responsable_pseudo: responsablePseudo,

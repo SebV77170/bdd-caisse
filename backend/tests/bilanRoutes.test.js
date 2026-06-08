@@ -66,6 +66,47 @@ describe('Routes /api/bilan', () => {
     });
   });
 
+  test('GET / distingue les relations d’annulation et de correction', async () => {
+    seedTicket('ticket-original');
+    sqlite.prepare(`
+      INSERT INTO ticketdecaisse (
+        uuid_ticket, id_vendeur, date_achat_dt, nbr_objet,
+        prix_total, flag_annulation, annulation_de
+      ) VALUES (
+        'ticket-annulation', 'user-1', datetime('now'), 1,
+        -1250, 1, 'ticket-original'
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO ticketdecaisse (
+        uuid_ticket, id_vendeur, date_achat_dt, nbr_objet,
+        prix_total, flag_correction, corrige_le_ticket
+      ) VALUES (
+        'ticket-correction', 'user-1', datetime('now'), 1,
+        2500, 1, 'ticket-original'
+      )
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO journal_corrections (
+        date_correction, uuid_ticket_original,
+        uuid_ticket_annulation, uuid_ticket_correction,
+        utilisateur, motif
+      ) VALUES (
+        datetime('now'), 'ticket-original',
+        'ticket-annulation', 'ticket-correction',
+        'Alice', 'Erreur de quantité'
+      )
+    `).run();
+
+    const res = await request(app).get('/api/bilan');
+    const annulation = res.body.find(ticket => ticket.uuid_ticket === 'ticket-annulation');
+    const correction = res.body.find(ticket => ticket.uuid_ticket === 'ticket-correction');
+
+    expect(annulation.annulation_de).toBe('ticket-original');
+    expect(annulation.correction_de).toBeNull();
+    expect(correction.correction_de).toBe('ticket-original');
+  });
+
   test('GET /:id/objets renvoie les lignes du ticket', async () => {
     seedTicket();
 

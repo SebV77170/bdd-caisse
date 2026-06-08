@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS sync_log (
   operation TEXT NOT NULL,
   payload TEXT NOT NULL,
   synced INTEGER DEFAULT 0,
+  senttoprincipal INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

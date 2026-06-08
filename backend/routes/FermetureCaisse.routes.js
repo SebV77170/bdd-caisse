@@ -14,7 +14,10 @@ function lancerDerniereSyncNonBloquante(req, { debug = false } = {}) {
     (async () => {
       try {
         const io = req.app.get('socketio');
-        const url = `http://localhost:3001/api/sync${debug ? '?debug=true' : ''}`;
+        const port = process.env.PORT || 3001;
+        const configuredUrl = process.env.FINAL_SYNC_URL || `http://localhost:${port}/api/sync`;
+        const separator = configuredUrl.includes('?') ? '&' : '?';
+        const url = debug ? `${configuredUrl}${separator}debug=true` : configuredUrl;
 
         io && io.emit('syncStart', { source: 'fermeture_caisse', at: new Date().toISOString() });
 

@@ -175,8 +175,9 @@ function OuvertureCaisse() {
               {/* ✅ Saisie manuelle uniquement si le calculateur n'est pas utilisé */}
             {!useCompteEspeces && (
               <div style={{ marginTop: 10 }}>
-                <label>Fond de caisse initial (€) :</label><br />
+                <label htmlFor="fond-initial">Fond de caisse initial (€) :</label><br />
                 <TactileInput
+                  id="fond-initial"
                   type="number"
                   value={fondInitial}
                   onChange={(e) => setFondInitial(e.target.value)}
