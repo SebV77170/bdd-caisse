@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import TactileInput from '../components/TactileInput';
-import { ModeTactileContext } from '../App';
+import { ModeTactileContext } from '../contexts/ModeTactileContext';
 
 function renderTactile(element) {
   return render(
@@ -25,5 +25,19 @@ describe('TactileInput in tactile mode', () => {
       fireEvent.click(input);
       check();
     });
+  });
+
+  test('renders a normal editable input outside tactile mode', () => {
+    const onChange = jest.fn();
+    render(
+      <ModeTactileContext.Provider value={{ modeTactile: false, setModeTactile: () => {} }}>
+        <TactileInput value="abc" onChange={onChange} placeholder="normal" />
+      </ModeTactileContext.Provider>
+    );
+
+    const input = screen.getByPlaceholderText('normal');
+    expect(input).not.toHaveAttribute('readonly');
+    fireEvent.change(input, { target: { value: 'abcd' } });
+    expect(onChange).toHaveBeenCalled();
   });
 });

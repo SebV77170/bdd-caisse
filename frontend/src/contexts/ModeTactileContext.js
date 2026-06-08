@@ -4,7 +4,12 @@ export const ModeTactileContext = createContext();
 export const ModeTactileProvider = ({ children }) => {
   const [modeTactile, setModeTactile] = useState(() => {
     const saved = localStorage.getItem('modeTactile');
-    return saved ? JSON.parse(saved) : false;
+    if (!saved) return false;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return false;
+    }
   });
 
    // 🔁 Persiste à chaque changement

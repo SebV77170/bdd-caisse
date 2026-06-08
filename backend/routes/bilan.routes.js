@@ -127,9 +127,9 @@ router.get('/', (req, res) => {
 
 // Route GET : détail des objets d'un ticket
 router.get('/:id/objets', (req, res) => {
-  const uuid = req.params.uuid;
+  const uuid = req.params.id;
   try {
-    const lignes = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(id);
+    const lignes = sqlite.prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ?').all(uuid);
     res.json(lignes);
   } catch (err) {
     console.error('Erreur chargement objets_vendus :', err);

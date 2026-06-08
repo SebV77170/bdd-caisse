@@ -39,6 +39,11 @@ function createProduct() {
 
 beforeEach(() => {
   initTables();
+  sqlite.prepare('DELETE FROM ticketdecaissetemp').run();
+  sqlite.prepare('DELETE FROM vente').run();
+  sqlite.prepare('DELETE FROM boutons_ventes').run();
+  sqlite.prepare('DELETE FROM categories').run();
+  sqlite.prepare('DELETE FROM session_caisse').run();
 });
 
 test('POST /api/ventes refuse sans session ouverte', async () => {

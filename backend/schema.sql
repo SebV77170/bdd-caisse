@@ -1,10 +1,10 @@
 CREATE TABLE IF NOT EXISTS boutons_ventes (
-  id_bouton INT NOT NULL,
-  sous_categorie VARCHAR(34),
-  nom VARCHAR(66),
-  id_cat VARCHAR(6),
-  id_souscat INT,
-  prix VARCHAR(4)
+  id_bouton INTEGER PRIMARY KEY AUTOINCREMENT,
+  sous_categorie VARCHAR,
+  nom TEXT NOT NULL,
+  id_cat INTEGER,
+  id_souscat INTEGER,
+  prix INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -207,7 +207,8 @@ CREATE TABLE IF NOT EXISTS session_caisse (
 
   -- Métadonnées
   issecondaire INTEGER DEFAULT 0,
-  poste        INTEGER
+  poste        INTEGER,
+  uuid_caisse_principale_si_secondaire TEXT
 );
 
 -- Index utiles pour requêtes temporelles

@@ -6,7 +6,12 @@ export const DevModeContext = createContext();
 export const DevModeProvider = ({ children }) => {
   const [devMode, setDevMode] = useState(() => {
     const saved = localStorage.getItem('devMode');
-    return saved ? JSON.parse(saved) : false;
+    if (!saved) return false;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return false;
+    }
   });
 
   // Sync localStorage à chaque mise à jour

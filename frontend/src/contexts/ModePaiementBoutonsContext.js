@@ -5,7 +5,12 @@ export const ModePaiementBoutonsContext = createContext();
 export const ModePaiementBoutonsProvider = ({ children }) => {
   const [modePaiementBoutons, setModePaiementBoutons] = useState(() => {
     const saved = localStorage.getItem('modePaiementBoutons');
-    return saved ? JSON.parse(saved) : false;
+    if (!saved) return false;
+    try {
+      return JSON.parse(saved);
+    } catch {
+      return false;
+    }
   });
 
   useEffect(() => {

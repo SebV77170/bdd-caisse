@@ -2,6 +2,8 @@
   "name": "bdd-caisse",
   "private": true,
   "scripts": {
+    "test": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-all.ps1",
+    "test:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-all.ps1",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
