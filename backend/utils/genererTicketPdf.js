@@ -4,6 +4,7 @@ const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
+const { drawPdfHeader } = require('./pdfHeader');
 
 function genererTicketPdf(uuid_ticket) {
   return new Promise((resolve, reject) => {
@@ -31,21 +32,13 @@ function genererTicketPdf(uuid_ticket) {
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
 
-      let logoPath = path.join(__dirname, '../../images/logo.png');
-      if (!fs.existsSync(logoPath) && process.resourcesPath) {
-        const alt = path.join(process.resourcesPath, 'images', 'logo.png');
-        if (fs.existsSync(alt)) logoPath = alt;
-      }
-
       // --- HEADER ---
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 45, { width: 100 });
-      }
-      doc.fontSize(10);
-      doc.text(`Date : ${date.toLocaleDateString()}`, 400, 50);
-      doc.text(`Ticket n° : ${friendlyId.slice(0, 8)}`, 400, 65);
+      drawPdfHeader(doc, {
+        dateLabel: `Date : ${date.toLocaleDateString('fr-FR')}`,
+        numberLabel: 'Ticket n°',
+        number: friendlyId,
+      });
 
-      doc.moveDown(2);
       doc.fontSize(12).text("Ticket de caisse - Ressource'Brie", { align: 'center', underline: true });
 
       // --- INFOS VENDEUR ---

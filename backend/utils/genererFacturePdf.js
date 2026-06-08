@@ -5,6 +5,7 @@ const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
 const logSync = require('../logsync');
+const { drawPdfHeader } = require('./pdfHeader');
 
 
 function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
@@ -31,53 +32,97 @@ function genererFacturePdf(uuid_facture, uuid_ticket, raison_sociale, adresse) {
       const stream = fs.createWriteStream(pdfPath);
       doc.pipe(stream);
 
-      let logoPath = path.join(__dirname, '../../images/logo.png');
-      if (!fs.existsSync(logoPath) && process.resourcesPath) {
-        const alt = path.join(process.resourcesPath, 'images', 'logo.png');
-        if (fs.existsSync(alt)) logoPath = alt;
-      }
-
       // --- HEADER ---
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 45, { width: 100 });
-      }
-      doc.fontSize(10);
-      doc.text(`Date de facturation : ${date.toLocaleDateString()}`, 400, 50);
-      doc.text(`Facture n° : ${friendlyId.slice(0, 8)}`, 400, 65);
+      drawPdfHeader(doc, {
+        dateLabel: `Date de facturation : ${date.toLocaleDateString('fr-FR')}`,
+        numberLabel: 'Facture n°',
+        number: friendlyId,
+      });
 
       // --- CLIENT ---
-      doc.moveDown(2);
       doc.fontSize(12).text("Destinataire :", { underline: true });
       doc.fontSize(10).text(raison_sociale);
       doc.text(adresse);
       doc.moveDown();
 
       // --- TABLE HEADER ---
-      doc.moveDown().fontSize(12).text('Désignation', 50)
-        .text('Quantité', 250)
-        .text('Prix (€)', 350)
-        .text('Total (€)', 450);
-      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+      doc.moveDown();
+      const tableHeaderY = doc.y;
+      const columns = {
+        designation: { x: 50, width: 190 },
+        quantite: { x: 250, width: 70 },
+        prix: { x: 350, width: 70 },
+        total: { x: 450, width: 100 },
+      };
+
+      doc.fontSize(12);
+      doc.text('Désignation', columns.designation.x, tableHeaderY, {
+        width: columns.designation.width,
+        lineBreak: false,
+      });
+      doc.text('Quantité', columns.quantite.x, tableHeaderY, {
+        width: columns.quantite.width,
+        align: 'right',
+        lineBreak: false,
+      });
+      doc.text('Prix (€)', columns.prix.x, tableHeaderY, {
+        width: columns.prix.width,
+        align: 'right',
+        lineBreak: false,
+      });
+      doc.text('Total (€)', columns.total.x, tableHeaderY, {
+        width: columns.total.width,
+        align: 'right',
+        lineBreak: false,
+      });
+
+      let tableY = tableHeaderY + 20;
+      doc.moveTo(50, tableY).lineTo(550, tableY).stroke();
 
       // --- ARTICLES ---
       let totalHT = 0;
-      doc.moveDown(0.5);
+      tableY += 10;
       articles.forEach(a => {
         const prix = a.prix / 100;
         const total = a.nbr * prix;
         totalHT += total;
 
-        doc.fontSize(10)
-          .text(a.nom, 50)
-          .text(a.nbr.toString(), 250)
-          .text(prix.toFixed(2), 350)
-          .text(total.toFixed(2), 450);
+        const rowHeight = Math.max(
+          16,
+          doc.heightOfString(a.nom, { width: columns.designation.width })
+        );
+
+        doc.fontSize(10);
+        doc.text(a.nom, columns.designation.x, tableY, {
+          width: columns.designation.width,
+        });
+        doc.text(a.nbr.toString(), columns.quantite.x, tableY, {
+          width: columns.quantite.width,
+          align: 'right',
+          lineBreak: false,
+        });
+        doc.text(prix.toFixed(2), columns.prix.x, tableY, {
+          width: columns.prix.width,
+          align: 'right',
+          lineBreak: false,
+        });
+        doc.text(total.toFixed(2), columns.total.x, tableY, {
+          width: columns.total.width,
+          align: 'right',
+          lineBreak: false,
+        });
+
+        tableY += rowHeight + 4;
       });
 
       // --- TOTAL ---
-      doc.moveDown().moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-      doc.moveDown();
-      doc.fontSize(10).text(`Total à régler : ${totalHT.toFixed(2)} €`, { align: 'right' });
+      doc.moveTo(50, tableY).lineTo(550, tableY).stroke();
+      tableY += 10;
+      doc.fontSize(10).text(`Total à régler : ${totalHT.toFixed(2)} €`, 350, tableY, {
+        width: 200,
+        align: 'right',
+      });
+      doc.y = tableY + 20;
 
       // --- TVA ---
       doc.moveDown();
