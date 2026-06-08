@@ -476,8 +476,29 @@ const handleCancelCustomMotif = () => {
   useEffect(() => {
     fetch('http://localhost:3001/api/produits/organises')
       .then(res => res.json())
-      .then(data => setProduits(data));
+      .then(data => {
+        setProduits(data);
+        const categories = Object.keys(data);
+        setCategorieActive(active =>
+          active && data[active] ? active : (categories[0] || '')
+        );
+      })
+      .catch(err => {
+        console.error('Erreur chargement des produits :', err);
+        setProduits({});
+        setCategorieActive('');
+      });
   }, []);
+
+  const categoriesProduits = Object.entries(produits).map(([nom, sousCategories]) => {
+    const premierProduit = Object.values(sousCategories)
+      .find(items => Array.isArray(items) && items.length > 0)?.[0];
+
+    return {
+      nom,
+      color: premierProduit?.color || 'secondary',
+    };
+  });
 
   const ajouterProduit = (prod) => {
     const nouvelArticle = {
@@ -670,13 +691,13 @@ const handleCancelCustomMotif = () => {
         <Modal.Body className="d-flex" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           <div style={{ minWidth: '200px' }}>
             <CategorieSelector
-              categories={Object.keys(produits)}
+              categories={categoriesProduits}
               active={categorieActive}
               onSelect={setCategorieActive}
             />
           </div>
           <div className="flex-grow-1 ps-4">
-            {categorieActive && (
+            {categorieActive && produits[categorieActive] && (
               <BoutonsCaisse
                 produits={produits[categorieActive]}
                 onClick={(prod) => {

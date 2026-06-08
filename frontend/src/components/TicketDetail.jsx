@@ -1,5 +1,6 @@
 // ✅ Composant React : affichage d'un ticket avec paiements mixtes
 import React, { useEffect, useState } from 'react';
+import TicketHistory from './TicketHistory';
 
 function TicketDetail({ uuid_ticket,id_friendly, id_friendly_annule, id_friendly_corrige }) {
   const [data, setData] = useState(null);
@@ -24,7 +25,7 @@ if (!data.ticket) {
 }
 
 
-  const { ticket, objets, paiementMixte } = data;
+  const { ticket, objets, paiementMixte, historique = [] } = data;
 
   return (
     <div className="p-3 border bg-white rounded">
@@ -62,7 +63,7 @@ if (!data.ticket) {
 
       {paiementMixte && (
         <div className="mt-3">
-          <h5>Détails du paiement mixte :</h5>
+          <h5>Détails du paiement :</h5>
           <ul>
             {paiementMixte.espece > 0 && <li>Espèces : {(paiementMixte.espece / 100).toFixed(2)} €</li>}
             {paiementMixte.carte > 0 && <li>Carte : {(paiementMixte.carte / 100).toFixed(2)} €</li>}
@@ -84,6 +85,8 @@ if (!data.ticket) {
           ))}
         </ul>
       </div>
+
+      <TicketHistory historique={historique} />
     </div>
   );
 }

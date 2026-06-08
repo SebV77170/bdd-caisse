@@ -5,6 +5,74 @@ const { sqlite } = require('../db');
 const getBilanSession = require('../utils/bilanSession');
 const getBilanReductionsSession = require('../utils/bilanReductionsSession');
 
+function getTicketSnapshot(uuid) {
+  if (!uuid) return null;
+
+  const ticket = sqlite.prepare(`
+    SELECT t.*, um.id_friendly
+    FROM ticketdecaisse t
+    LEFT JOIN uuid_mapping um ON um.uuid = t.uuid_ticket
+    WHERE t.uuid_ticket = ?
+  `).get(uuid);
+
+  if (!ticket) return null;
+
+  return {
+    ticket,
+    objets: sqlite
+      .prepare('SELECT * FROM objets_vendus WHERE uuid_ticket = ? ORDER BY id_achat')
+      .all(uuid),
+    paiement: sqlite
+      .prepare('SELECT * FROM paiement_mixte WHERE uuid_ticket = ?')
+      .get(uuid) || null,
+  };
+}
+
+function getTicketHistory(uuid) {
+  const journal = sqlite
+    .prepare('SELECT * FROM journal_corrections ORDER BY date_correction ASC, id ASC')
+    .all();
+  const relatedUuids = new Set([uuid]);
+  const historyIds = new Set();
+
+  let foundNewRelation = true;
+  while (foundNewRelation) {
+    foundNewRelation = false;
+
+    for (const entry of journal) {
+      const entryUuids = [
+        entry.uuid_ticket_original,
+        entry.uuid_ticket_annulation,
+        entry.uuid_ticket_correction,
+      ].filter(Boolean);
+
+      if (!entryUuids.some(entryUuid => relatedUuids.has(entryUuid))) continue;
+
+      if (!historyIds.has(entry.id)) {
+        historyIds.add(entry.id);
+        foundNewRelation = true;
+      }
+
+      for (const entryUuid of entryUuids) {
+        if (!relatedUuids.has(entryUuid)) {
+          relatedUuids.add(entryUuid);
+          foundNewRelation = true;
+        }
+      }
+    }
+  }
+
+  return journal
+    .filter(entry => historyIds.has(entry.id))
+    .map(entry => ({
+      ...entry,
+      original: getTicketSnapshot(entry.uuid_ticket_original),
+      annulation: getTicketSnapshot(entry.uuid_ticket_annulation),
+      correction: getTicketSnapshot(entry.uuid_ticket_correction),
+    }))
+    .sort((a, b) => new Date(b.date_correction) - new Date(a.date_correction));
+}
+
 
 
 // Route GET : liste de tous les tickets avec indication de correction
@@ -80,7 +148,9 @@ router.get('/:uuid/details', (req, res) => {
 
     const paiementMixte = sqlite.prepare('SELECT * FROM paiement_mixte WHERE uuid_ticket = ?').get(uuid);
 
-    res.json({ ticket, objets, paiementMixte });
+    const historique = getTicketHistory(uuid);
+
+    res.json({ ticket, objets, paiementMixte, historique });
   } catch (err) {
     console.error('Erreur détails ticket :', err);
     res.status(500).json({ error: err.message });

@@ -175,6 +175,37 @@ beforeEach(async () => {
 });
 
 describe('Tests de correction de ticket', () => {
+  test('Génère le PDF d’annulation après insertion des articles négatifs', async () => {
+    createInitialTicket();
+
+    let articlesAuMomentDeLaGeneration = [];
+    genererTicketPdf.mockImplementationOnce(async (uuidTicket) => {
+      articlesAuMomentDeLaGeneration = sqlite
+        .prepare('SELECT nom, prix, nbr FROM objets_vendus WHERE uuid_ticket = ?')
+        .all(uuidTicket);
+      return '/tmp/annulation.pdf';
+    });
+
+    const res = await request(app)
+      .post('/api/correction/uuid-original/supprimer')
+      .set('Cookie', cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(articlesAuMomentDeLaGeneration).toEqual([
+      expect.objectContaining({
+        nom: 'Produit A',
+        prix: 1000,
+        nbr: -1,
+      }),
+    ]);
+
+    const ticketAnnulation = sqlite
+      .prepare('SELECT prix_total FROM ticketdecaisse WHERE uuid_ticket = ?')
+      .get(res.body.id_annul);
+    expect(ticketAnnulation.prix_total).toBe(-1000);
+  });
+
   test('Crée une correction sans réduction', async () => {
     createInitialTicket();
 

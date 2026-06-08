@@ -347,7 +347,7 @@ router.post('/', (req, res) => {
 });
 
 // Route pour supprimer (annuler) un ticket de caisse
-router.post('/:uuid/supprimer', (req, res) => {
+router.post('/:uuid/supprimer', async (req, res) => {
   const uuid = req.params.uuid;
   const now = new Date().toISOString();
   const timestamp = Math.floor(Date.now() / 1000);
@@ -385,7 +385,7 @@ router.post('/:uuid/supprimer', (req, res) => {
   // Transaction SQLite pour l'annulation
   const transaction = sqlite.transaction(() => {
     // Insère le ticket d'annulation
-    const annul = sqlite.prepare(`
+    sqlite.prepare(`
       INSERT INTO ticketdecaisse (
         date_achat_dt, annulation_de, flag_annulation, nom_vendeur, id_vendeur,
         nbr_objet, prix_total, moyen_paiement, uuid_ticket, uuid_session_caisse
@@ -395,8 +395,6 @@ router.post('/:uuid/supprimer', (req, res) => {
       objets.length, totalAnnulation, ticket.moyen_paiement || 'mixte', uuid_ticket_annul, ticket.uuid_session_caisse
     );
     const id_annul = uuid_ticket_annul;
-
-    genererTicketPdf(uuid_ticket_annul);
 
     // Log la synchronisation de l'annulation
     logSync('ticketdecaisse', 'INSERT', {
@@ -426,15 +424,16 @@ router.post('/:uuid/supprimer', (req, res) => {
     `);
     for (const obj of objets) {
       const uuid_objet = uuidv4();
+      const quantiteAnnulee = -Number(obj.nbr);
       insertArticle.run(
-        id_annul, obj.nom, obj.prix, -obj.nbr, obj.categorie,
+        id_annul, obj.nom, obj.prix, quantiteAnnulee, obj.categorie,
         ticket.nom_vendeur, ticket.id_vendeur, now, timestamp, uuid_objet
       );
       logSync('objets_vendus', 'INSERT', {
         id_ticket: id_annul,
         nom: obj.nom,
         prix: obj.prix,
-        nbr: -obj.nbr,
+        nbr: quantiteAnnulee,
         categorie: obj.categorie,
         nom_vendeur: ticket.nom_vendeur,
         id_vendeur: ticket.id_vendeur,
@@ -515,6 +514,7 @@ router.post('/:uuid/supprimer', (req, res) => {
 
   try {
     const id_annul = transaction();
+    await genererTicketPdf(id_annul);
     const io = req.app.get('socketio');
     if (io) {
       io.emit('bilanUpdated');
