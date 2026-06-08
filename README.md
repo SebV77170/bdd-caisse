@@ -99,6 +99,10 @@ Des avertissements React `act(...)` peuvent encore apparaître dans la sortie.
 Ils rendent le journal bruyant mais ne correspondent pas à un échec si le
 résumé final indique que toutes les suites sont réussies.
 
+Les tests backend se terminent naturellement, sans utiliser l'option Jest
+`--forceExit`. Si un futur changement laisse une ressource asynchrone ouverte,
+le processus restera actif et rendra le problème visible au lieu de le masquer.
+
 ## Parcours E2E Electron
 
 Le scénario principal se trouve dans
@@ -332,4 +336,3 @@ npm run test:remote
 
 Le dernier test envoie un e-mail réel. Il est donc préférable de ne pas le
 lancer à chaque petite modification.
-

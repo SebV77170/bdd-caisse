@@ -21,7 +21,7 @@ const suites = [
     color: '\x1b[34m',
     cwd: path.join(root, 'backend'),
     script: path.join(root, 'backend', 'node_modules', 'jest', 'bin', 'jest.js'),
-    args: ['--runInBand', '--no-cache', '--forceExit']
+    args: ['--runInBand', '--no-cache']
   },
   {
     name: 'frontend',
