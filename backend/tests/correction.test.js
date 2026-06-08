@@ -144,6 +144,7 @@ function createInitialTicketWithReduction(reductionType = '') {
 let cookie;
 
 beforeEach(async () => {
+  jest.clearAllMocks();
   initTables();
 
   const bcrypt = require('bcrypt');
@@ -153,14 +154,14 @@ beforeEach(async () => {
   
   // user standard (celui qui se connecte)
   sqlite.prepare(
-    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run('user-1', 'Jean', 'Test', 'jtest', hashUser, 0);
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, pseudo_normalise, password, admin) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('user-1', 'Jean', 'Test', 'jtest', 'jtest', hashUser, 0);
 
 
   // admin (responsable pour valider la correction)
   sqlite.prepare(
-    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run('admin-1', 'Ada', 'Min', 'admin', hashAdmin, 2);
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, pseudo_normalise, password, admin) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('admin-1', 'Ada', 'Min', 'admin', 'admin', hashAdmin, 2);
 
   // login de l'utilisateur standard pour obtenir le cookie
   const loginRes = await request(app)

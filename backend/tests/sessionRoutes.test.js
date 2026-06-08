@@ -25,9 +25,9 @@ describe('Routes /api/session', () => {
     const hash = bcrypt.hashSync('secret', 10);
     sqlite
       .prepare(
-        'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?,?,?,?,?,0)'
+        'INSERT INTO users (uuid_user, prenom, nom, pseudo, pseudo_normalise, password, admin) VALUES (?,?,?,?,?,?,0)'
       )
-      .run(1, 'John', 'Doe', 'jdoe', hash);
+      .run(1, 'John', 'Doe', 'jdoe', 'jdoe', hash);
 
     // Login pour récupérer le cookie utilisé dans les tests
     const loginRes = await request(app)

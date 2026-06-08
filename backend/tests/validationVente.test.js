@@ -30,8 +30,8 @@ beforeEach(async () => {
   // Crée un utilisateur
   const hash = require('bcrypt').hashSync('secret', 10);
   sqlite.prepare(
-    'INSERT INTO users (uuid_user, prenom, nom, pseudo, password, admin) VALUES (?, ?, ?, ?, ?, ?)'
-  ).run('user-1', 'Jean', 'Test', 'jtest', hash, 0);
+    'INSERT INTO users (uuid_user, prenom, nom, pseudo, pseudo_normalise, password, admin) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('user-1', 'Jean', 'Test', 'jtest', 'jtest', hash, 0);
 
   // Se connecte pour récupérer le cookie
   const loginRes = await request(app)

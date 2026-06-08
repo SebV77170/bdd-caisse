@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SignupModal from '../components/SignupModal';
 import { useSession } from '../contexts/SessionContext'; // ✅
 import { useActiveSession } from '../contexts/SessionCaisseContext'; // ✅ pour vérifier si une caisse est ouverte
 import ResponsableForm from "../components/ResponsableForm";
@@ -14,7 +13,6 @@ function LoginPage() {
   const activeSession = useActiveSession(); // ✅ pour vérifier si une caisse est ouverte
   //const sessionOuverte = activeSession?.sessionCaisseOuverte || activeSession?.caisseSecondaireActive || false ; // ✅ pour savoir si la caisse est ouverte
   //const [sessionOuverte, setSessionOuverte] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
   const navigate = useNavigate();
   const { login } = useSession(); // ✅
 
@@ -87,14 +85,6 @@ function LoginPage() {
   {/* Message d'erreur centré (si présent) */}
   {message && <p className="text-danger mt-2 text-center">{message}</p>}
 
-  {/* Lien centré */}
-  <p className="mt-3 text-center">
-    <button type="button" className="btn btn-link p-0" onClick={() => setShowSignup(true)}>
-      Je n'ai pas de compte
-    </button>
-  </p>
-
-  <SignupModal show={showSignup} onHide={() => setShowSignup(false)} />
 </div>
 
   );
