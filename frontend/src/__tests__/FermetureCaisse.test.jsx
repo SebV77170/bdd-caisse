@@ -148,4 +148,86 @@ describe('FermetureCaisse', () => {
       mot_de_passe: 'secret'
     });
   });
+
+  test('guide la correction de l’IP puis renvoie une session secondaire fermée', async () => {
+    mockActiveSession = { uuid_session: 'secondary-1', type: 'secondaire' };
+    let syncAttempts = 0;
+    global.fetch = jest.fn((url, options = {}) => {
+      if (url.includes('/fond_initial')) {
+        return Promise.resolve({ json: () => Promise.resolve({ fond_initial: 0 }) });
+      }
+      if (url.includes('/reductions_session_caisse')) {
+        return Promise.resolve({ json: () => Promise.resolve({}) });
+      }
+      if (url.includes('/bilan_session_caisse')) {
+        return Promise.resolve({ json: () => Promise.resolve({}) });
+      }
+      if (url.includes('/principal-ip/test-and-save')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            ip: '192.168.1.25',
+            message: 'Adresse vérifiée et enregistrée.'
+          })
+        });
+      }
+      if (url.includes('/envoyer-secondaire-vers-principal')) {
+        syncAttempts += 1;
+        if (syncAttempts === 1) {
+          return Promise.resolve({
+            ok: false,
+            json: () => Promise.resolve({
+              success: false,
+              configuredIp: '192.168.1.99',
+              message: 'Caisse principale inaccessible.',
+              recovery: {
+                sessionId: 'secondary-1',
+                startISO: '2026-06-09T08:00:00.000Z',
+                endISO: '2026-06-09T17:00:00.000Z',
+                configuredIp: '192.168.1.99'
+              }
+            })
+          });
+        }
+        expect(JSON.parse(options.body)).toMatchObject({
+          mode: 'resendWindow',
+          window: {
+            startISO: '2026-06-09T08:00:00.000Z',
+            endISO: '2026-06-09T17:00:00.000Z'
+          }
+        });
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true, ids: [1, 2, 3] })
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(<FermetureCaisse />);
+    managerFields();
+    fireEvent.click(screen.getByRole('button', {
+      name: /Fermer la caisse et envoyer/
+    }));
+
+    expect(await screen.findByText(/Données conservées/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('192.168.1.99')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Adresse IP de la caisse principale'), {
+      target: { value: '192.168.1.25' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Tester et enregistrer' }));
+    await screen.findByText(/Adresse vérifiée/);
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Renvoyer les données maintenant'
+    }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(
+      '/Bilan',
+      { state: { toastMessage: 'Caisse secondaire fermée et synchronisée !' } }
+    ));
+    expect(syncAttempts).toBe(2);
+  });
 });

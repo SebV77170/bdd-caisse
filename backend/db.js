@@ -2,10 +2,11 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 const mysql = require('mysql2/promise');
-const { syncSqliteWithTemplate } = require('./syncSqliteWithTemplate');
+const { initializePersistentDatabase } = require('./databaseLifecycle');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const os = require('os');
+const { randomUUID } = require('crypto');
 const baseDir = path.join(os.homedir(), '.bdd-caisse');
 const dbConfigPath = path.join(baseDir, 'dbConfig.json');
 fs.mkdirSync(baseDir, { recursive: true });
@@ -163,16 +164,62 @@ function getMysqlConfig() {
 
 let db;
 
+function ensureOperationalMigrations(database) {
+  const ticketTable = database
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ticketdecaisse'")
+    .get();
+
+  if (!ticketTable) return;
+
+  const columns = database.prepare('PRAGMA table_info(ticketdecaisse)').all();
+  if (!columns.some(column => column.name === 'source_temp_vente')) {
+    database.prepare('ALTER TABLE ticketdecaisse ADD COLUMN source_temp_vente TEXT').run();
+  }
+
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_ticketdecaisse_source_temp_vente
+    ON ticketdecaisse(source_temp_vente)
+  `);
+
+  const syncLogTable = database
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'sync_log'")
+    .get();
+  if (syncLogTable) {
+    const syncColumns = database.prepare('PRAGMA table_info(sync_log)').all();
+    if (!syncColumns.some(column => column.name === 'operation_uuid')) {
+      database.prepare('ALTER TABLE sync_log ADD COLUMN operation_uuid TEXT').run();
+    }
+
+    const missingOperationIds = database
+      .prepare("SELECT id FROM sync_log WHERE operation_uuid IS NULL OR operation_uuid = ''")
+      .all();
+    const updateOperationId = database.prepare(
+      'UPDATE sync_log SET operation_uuid = ? WHERE id = ?'
+    );
+    database.transaction(rows => {
+      for (const row of rows) updateOperationId.run(randomUUID(), row.id);
+    })(missingOperationIds);
+
+    database.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_log_operation_uuid
+      ON sync_log(operation_uuid)
+    `);
+  }
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS sync_received_operations (
+      operation_uuid TEXT PRIMARY KEY,
+      source_id TEXT,
+      received_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
 if (process.env.NODE_ENV === 'test') {
   db = new Database(':memory:');
   console.log('✅ Connecté à SQLite en mémoire (mode test)');
 } else {
-  // 📁 Dossier utilisateur pour la base persistante
   const userDataDir = path.join(os.homedir(), '.bdd-caisse');
-  const dbPath = path.join(userDataDir, 'ressourcebrie-sqlite.db');
-  console.log('🪛 Chemin recherché pour SQLite :', dbPath);
-
-  // 🔍 Détection de l'environnement d'exécution (Electron ou Node.js)
   let appPath;
 
   if (process.versions.electron) {
@@ -185,46 +232,14 @@ if (process.env.NODE_ENV === 'test') {
     appPath = __dirname;
   }
 
-  const templatePath = path.join(appPath, 'database', 'ressourcebrie-sqlite-template.db');
-  const insertionsPath = path.join(appPath, 'inserts_categories_boutons.sql');
-  const insertsUsersPath = path.join(appPath, 'inserts_users.sql');
-
-  // ⛏️ Si la BDD utilisateur n'existe pas, on copie depuis le template + inserts
-  if (!fs.existsSync(dbPath)) {
-    fs.mkdirSync(userDataDir, { recursive: true });
-
-    if (fs.existsSync(templatePath)) {
-      fs.copyFileSync(templatePath, dbPath);
-
-      const dbTemp = new Database(dbPath);
-
-      if (fs.existsSync(insertionsPath)) {
-        const insertions = fs.readFileSync(insertionsPath, 'utf-8');
-        dbTemp.exec(insertions);
-      }
-
-      if (fs.existsSync(insertsUsersPath)) {
-        const insertsUsers = fs.readFileSync(insertsUsersPath, 'utf-8');
-        dbTemp.exec(insertsUsers);
-      }
-
-      dbTemp.close();
-      console.log('📂 Base initialisée depuis le modèle');
-    } else {
-      throw new Error(`⚠️ Fichier modèle introuvable à : ${templatePath}`);
-    }
-  }
-
-  // 🎯 Connexion active à la BDD
-  db = new Database(dbPath);
-  console.log('✅ Connecté à SQLite :', dbPath);
-  
-
-  try {
-    syncSqliteWithTemplate(db, templatePath);
-  } catch (err) {
-    console.error('⚠️ Erreur lors de la synchronisation du schéma SQLite :', err.message);
-  }
+  const initialized = initializePersistentDatabase({
+    userDataDir,
+    resourceDir: appPath,
+    ensureMigrations: ensureOperationalMigrations
+  });
+  db = initialized.db;
+  console.log(initialized.created ? '📂 Base initialisée depuis le modèle' : '📂 Base existante conservée');
+  console.log('✅ Connecté à SQLite :', initialized.databasePath);
 }
 
 module.exports = db;

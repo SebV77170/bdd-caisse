@@ -119,4 +119,46 @@ describe('ValidationVente', () => {
       expect(toast.error).toHaveBeenCalledWith('Erreur pendant validation');
     });
   });
+
+  test('ignore un double clic pendant que la validation est en cours', async () => {
+    let resolveFetch;
+    global.fetch.mockReturnValue(new Promise((resolve) => {
+      resolveFetch = resolve;
+    }));
+    renderValidation();
+
+    const carte = screen.getByRole('button', { name: 'Carte' });
+    fireEvent.click(carte);
+    fireEvent.click(carte);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(carte).toBeDisabled();
+
+    resolveFetch({
+      json: jest.fn().mockResolvedValue({ success: true, replayed: false })
+    });
+    await waitFor(() => expect(carte).not.toBeDisabled());
+  });
+
+  test('autorise une nouvelle tentative apres une erreur de communication', async () => {
+    global.fetch
+      .mockRejectedValueOnce(new Error('connexion interrompue'))
+      .mockResolvedValueOnce({
+        json: jest.fn().mockResolvedValue({ success: true, replayed: true })
+      });
+    const onValide = jest.fn();
+    renderValidation({ onValide });
+
+    const carte = screen.getByRole('button', { name: 'Carte' });
+    fireEvent.click(carte);
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(
+      'Erreur de communication. Vous pouvez relancer la validation sans risque de doublon.'
+    ));
+
+    fireEvent.click(carte);
+    await waitFor(() => expect(onValide).toHaveBeenCalledTimes(1));
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(toast.success).toHaveBeenCalledWith('Vente déjà enregistrée, ticket retrouvé');
+  });
 });

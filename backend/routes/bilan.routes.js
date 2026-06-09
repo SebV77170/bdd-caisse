@@ -4,6 +4,7 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const getBilanSession = require('../utils/bilanSession');
 const getBilanReductionsSession = require('../utils/bilanReductionsSession');
+const { getBusinessDate } = require('../utils/dateTime');
 
 function getTicketSnapshot(uuid) {
   if (!uuid) return null;
@@ -159,7 +160,7 @@ router.get('/:uuid/details', (req, res) => {
 
 // Route GET : bilan du jour (ventes et montants)
 router.get('/jour', (req, res) => {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = getBusinessDate();
   const bilan = sqlite.prepare('SELECT nombre_vente, prix_total, prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement FROM bilan WHERE date = ?').get(today);
   if (!bilan) return res.json({ nombre_vente: 0, prix_total: 0 });
   res.json(bilan);

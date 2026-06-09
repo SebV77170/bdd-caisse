@@ -58,9 +58,9 @@ export default function MainRoutes() {
       <Route
         path="/fermeture-caisse"
         element={
-          <RequireUserAndCaisseSession>
+          <RequireUserSession>
               <FermetureCaisse />
-          </RequireUserAndCaisseSession>
+          </RequireUserSession>
         }
       />
 

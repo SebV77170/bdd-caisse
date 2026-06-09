@@ -3,12 +3,14 @@ jest.mock('../utils/genererFacturePdf', () => jest.fn().mockResolvedValue({
   friendlyId: 'F-001'
 }));
 
+const mockSendMail = jest.fn((message, callback) => {
+  if (callback) callback(null, { accepted: [message.to] });
+  return Promise.resolve({ accepted: [message.to] });
+});
+
 jest.mock('../smtp', () => ({
   getSmtpTransporter: jest.fn(() => ({
-    sendMail: jest.fn((message, callback) => {
-      if (callback) callback(null, { accepted: [message.to] });
-      return Promise.resolve({ accepted: [message.to] });
-    })
+    sendMail: mockSendMail
   })),
   getSmtpFrom: jest.fn(() => 'billing@example.com')
 }));
@@ -29,6 +31,10 @@ function initTables() {
 describe('Routes documents et emails', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSendMail.mockImplementation((message, callback) => {
+      if (callback) callback(null, { accepted: [message.to] });
+      return Promise.resolve({ accepted: [message.to] });
+    });
     initTables();
     sqlite.prepare('DELETE FROM ticketdecaisse').run();
     sqlite.prepare(`
@@ -67,6 +73,29 @@ describe('Routes documents et emails', () => {
       '1 rue Test'
     );
     expect(getSmtpTransporter).not.toHaveBeenCalled();
+  });
+
+  test('conserve la facture locale quand le serveur SMTP refuse le mail', async () => {
+    const existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(true);
+    mockSendMail.mockRejectedValueOnce(new Error('SMTP authentication failed'));
+
+    const res = await request(app)
+      .post('/api/facture/ticket-1')
+      .send({
+        raison_sociale: 'Client B',
+        adresse: '2 rue Test',
+        email: 'client@example.com'
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({
+      success: true,
+      lien: 'factures/test.pdf',
+      emailSent: false,
+      emailError: 'SMTP authentication failed'
+    }));
+    expect(mockSendMail).toHaveBeenCalledTimes(1);
+    existsSpy.mockRestore();
   });
 
   test('valide les erreurs d’envoi de ticket par email', async () => {

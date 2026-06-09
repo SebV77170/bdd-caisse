@@ -5,15 +5,38 @@ const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('./genererFriendlyIds');
 const getBilanSession = require('./bilanSession');
+const { getZonedParts } = require('./dateTime');
 
 function formatMontant(cents) {
   const v = Number(cents || 0);
   return `${(v / 100).toFixed(2)} €`;
 }
 
+function buildClosureDetails(session, bilan) {
+  const details = [
+    {
+      label: 'Espèces',
+      attendu: (bilan.prix_total_espece || 0) + (session.fond_initial || 0),
+      reel: session.montant_reel
+    },
+    { label: 'Carte', attendu: bilan.prix_total_carte || 0, reel: session.montant_reel_carte },
+    { label: 'Chèque', attendu: bilan.prix_total_cheque || 0, reel: session.montant_reel_cheque },
+    { label: 'Virement', attendu: bilan.prix_total_virement || 0, reel: session.montant_reel_virement }
+  ].map(detail => ({
+    ...detail,
+    ecart: Number(detail.reel || 0) - Number(detail.attendu || 0)
+  }));
+
+  return {
+    details,
+    ecartTotal: details.reduce((sum, detail) => sum + detail.ecart, 0)
+  };
+}
+
 // Utilitaires d'affichage local à partir d'un ISO UTC
 function toLocalDateParts(utcIso, tz = 'Europe/Paris') {
   const d = utcIso ? new Date(utcIso) : new Date();
+  const zoned = getZonedParts(d, tz);
   const date = d.toLocaleDateString('fr-FR', { timeZone: tz });
   const time = d.toLocaleTimeString('fr-FR', {
     timeZone: tz,
@@ -21,7 +44,13 @@ function toLocalDateParts(utcIso, tz = 'Europe/Paris') {
     minute: '2-digit',
     second: '2-digit',
   });
-  return { date, time, jsDate: d };
+  return {
+    date,
+    time,
+    year: zoned.year,
+    month: zoned.month,
+    day: zoned.day
+  };
 }
 
 async function genererTicketCloturePdf(id_session, uuid_ticket) {
@@ -39,13 +68,15 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
   const closedUtc = session.closed_at_utc || new Date().toISOString();
 
   // Affichage/structure fichiers en local (Europe/Paris)
-  const { date: dateLocal, time: timeLocal, jsDate } = toLocalDateParts(closedUtc, 'Europe/Paris');
+  const {
+    date: dateLocal,
+    time: timeLocal,
+    year: yyyy,
+    month: mm,
+    day: dd
+  } = toLocalDateParts(closedUtc, 'Europe/Paris');
 
   // Dossiers YYYY/MM/DD (local)
-  const yyyy = String(jsDate.getFullYear());
-  const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(jsDate.getDate()).padStart(2, '0');
-
   const baseDir = path.join(os.homedir(), '.bdd-caisse');
   const dir = path.join(baseDir, 'tickets', yyyy, mm, dd);
   fs.mkdirSync(dir, { recursive: true });
@@ -80,22 +111,12 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
   doc.fontSize(14).text('Par moyen de paiement', { underline: true });
   doc.moveDown(0.5);
 
-  const details = [
-    {
-      label: 'Espèces',
-      attendu: (bilan.prix_total_espece || 0) + (session.fond_initial || 0),
-      reel: session.montant_reel
-    },
-    { label: 'Carte', attendu: bilan.prix_total_carte || 0, reel: session.montant_reel_carte },
-    { label: 'Chèque', attendu: bilan.prix_total_cheque || 0, reel: session.montant_reel_cheque },
-    { label: 'Virement', attendu: bilan.prix_total_virement || 0, reel: session.montant_reel_virement }
-  ];
+  const { details } = buildClosureDetails(session, bilan);
 
   details.forEach(d => {
-    const ecart = (Number(d.reel || 0) - Number(d.attendu || 0));
     doc.text(
       `${d.label} : Attendu ${formatMontant(d.attendu)} | ` +
-      `Réel ${formatMontant(d.reel)} | Écart ${formatMontant(ecart)}`
+      `Réel ${formatMontant(d.reel)} | Écart ${formatMontant(d.ecart)}`
     );
   });
 
@@ -144,3 +165,5 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
 }
 
 module.exports = genererTicketCloturePdf;
+module.exports.buildClosureDetails = buildClosureDetails;
+module.exports.formatMontant = formatMontant;

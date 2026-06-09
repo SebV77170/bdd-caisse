@@ -22,7 +22,9 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 // ✅ Middleware express-session AVANT les routes
 require('dotenv').config(); 
 
-const baseDir = path.join(os.homedir(), '.bdd-caisse');
+const baseDir = process.env.NODE_ENV === 'test'
+  ? path.join(os.tmpdir(), `bdd-caisse-test-${process.pid}`)
+  : path.join(os.homedir(), '.bdd-caisse');
 fs.mkdirSync(baseDir, { recursive: true }); // 🟢 crée le dossier si absent
 app.use(session({
   store: new SQLiteStore({
@@ -64,6 +66,7 @@ const factureRoutes = require('./routes/facture.routes');
 const envoyerSecondaireVersPrincipal = require('./routes/envoyer-secondaire-vers-principal');
 const principalIpRoutes = require('./routes/principalIp.routes');
 const networkRoutes = require('./routes/network.routes');
+const secondaryOpeningRoutes = require('./routes/secondaryOpening.routes');
 const friendlyRoutes = require('./routes/friendly.routes');
 const motifsRoutes = require('./routes/motifs.routes');
 const webdavRoutes = require('./routes/webdav.routes');
@@ -97,6 +100,7 @@ app.use('/api/sync-config', syncConfigRoutes);
 app.use('/api/store-config', storeConfigRoutes);
 app.use('/api/principal-ip', principalIpRoutes);
 app.use('/api/network', networkRoutes);
+app.use('/api/secondary-opening', secondaryOpeningRoutes);
 app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/motifs', motifsRoutes);

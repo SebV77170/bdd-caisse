@@ -38,23 +38,24 @@ function getBilanSession(uuid_session_caisse) {
         WHERE uuid_caisse_principale_si_secondaire = ?  -- toutes les secondaires rattachées
       )
       SELECT
-        SUM(CASE
+        COALESCE(SUM(CASE
               WHEN t.corrige_le_ticket IS NULL
                AND t.annulation_de   IS NULL
               THEN 1 ELSE 0
-            END)                                    AS nombre_ventes,
+            END), 0)                                AS nombre_ventes,
 
-        SUM(COALESCE(p.espece,   0))                AS prix_total_espece,
-        SUM(COALESCE(p.carte,    0))                AS prix_total_carte,
-        SUM(COALESCE(p.cheque,   0))                AS prix_total_cheque,
-        SUM(COALESCE(p.virement, 0))                AS prix_total_virement,
+        COALESCE(SUM(COALESCE(p.espece,   0)), 0)   AS prix_total_espece,
+        COALESCE(SUM(COALESCE(p.carte,    0)), 0)   AS prix_total_carte,
+        COALESCE(SUM(COALESCE(p.cheque,   0)), 0)   AS prix_total_cheque,
+        COALESCE(SUM(COALESCE(p.virement, 0)), 0)   AS prix_total_virement,
 
-        SUM(COALESCE(p.espece,0) + COALESCE(p.carte,0) + COALESCE(p.cheque,0) + COALESCE(p.virement,0))
+        COALESCE(SUM(COALESCE(p.espece,0) + COALESCE(p.carte,0) + COALESCE(p.cheque,0) + COALESCE(p.virement,0)), 0)
                                                     AS prix_total
       FROM ticketdecaisse t
       LEFT JOIN paiement_mixte p
              ON p.uuid_ticket = t.uuid_ticket       -- LEFT JOIN pour tolérer l'absence temporaire de paiement_mixte
       WHERE t.uuid_session_caisse IN (SELECT uuid FROM sessions)
+        AND COALESCE(t.cloture, 0) = 0
     `).get(principalUuid, principalUuid);
 
   // 3) Valeurs par défaut si aucun ticket

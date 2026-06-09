@@ -1,5 +1,14 @@
 # BDD Caisse
 
+## Securite
+
+La feuille de route issue de l'audit d'authentification, d'autorisations, CSRF,
+CORS, secrets et dependances se trouve dans
+[`SECURITY_PLAN.md`](./SECURITY_PLAN.md).
+
+Elle fixe l'ordre des corrections, les protections attendues et les criteres
+de validation avant mise en production.
+
 Application de caisse composée d'un backend Node.js/Express, d'un frontend React
 et d'une application Electron.
 
@@ -51,6 +60,48 @@ npm run test:e2e
 Cette commande reconstruit le frontend puis exécute uniquement le scénario E2E
 de production.
 
+### Installation et migrations
+
+```powershell
+npm run test:installation
+```
+
+Cette commande vérifie un premier lancement sur profil vide, les migrations
+depuis les versions historiques taguées, la conservation des données et le
+comportement non bloquant de l’auto-update. La procédure de retour arrière est
+décrite dans [`UPDATE_RECOVERY.md`](./UPDATE_RECOVERY.md).
+
+### Exactitude comptable
+
+```powershell
+npm run test:accounting
+```
+
+Cette commande vérifie les ventes sans activité, chaque moyen de paiement, les
+paiements mixtes, les petites valeurs, les arrondis de réduction, les
+annulations, les corrections successives, le passage à minuit et les
+changements d'heure.
+
+Après chaque scénario, elle compare au centime près les tickets, les objets
+vendus, les paiements, le bilan de session, le bilan journalier et les montants
+utilisés pour le PDF de clôture.
+
+### Sauvegarde et restauration
+
+```powershell
+npm run backup
+npm run restore -- -Sauvegarde "C:\chemin\vers\la-sauvegarde"
+```
+
+La sauvegarde comprend la base SQLite, les configurations JSON, les tickets et
+les factures. Elle est contrôlée par empreintes SHA-256 et par le contrôle
+d'intégrité SQLite. Une sauvegarde automatique est également créée avant toute
+migration de schéma.
+
+La procédure complète, y compris la restauration depuis une installation
+Windows sans outils de développement, se trouve dans
+[`BACKUP_RESTORE.md`](./BACKUP_RESTORE.md).
+
 ### Services distants réels
 
 ```powershell
@@ -63,6 +114,20 @@ connexion Internet et des identifiants valides.
 Elle est volontairement séparée de `test:production`, car elle dépend de
 services externes et envoie un véritable e-mail.
 
+### Synchronisation SQLite vers MySQL réelle
+
+```powershell
+npm run test:sync:remote
+```
+
+Cette commande crée des ventes dans une base SQLite de test, appelle la vraie
+route de synchronisation vers MySQL, puis compare les tickets, les paiements et
+le bilan total ainsi que le bilan par moyen de paiement.
+
+Elle utilise uniquement des tables MySQL isolées portant un préfixe aléatoire.
+Ces tables sont supprimées dans un bloc de nettoyage, y compris lorsque le test
+échoue. Leur disparition est ensuite contrôlée dans `INFORMATION_SCHEMA`.
+
 ## Tests backend et frontend
 
 Le lanceur commun se trouve dans `scripts/test-all.ps1`. Il utilise le runtime
@@ -71,8 +136,8 @@ environnement sur les différents postes.
 
 Au moment de la rédaction de ce guide, la suite contient :
 
-- 73 tests backend ;
-- 51 tests frontend.
+- 119 tests backend ;
+- 55 tests frontend.
 
 Ces nombres augmenteront lorsque de nouveaux tests seront ajoutés. Le critère
 important est que toutes les suites se terminent avec le code `0`.
@@ -103,6 +168,24 @@ Les tests backend se terminent naturellement, sans utiliser l'option Jest
 `--forceExit`. Si un futur changement laisse une ressource asynchrone ouverte,
 le processus restera actif et rendra le problème visible au lieu de le masquer.
 
+## Rejeu des synchronisations
+
+Chaque ligne créée dans `sync_log` reçoit un `operation_uuid` unique.
+
+Lors d'une synchronisation MySQL, l'application crée si nécessaire la table
+`bdd_caisse_sync_operations` dans la base distante. L'identifiant de
+l'opération et son écriture métier sont validés dans la même transaction. Si
+la réponse réseau est perdue après l'écriture, une nouvelle tentative reconnaît
+l'identifiant et ne double ni les ventes, ni les paiements, ni le bilan.
+
+Les échanges entre caisses utilisent le même principe avec la table SQLite
+`sync_received_operations`. Chaque demande possède également un `requestId`,
+ce qui permet à la caisse principale de traiter plusieurs secondaires sans
+mélanger leurs validations.
+
+Un lot incomplet ou contenant une opération inconnue est refusé avant toute
+écriture et retourne les listes `accepted` et `failed`.
+
 ## Parcours E2E Electron
 
 Le scénario principal se trouve dans
@@ -123,7 +206,9 @@ Il ne modifie pas la base SQLite utilisée quotidiennement par la caisse.
 Le test réalise une session complète comprenant :
 
 - l'ouverture de la caisse avec un fond initial ;
+- la restauration d'une vente temporaire après redémarrage du backend ;
 - 100 ventes réalisées depuis l'interface ;
+- une double activation du bouton de validation sans vente en double ;
 - quatre utilisateurs, avec plusieurs changements d'utilisateur ;
 - 20 paiements en espèces ;
 - 20 paiements par carte ;
@@ -141,11 +226,14 @@ Le test réalise une session complète comprenant :
 - la fermeture de caisse avec les montants attendus ;
 - la création réelle du PDF de clôture ;
 - la vérification que ce PDF existe et n'est pas vide ;
-- le déclenchement de la synchronisation finale.
+- le déclenchement de la synchronisation finale en situation de panne distante ;
+- la vérification que cette panne ne bloque ni la fermeture ni le PDF.
 
 La synchronisation finale est dirigée vers un serveur local contrôlé pendant le
-test. Le scénario vérifie ainsi que l'appel est bien effectué sans envoyer les
-100 ventes E2E vers la base MySQL distante.
+test. Ce serveur répond volontairement avec une erreur HTTP 503. Le scénario
+vérifie ainsi que l'appel est bien effectué, que l'erreur est journalisée et
+que les opérations locales restent terminées, sans envoyer les 100 ventes E2E
+vers la base MySQL distante.
 
 ### Artefacts E2E
 
@@ -211,6 +299,29 @@ Il effectue :
 
 La table est propre à la connexion et aucune donnée permanente ne doit rester
 dans la base distante.
+
+### Contrôle de la synchronisation métier MySQL
+
+Le script `scripts/test-remote-sync-isolated.js` va plus loin que le simple
+contrôle de connexion :
+
+1. il crée des copies isolées des tables MySQL nécessaires ;
+2. il effectue de vraies ventes via les routes de l'application ;
+3. il couvre carte, espèces, chèque, virement et paiement mixte ;
+4. il effectue une correction avec paiement mixte ;
+5. il appelle la vraie route `/api/sync` ;
+6. il compare SQLite et MySQL, notamment chaque moyen de paiement ;
+7. il rejoue les mêmes opérations pour vérifier l'absence de double comptage ;
+8. il supprime les tables isolées et vérifie qu'elles ont disparu.
+
+Commande :
+
+```powershell
+npm run test:sync:remote
+```
+
+Les tables de production (`ticketdecaisse`, `paiement_mixte`, `bilan`, etc.)
+ne sont ni modifiées ni vidées par ce test.
 
 ### Contrôle SMTP
 
@@ -332,7 +443,8 @@ Pour vérifier aussi l'infrastructure distante :
 
 ```powershell
 npm run test:remote
+npm run test:sync:remote
 ```
 
-Le dernier test envoie un e-mail réel. Il est donc préférable de ne pas le
-lancer à chaque petite modification.
+`test:remote` envoie un e-mail réel. Les deux commandes distantes sont donc
+volontairement séparées de `test:production`.

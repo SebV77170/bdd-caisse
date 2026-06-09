@@ -14,6 +14,8 @@ function OuvertureCaisse() {
   const [message, setMessage] = useState('');
   const [isSecondaire, setIsSecondaire] = useState(false);
   const [useCompteEspeces, setUseCompteEspeces] = useState(false); // ✅ NEW
+  const [secondaryAuthorization, setSecondaryAuthorization] = useState(null);
+  const [authorizingSecondary, setAuthorizingSecondary] = useState(false);
   
 
   const navigate = useNavigate();
@@ -33,8 +35,37 @@ function OuvertureCaisse() {
     } else {
       // on restaure la saisie précédente (ou vide)
       setFondInitial(prevFondRef.current || '');
+      setSecondaryAuthorization(null);
     }
   }, [isSecondaire]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const authorizeSecondaryOpening = async () => {
+    setAuthorizingSecondary(true);
+    setSecondaryAuthorization(null);
+    setMessage(
+      "Vérification de l'adresse configurée. Si nécessaire, recherche de la caisse principale sur le réseau..."
+    );
+    try {
+      const response = await fetch('http://localhost:3001/api/secondary-opening/authorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setMessage(data.error || "La caisse principale n'a pas autorisé l'ouverture.");
+        return null;
+      }
+      setSecondaryAuthorization(data);
+      setMessage(data.message || 'Ouverture autorisée par la caisse principale.');
+      return data;
+    } catch {
+      setMessage('Impossible de rechercher la caisse principale sur le réseau.');
+      return null;
+    } finally {
+      setAuthorizingSecondary(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,6 +82,12 @@ function OuvertureCaisse() {
       return;
     }
 
+    let authorization = secondaryAuthorization;
+    if (isSecondaire && !authorization) {
+      authorization = await authorizeSecondaryOpening();
+      if (!authorization) return;
+    }
+
     // Conversion en centimes (sécurisée)
     const fondCents = Math.round((isSecondaire ? 0 : Number(fondInitial || 0)) * 100);
 
@@ -65,7 +102,10 @@ function OuvertureCaisse() {
           mot_de_passe: motDePasse,
           // compat: selon ton backend, l’un ou l’autre peut être attendu
           secondaire: isSecondaire,
-          issecondaire: isSecondaire ? 1 : 0
+          issecondaire: isSecondaire ? 1 : 0,
+          authorization_token: isSecondaire
+            ? authorization.authorizationToken
+            : undefined
         }),
       });
 
@@ -197,8 +237,12 @@ function OuvertureCaisse() {
       />
       
 
-          <button type="submit" style={{ marginTop: 15 }}>
-            {isSecondaire ? 'Ouvrir la caisse secondaire' : 'Ouvrir la caisse principale'}
+          <button type="submit" style={{ marginTop: 15 }} disabled={authorizingSecondary}>
+            {isSecondaire
+              ? (authorizingSecondary
+                ? 'Recherche de la caisse principale...'
+                : 'Ouvrir la caisse secondaire')
+              : 'Ouvrir la caisse principale'}
           </button>
         </form>
 

@@ -8,6 +8,7 @@ const verifyAdmin = require('../utils/verifyAdmin');
 const logSync = require('../logsync');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const { getConfig } = require('../storeConfig');
+const { consumeSecondaryOpeningGrant } = require('../secondaryOpeningAuthorization');
 
 router.post('/ouverture', (req, res) => {
   const { fond_initial, responsable_pseudo, mot_de_passe, secondaire } = req.body;
@@ -34,6 +35,15 @@ router.post('/ouverture', (req, res) => {
   const { valid, user: responsable, error } = verifyAdmin(responsable_pseudo, mot_de_passe);
   if (!valid) {
     return res.status(403).json({ error });
+  }
+
+  if (issecondaire === 1) {
+    const grant = consumeSecondaryOpeningGrant(req.body.authorization_token);
+    if (!grant) {
+      return res.status(403).json({
+        error: "L'ouverture secondaire doit d'abord être confirmée par la caisse principale."
+      });
+    }
   }
 
   // 3) Préparer l’insert (UTC + données)

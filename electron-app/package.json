@@ -60,6 +60,18 @@
       {
         "from": "../frontend/build",
         "to": "frontend_build"
+      },
+      {
+        "from": "../scripts/profile-backup.js",
+        "to": "tools/profile-backup.js"
+      },
+      {
+        "from": "../scripts/sauvegarder-caisse.ps1",
+        "to": "tools/sauvegarder-caisse.ps1"
+      },
+      {
+        "from": "../scripts/restaurer-caisse.ps1",
+        "to": "tools/restaurer-caisse.ps1"
       }
     ],
     "directories": {

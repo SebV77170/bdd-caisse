@@ -8,6 +8,7 @@ import BilanJour from './components/BilanJour';
 import RemoteMysqlWarning from './components/RemoteMysqlWarning';
 import { SyncModalProvider } from './contexts/SyncModalContext';
 import ModalSyncSecondaire from './components/ModalSyncSecondaire';
+import ModalOuvertureSecondaire from './components/ModalOuvertureSecondaire';
 //import FocusHud from './components/FocusHud';
 
 function App() {
@@ -40,6 +41,7 @@ useEffect(() => {
         <RemoteMysqlWarning />
         <SyncModalProvider>
           <ModalSyncSecondaire />
+          <ModalOuvertureSecondaire />
           <MainRoutes />
         </SyncModalProvider>
         

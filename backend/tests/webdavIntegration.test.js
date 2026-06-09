@@ -15,6 +15,7 @@ jest.mock('../webdavConfig', () => ({
 }));
 
 const {
+  uploadTickets,
   uploadTicketsAndFactures
 } = require('../webdavSync');
 
@@ -22,6 +23,7 @@ describe('Intégration WebDAV locale', () => {
   let server;
   let baseUrl;
   let requests;
+  let responseMode;
 
   beforeEach(async () => {
     fs.rmSync(mockHomeDir, { recursive: true, force: true });
@@ -41,6 +43,7 @@ describe('Intégration WebDAV locale', () => {
     );
 
     requests = [];
+    responseMode = 'success';
     server = http.createServer((req, res) => {
       const chunks = [];
       req.on('data', chunk => chunks.push(chunk));
@@ -51,6 +54,16 @@ describe('Intégration WebDAV locale', () => {
           authorization: req.headers.authorization,
           body: Buffer.concat(chunks)
         });
+        if (req.method === 'PUT' && responseMode === 'timeout') return;
+        if (req.method === 'PUT' && responseMode === 'disconnect') {
+          req.socket.destroy();
+          return;
+        }
+        if (req.method === 'PUT' && responseMode === 'unauthorized') {
+          res.statusCode = 401;
+          res.end();
+          return;
+        }
         res.statusCode = req.method === 'MKCOL' ? 201 : 204;
         res.end();
       });
@@ -68,6 +81,7 @@ describe('Intégration WebDAV locale', () => {
   });
 
   afterEach(async () => {
+    delete process.env.WEBDAV_TIMEOUT_MS;
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(mockHomeDir, { recursive: true, force: true });
   });
@@ -92,6 +106,22 @@ describe('Intégration WebDAV locale', () => {
       .toBe('%PDF-ticket-test');
     expect(requests.some(entry =>
       entry.method === 'MKCOL' && entry.url === '/dav/tickets/2026/06'
+    )).toBe(true);
+  });
+
+  test.each([
+    ['un refus d’authentification', 'unauthorized'],
+    ['une coupure pendant l’envoi', 'disconnect'],
+    ['un délai d’attente', 'timeout']
+  ])('conserve le fichier local après %s', async (_label, mode) => {
+    process.env.WEBDAV_TIMEOUT_MS = '50';
+    responseMode = mode;
+
+    const result = await uploadTickets();
+
+    expect(result).toEqual({ success: 0, failed: 1, total: 1 });
+    expect(fs.existsSync(
+      path.join(mockHomeDir, '.bdd-caisse', 'tickets', '2026', '06', 'ticket.pdf')
     )).toBe(true);
   });
 });

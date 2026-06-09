@@ -156,13 +156,31 @@ function launchBackend() {
   });
 }
 
+async function restartBackend() {
+  const previousProcess = backendProcess;
+  if (previousProcess && !previousProcess.killed) {
+    previousProcess.kill();
+    await Promise.race([
+      new Promise(resolve => previousProcess.once('close', resolve)),
+      wait(5000)
+    ]);
+  }
+
+  backendProcess = null;
+  launchBackend();
+  await waitForBackend();
+}
+
 function launchSyncServer() {
   return new Promise((resolve, reject) => {
     syncServer = http.createServer((request, response) => {
       if (request.method === 'POST' && request.url === '/sync') {
         finalSyncRequests += 1;
-        response.writeHead(200, { 'Content-Type': 'application/json' });
-        response.end(JSON.stringify({ success: true }));
+        response.writeHead(503, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({
+          success: false,
+          error: 'Service MySQL simule indisponible'
+        }));
         return;
       }
 
@@ -242,6 +260,21 @@ async function clickButtonExact(text) {
     })()
   `);
   assert(clicked, `Bouton ou lien exact introuvable : ${text}`);
+}
+
+async function doubleClickButtonExact(text) {
+  const clicked = await evaluate(`
+    (() => {
+      const text = ${JSON.stringify(text)};
+      const element = [...document.querySelectorAll('button, a')]
+        .find(node => (node.innerText || '').trim() === text);
+      if (!element) return false;
+      element.click();
+      element.click();
+      return true;
+    })()
+  `);
+  assert(clicked, `Bouton ou lien exact introuvable pour double activation : ${text}`);
 }
 
 async function fill(selector, value) {
@@ -337,7 +370,7 @@ async function capture(name) {
   fs.writeFileSync(path.join(artifactsDir, name), image.toPNG());
 }
 
-async function createSale({ method, split, expectedCount }) {
+async function createSale({ method, split, expectedCount, doubleSubmit = false }) {
   await clickButton('Nouvelle vente');
   await waitForText('Article E2E');
   await clickButton('Article E2E');
@@ -369,7 +402,11 @@ async function createSale({ method, split, expectedCount }) {
   }
 
   await wait(100);
-  await clickButtonExact('Valider la vente');
+  if (doubleSubmit) {
+    await doubleClickButtonExact('Valider la vente');
+  } else {
+    await clickButtonExact('Valider la vente');
+  }
   await waitForApi(async () => {
     const bilan = await requestJson('/api/bilan/jour');
     return bilan.body.nombre_vente === expectedCount;
@@ -508,6 +545,44 @@ async function cancelPendingSale() {
   assert(after.body.length === before.body.length, 'La vente temporaire annulée a créé un ticket.');
 }
 
+async function verifyPendingSaleSurvivesRestart() {
+  await evaluate(`location.hash = '#/caisse'`);
+  await waitForText('Nouvelle vente');
+  await clickButton('Nouvelle vente');
+  await waitForText('Article E2E');
+  await clickButton('Article E2E');
+  await waitForText('Total : 12.34');
+
+  const pendingBefore = await requestJson('/api/ventes');
+  assert(pendingBefore.body.length === 1, 'La vente temporaire avant redemarrage est introuvable.');
+  const pendingId = pendingBefore.body[0].id_temp_vente;
+
+  await restartBackend();
+  await mainWindow.loadURL(appUrl);
+  await waitForText("Bienvenue sur l'application de gestion caisse", 15000);
+  await clickButton('Commencer');
+  await waitForText("Alors, on change de caissier");
+  await fill('#resp-pseudo', 'e2e-admin');
+  await fill('#resp-password', 'e2e-secret');
+  await clickButtonExact('Se connecter');
+  await waitForText('Nouvelle vente', 15000);
+  await waitForText('Total : 12.34', 15000);
+
+  const pendingAfter = await requestJson('/api/ventes');
+  assert(
+    pendingAfter.body.some(vente => vente.id_temp_vente === pendingId),
+    'La vente temporaire a disparu apres redemarrage.'
+  );
+  const ticketAfter = await requestJson(`/api/ticket/${pendingId}`);
+  assert(ticketAfter.body.length === 1, 'Le contenu du panier a disparu apres redemarrage.');
+  assert(ticketAfter.body[0].prixt === salePrice, 'Le total du panier restaure est incorrect.');
+
+  await clickButton('Annuler la vente');
+  await waitForText("Confirmer l'annulation de la vente");
+  await clickButtonExact('Oui, annuler');
+  await waitForText('Merci de cliquer sur');
+}
+
 async function runScenario() {
   await mainWindow.loadURL(appUrl);
   await waitForText("Bienvenue sur l'application de gestion caisse");
@@ -530,13 +605,16 @@ async function runScenario() {
   await waitForText('Nouvelle vente', 15000);
   await capture('02-register-open.png');
 
+  await verifyPendingSaleSurvivesRestart();
+
   for (let index = 0; index < saleCount; index += 1) {
     if (index > 0 && index % 25 === 0) {
       await switchUser(users[index / 25]);
     }
     await createSale({
       ...paymentCycle[index % paymentCycle.length],
-      expectedCount: index + 1
+      expectedCount: index + 1,
+      doubleSubmit: index === 0
     });
     if ((index + 1) % 10 === 0) {
       writeLog(`[progress] ${index + 1}/${saleCount} ventes validées`);
@@ -665,7 +743,11 @@ async function runScenario() {
   }
   assert(finalSyncRequests === 1, 'La synchronisation finale n’a pas été appelée exactement une fois.');
   assert(
-    !backendErrorOutput.includes('Erreur PDF') && !backendErrorOutput.includes('synchronisation échouée'),
+    backendErrorOutput.includes('Sync HTTP 503'),
+    'La panne de synchronisation finale simulée n’a pas été journalisée.'
+  );
+  assert(
+    !backendErrorOutput.includes('Erreur PDF'),
     `Une erreur asynchrone de clôture a été détectée : ${backendErrorOutput}`
   );
   await capture('05-register-closed.png');

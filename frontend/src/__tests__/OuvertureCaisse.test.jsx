@@ -90,9 +90,21 @@ describe('OuvertureCaisse', () => {
   });
 
   test('ouvre une secondaire avec un fond nul et met le contexte à jour', async () => {
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: jest.fn().mockResolvedValue({ success: true, id_session: 'secondary-1' })
+    global.fetch.mockImplementation(url => {
+      if (url.includes('/secondary-opening/authorize')) {
+        return Promise.resolve({
+          ok: true,
+          json: jest.fn().mockResolvedValue({
+            success: true,
+            authorizationToken: 'opening-token',
+            principalIp: '192.168.1.20'
+          })
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: jest.fn().mockResolvedValue({ success: true, id_session: 'secondary-1' })
+      });
     });
     renderPage();
     fireEvent.click(screen.getByRole('checkbox', { name: /caisse secondaire/ }));
@@ -100,11 +112,15 @@ describe('OuvertureCaisse', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ouvrir la caisse secondaire' }));
 
     await waitFor(() => expect(mockMarkSecondaryOpen).toHaveBeenCalledWith('secondary-1'));
-    const payload = JSON.parse(global.fetch.mock.calls[0][1].body);
+    const openingCall = global.fetch.mock.calls.find(
+      ([url]) => url === 'http://localhost:3001/api/caisse/ouverture'
+    );
+    const payload = JSON.parse(openingCall[1].body);
     expect(payload).toMatchObject({
       fond_initial: 0,
       secondaire: true,
-      issecondaire: 1
+      issecondaire: 1,
+      authorization_token: 'opening-token'
     });
     expect(mockRefreshSessionCaisse).toHaveBeenCalled();
     expect(mockRefreshCaisseSecondaire).toHaveBeenCalled();

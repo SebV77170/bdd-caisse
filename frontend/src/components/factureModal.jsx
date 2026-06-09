@@ -36,10 +36,16 @@ const FactureModal = ({
 
       const result = await res.json();
       if (result.success) {
-        toast.success("Facture créée et envoyée");
         if (emailClient) {
-    toast.info(`📧 Facture envoyée à ${emailClient}`);
-  }
+          if (result.emailSent === false) {
+            toast.warn("Facture créée localement, mais l'e-mail n'a pas été envoyé.");
+          } else {
+            toast.success("Facture créée et envoyée");
+            toast.info(`📧 Facture envoyée à ${emailClient}`);
+          }
+        } else {
+          toast.success("Facture créée");
+        }
         if (onSuccess) onSuccess(result.lien);
       } else {
         toast.error('Échec création facture');

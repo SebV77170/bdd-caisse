@@ -3,10 +3,58 @@
 const express = require('express');
 const router = express.Router();
 const { sqlite, getMysqlPool } = require('../db');
+const { randomUUID } = require('crypto');
+const { validateSyncEntry } = require('../utils/syncValidation');
 
 const safe = (val) => (val === undefined || val === null ? 0 : val);
+const MYSQL_SYNC_TABLES = [
+  'bdd_caisse_sync_operations',
+  'ticketdecaisse',
+  'objets_vendus',
+  'paiement_mixte',
+  'bilan',
+  'facture',
+  'code_postal',
+  'journal_corrections',
+  'session_caisse',
+  'uuid_mapping'
+];
 
-const doublons = [];
+function getSyncTablePrefix() {
+  const prefix = process.env.BDD_CAISSE_SYNC_TABLE_PREFIX || '';
+  if (!prefix) return '';
+  if (process.env.BDD_CAISSE_ALLOW_ISOLATED_SYNC !== 'true') {
+    throw new Error('Le préfixe de tables de synchronisation est réservé aux tests isolés.');
+  }
+  if (!/^[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(prefix)) {
+    throw new Error('Préfixe de tables de synchronisation invalide.');
+  }
+  return prefix;
+}
+
+function namespaceSyncSql(sql) {
+  const prefix = getSyncTablePrefix();
+  if (!prefix) return sql;
+
+  return MYSQL_SYNC_TABLES.reduce((rewritten, tableName) => {
+    const pattern = new RegExp(`\\b${tableName}\\b`, 'g');
+    return rewritten.replace(pattern, `\`${prefix}${tableName}\``);
+  }, sql);
+}
+
+function namespaceMysqlConnection(connection) {
+  if (!getSyncTablePrefix()) return connection;
+
+  return new Proxy(connection, {
+    get(target, property) {
+      if (property === 'query' || property === 'execute') {
+        return (sql, ...args) => target[property](namespaceSyncSql(sql), ...args);
+      }
+      const value = target[property];
+      return typeof value === 'function' ? value.bind(target) : value;
+    }
+  });
+}
 
 // --- helpers
 function formatDateToFR(isoDate) {
@@ -125,26 +173,63 @@ router.post('/', async (req, res) => {
   const io = req.app.get('socketio');
   const debugMode = req.query.debug === 'true';
   const debugLogs = [];
+  const doublons = [];
 
   if (syncRunning) return res.status(429).json({success:false, error:'Sync already running'});
   syncRunning = true;
 
   if (io) io.emit('syncStart');
   let syncSuccess = true;
+  const failedLines = [];
+  const acceptedLines = [];
 
   try {
     const pool = getMysqlPool();
-    const connection = await pool.getConnection();
-    await connection.query('SELECT 1');
-    connection.release();
+    const connection = namespaceMysqlConnection(await pool.getConnection());
+    try {
+      await connection.query('SELECT 1');
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS bdd_caisse_sync_operations (
+          operation_uuid VARCHAR(64) PRIMARY KEY,
+          resource_type VARCHAR(64) NOT NULL,
+          operation_type VARCHAR(16) NOT NULL,
+          applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } finally {
+      connection.release();
+    }
 
     const lignes = sqlite.prepare(`SELECT * FROM sync_log WHERE synced = 0`).all();
+    const invalidLines = [];
+    for (const ligne of lignes) {
+      try {
+        validateSyncEntry(ligne.type, ligne.operation, JSON.parse(ligne.payload));
+      } catch (error) {
+        invalidLines.push({ id: ligne.id, type: ligne.type, error: error.message });
+      }
+    }
+    if (invalidLines.length > 0) {
+      syncSuccess = false;
+      return res.status(422).json({
+        success: false,
+        accepted: [],
+        failed: invalidLines,
+        error: 'Lot de synchronisation invalide. Aucune ligne n’a été envoyée.'
+      });
+    }
 
     for (const ligne of lignes) {
+      let remote = null;
       try {
         const payload = JSON.parse(ligne.payload);
         const { type, operation } = ligne;
-        if (!type || !payload || !operation) continue;
+        validateSyncEntry(type, operation, payload);
+        const operationUuid = ligne.operation_uuid || randomUUID();
+        if (!ligne.operation_uuid) {
+          sqlite.prepare('UPDATE sync_log SET operation_uuid = ? WHERE id = ?')
+            .run(operationUuid, ligne.id);
+        }
 
         // Réservation atomique : on ne traite que si on a réussi à marquer "en cours"
         const reserved = sqlite
@@ -152,6 +237,22 @@ router.post('/', async (req, res) => {
           .run(ligne.id).changes;
         if (reserved !== 1) {
           // ligne déjà prise par une autre exécution de la sync
+          continue;
+        }
+
+        remote = namespaceMysqlConnection(await pool.getConnection());
+        await remote.beginTransaction();
+        const [receipt] = await remote.query(
+          `INSERT IGNORE INTO bdd_caisse_sync_operations
+             (operation_uuid, resource_type, operation_type)
+           VALUES (?, ?, ?)`,
+          [operationUuid, type, operation]
+        );
+        if (receipt.affectedRows === 0) {
+          await remote.commit();
+          sqlite.prepare('UPDATE sync_log SET synced = 1 WHERE id = ?').run(ligne.id);
+          doublons.push({ type, uuid: operationUuid });
+          acceptedLines.push(ligne.id);
           continue;
         }
 
@@ -163,17 +264,16 @@ router.post('/', async (req, res) => {
         // -----------------------
         if (type === 'ticketdecaisse') {
           if (operation === 'INSERT') {
-            if (await existsInMysql('ticketdecaisse', 'uuid_ticket', payload.uuid_ticket, pool)) {
-              const identique = await compareChampsAvecMysql('ticketdecaisse', 'uuid_ticket', payload, pool);
+            if (await existsInMysql('ticketdecaisse', 'uuid_ticket', payload.uuid_ticket, remote)) {
+              const identique = await compareChampsAvecMysql('ticketdecaisse', 'uuid_ticket', payload, remote);
               if (identique) {
-                sqlite.prepare('UPDATE sync_log SET synced = 1 WHERE id = ?').run(ligne.id);
                 doublons.push({ type, uuid: payload.uuid_ticket });
                 if (debugMode) debugLogs.push(`↪️ Doublon ticket ${payload.uuid_ticket} déjà présent`);
+              } else {
+                throw new Error(`Conflit distant pour le ticket ${payload.uuid_ticket}`);
               }
-              continue;
-            }
-
-            await pool.query(
+            } else {
+            await remote.query(
               `INSERT INTO ticketdecaisse (uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt, nbr_objet, moyen_paiement, prix_total, lien, reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse, flag_correction, corrige_le_ticket, annulation_de, flag_annulation, cloture) 
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [
@@ -184,10 +284,11 @@ router.post('/', async (req, res) => {
                 payload.annulation_de || null, payload.flag_annulation || 0, payload.cloture || 0
               ]
             );
+            }
             if (debugMode) debugLogs.push(`✅ INSERT ticketdecaisse ${payload.uuid_ticket}`);
 
           } else if (operation === 'UPDATE') {
-            await pool.query(
+            await remote.query(
               `UPDATE ticketdecaisse
               SET
                 nom_vendeur           = COALESCE(?, nom_vendeur),
@@ -224,8 +325,10 @@ router.post('/', async (req, res) => {
             if (debugMode) debugLogs.push(`✅ UPDATE ticketdecaisse ${payload.uuid_ticket}`);
 
           } else if (operation === 'DELETE') {
-            await pool.query(`DELETE FROM ticketdecaisse WHERE uuid_ticket = ?`, [payload.uuid_ticket]);
+            await remote.query(`DELETE FROM ticketdecaisse WHERE uuid_ticket = ?`, [payload.uuid_ticket]);
             if (debugMode) debugLogs.push(`🗑️ DELETE ticketdecaisse ${payload.uuid_ticket}`);
+          } else {
+            throw new Error(`Opération ticketdecaisse non supportée : ${operation}`);
           }
         }
 
@@ -233,7 +336,7 @@ router.post('/', async (req, res) => {
         // OBJETS VENDUS
         // -----------------------
         else if (type === 'objets_vendus' && operation === 'INSERT') {
-          await pool.query(
+          await remote.query(
             `INSERT INTO objets_vendus (uuid_ticket, uuid_objet, nom, nom_vendeur, id_vendeur, categorie, souscat, date_achat, timestamp, prix, nbr) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
@@ -249,7 +352,7 @@ router.post('/', async (req, res) => {
         // PAIEMENT MIXTE
         // -----------------------
         else if (type === 'paiement_mixte' && operation === 'INSERT') {
-          await pool.query(
+          await remote.query(
             `INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket) 
              VALUES (?, ?, ?, ?, ?, ?)`,
             [
@@ -276,55 +379,41 @@ router.post('/', async (req, res) => {
             const virement = safe(payload.prix_total_virement ?? payload.virement);
             const ts       = safe(payload.timestamp);
 
-            const conn = await pool.getConnection();
-            try {
-              await conn.beginTransaction();
+            // Le verrou et le cumul font partie de la transaction de l'opération.
+            const [rows] = await remote.query(
+              `SELECT 1 FROM bilan WHERE date = ? FOR UPDATE`,
+              [dateKey]
+            );
 
-              // Verrouille la ligne de ce jour si elle existe (évite les courses)
-              const [rows] = await conn.query(
-                `SELECT 1 FROM bilan WHERE date = ? FOR UPDATE`,
-                [dateKey]
+            if (rows.length === 0) {
+              await remote.query(
+                `INSERT INTO bilan (
+                  date, timestamp, nombre_vente, poids, prix_total,
+                  prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [dateKey, ts, nv, poids, total, espece, cheque, carte, virement]
               );
-
-              if (rows.length === 0) {
-                // Pas de ligne -> INSERT
-                await conn.query(
-                  `INSERT INTO bilan (
-                    date, timestamp, nombre_vente, poids, prix_total,
-                    prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
-                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                  [dateKey, ts, nv, poids, total, espece, cheque, carte, virement]
-                );
-                if (debugMode) debugLogs.push(`✅ INSERT bilan ${dateKey}`);
-              } else {
-                // Ligne existante -> cumul (on rejoue l'activité)
-                await conn.query(
-                  `UPDATE bilan SET
-                    timestamp           = ?,
-                    nombre_vente        = COALESCE(nombre_vente, 0)       + COALESCE(?, 0),
-                    poids               = COALESCE(poids, 0)              + COALESCE(?, 0),
-                    prix_total          = COALESCE(prix_total, 0)         + COALESCE(?, 0),
-                    prix_total_espece   = COALESCE(prix_total_espece, 0)  + COALESCE(?, 0),
-                    prix_total_cheque   = COALESCE(prix_total_cheque, 0)  + COALESCE(?, 0),
-                    prix_total_carte    = COALESCE(prix_total_carte, 0)   + COALESCE(?, 0),
-                    prix_total_virement = COALESCE(prix_total_virement, 0)+ COALESCE(?, 0)
-                  WHERE date = ?`,
-                  [ts, nv, poids, total, espece, cheque, carte, virement, dateKey]
-                );
-                if (debugMode) debugLogs.push(`✅ UPDATE (from INSERT) bilan ${dateKey}`);
-              }
-
-              await conn.commit();
-            } catch (e) {
-              await conn.rollback();
-              throw e;
-            } finally {
-              conn.release();
+              if (debugMode) debugLogs.push(`✅ INSERT bilan ${dateKey}`);
+            } else {
+              await remote.query(
+                `UPDATE bilan SET
+                  timestamp           = ?,
+                  nombre_vente        = COALESCE(nombre_vente, 0)       + COALESCE(?, 0),
+                  poids               = COALESCE(poids, 0)              + COALESCE(?, 0),
+                  prix_total          = COALESCE(prix_total, 0)         + COALESCE(?, 0),
+                  prix_total_espece   = COALESCE(prix_total_espece, 0)  + COALESCE(?, 0),
+                  prix_total_cheque   = COALESCE(prix_total_cheque, 0)  + COALESCE(?, 0),
+                  prix_total_carte    = COALESCE(prix_total_carte, 0)   + COALESCE(?, 0),
+                  prix_total_virement = COALESCE(prix_total_virement, 0)+ COALESCE(?, 0)
+                WHERE date = ?`,
+                [ts, nv, poids, total, espece, cheque, carte, virement, dateKey]
+              );
+              if (debugMode) debugLogs.push(`✅ UPDATE (from INSERT) bilan ${dateKey}`);
             }
 
           } else if (operation === 'UPDATE') {
             // ✅ Ta logique existante conservée telle quelle
-            await pool.query(
+            await remote.query(
               `UPDATE bilan SET
                     timestamp           = ?,
                     nombre_vente        = COALESCE(nombre_vente, 0)       + COALESCE(?, 0),
@@ -336,14 +425,20 @@ router.post('/', async (req, res) => {
                     prix_total_virement = COALESCE(prix_total_virement, 0)+ COALESCE(?, 0)
                   WHERE date = ?`,
               [
-                safe(payload.timestamp), safe(payload.nombre_vente), safe(payload.poids),
-                safe(payload.prix_total), safe(payload.espece),
-                safe(payload.cheque), safe(payload.carte),
-                safe(payload.virement),
+                safe(payload.timestamp),
+                safe(payload.nombre_vente ?? payload.nv),
+                safe(payload.poids),
+                safe(payload.prix_total ?? payload.total),
+                safe(payload.prix_total_espece ?? payload.espece),
+                safe(payload.prix_total_cheque ?? payload.cheque),
+                safe(payload.prix_total_carte ?? payload.carte),
+                safe(payload.prix_total_virement ?? payload.virement),
                 formatDateToFR(payload.date)
               ]
             );
             if (debugMode) debugLogs.push(`✅ UPDATE bilan ${payload.date}`);
+          } else {
+            throw new Error(`Opération bilan non supportée : ${operation}`);
           }
         }
 
@@ -351,7 +446,7 @@ router.post('/', async (req, res) => {
         // FACTURE
         // -----------------------
         else if (type === 'facture' && operation === 'INSERT') {
-          await pool.query(
+          await remote.query(
             `INSERT INTO facture (uuid_facture, uuid_ticket, lien) VALUES (?, ?, ?)`,
             [payload.uuid_facture, payload.uuid_ticket, payload.lien || null]
           );
@@ -361,7 +456,7 @@ router.post('/', async (req, res) => {
         // CODE POSTAL
         // -----------------------
         else if (type === 'code_postal' && operation === 'INSERT') {
-          await pool.query(
+          await remote.query(
             `INSERT INTO code_postal (code, date) VALUES (?, ?)`,
             [payload.code, payload.date]
           );
@@ -371,7 +466,7 @@ router.post('/', async (req, res) => {
         // JOURNAL CORRECTIONS
         // -----------------------
         else if (type === 'journal_corrections' && operation === 'INSERT') {
-          await pool.query(
+          await remote.query(
             `INSERT INTO journal_corrections (date_correction, uuid_ticket_original, uuid_ticket_annulation, uuid_ticket_correction, utilisateur, motif) 
              VALUES (?, ?, ?, ?, ?, ?)`,
             [
@@ -397,7 +492,7 @@ router.post('/', async (req, res) => {
 
           if (operation === 'INSERT') {
             // Si l’ID existe déjà et que tout est identique -> marquer synced & sauter
-            if (await existsInMysql('session_caisse', 'id_session', payload.id_session, pool)) {
+            if (await existsInMysql('session_caisse', 'id_session', payload.id_session, remote)) {
               const identique = await compareChampsAvecMysql(
                 'session_caisse', 'id_session',
                 {
@@ -405,16 +500,15 @@ router.post('/', async (req, res) => {
                   opened_at_utc,
                   closed_at_utc
                 },
-                pool
+                remote
               );
               if (identique) {
-                sqlite.prepare('UPDATE sync_log SET synced = 1 WHERE id = ?').run(ligne.id);
                 if (debugMode) debugLogs.push(`↪️ Doublon session_caisse ${payload.id_session} déjà présent`);
-                continue;
+              } else {
+                throw new Error(`Conflit distant pour la session ${payload.id_session}`);
               }
-            }
-
-            await pool.query(
+            } else {
+            await remote.query(
               `INSERT INTO session_caisse (
                  id_session,
                  opened_at_utc, closed_at_utc,
@@ -437,11 +531,12 @@ router.post('/', async (req, res) => {
                 safe(payload.issecondaire), payload.poste || null
               ]
             );
+            }
             if (debugMode) debugLogs.push(`✅ INSERT session_caisse ${payload.id_session}`);
 
           } else if (operation === 'UPDATE') {
             // mise à jour de clôture / montants / commentaire…
-            await pool.query(
+            await remote.query(
               `UPDATE session_caisse
                SET closed_at_utc = COALESCE(?, closed_at_utc),
                    utilisateur_fermeture = ?,
@@ -467,6 +562,8 @@ router.post('/', async (req, res) => {
               ]
             );
             if (debugMode) debugLogs.push(`✅ UPDATE session_caisse ${payload.id_session}`);
+          } else {
+            throw new Error(`Opération session_caisse non supportée : ${operation}`);
           }
         }
 
@@ -474,17 +571,30 @@ router.post('/', async (req, res) => {
         // UUID MAPPING
         // -----------------------
         else if (type === 'uuid_mapping' && operation === 'INSERT') {
-          await pool.query(
+          await remote.query(
             `INSERT INTO uuid_mapping (uuid, id_friendly, type) VALUES (?, ?, ?)`,
             [payload.uuid, payload.id_friendly, payload.type]
           );
+        } else {
+          throw new Error(`Type non reconnu ou opération non supportée : ${type}/${operation}`);
         }
 
         // ✅ marquer la ligne comme synchronisée
+        await remote.commit();
         sqlite.prepare(`UPDATE sync_log SET synced = 1 WHERE id = ?`).run(ligne.id);
+        acceptedLines.push(ligne.id);
 
       } catch (err) {
+        if (remote) {
+          try {
+            await remote.rollback();
+          } catch {}
+        }
+        sqlite.prepare('UPDATE sync_log SET synced = 0 WHERE id = ? AND synced = -1').run(ligne.id);
+        failedLines.push({ id: ligne.id, type: ligne.type, error: err.message });
         if (debugMode) debugLogs.push(`❌ Erreur ligne ID ${ligne.id} : ${err.message}`);
+      } finally {
+        if (remote) remote.release();
       }
     }
 
@@ -492,9 +602,15 @@ router.post('/', async (req, res) => {
       (d, i, arr) => arr.findIndex(x => x.type === d.type && x.uuid === d.uuid) === i
     );
 
-    const response = { success: true, doublons: doublonsUniques };
+    syncSuccess = failedLines.length === 0;
+    const response = {
+      success: syncSuccess,
+      accepted: acceptedLines,
+      doublons: doublonsUniques,
+      failed: failedLines
+    };
     if (debugMode) response.debug = debugLogs;
-    res.json(response);
+    res.status(syncSuccess ? 200 : 500).json(response);
 
   } catch (err) {
     console.error('❌ ERREUR DURANT LA SYNC :', err);

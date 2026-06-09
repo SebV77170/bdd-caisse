@@ -17,7 +17,11 @@ export default function ModalSyncSecondaire() {
     await fetch('http://localhost:3001/api/sync/recevoir-de-secondaire/valider', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision, uuid_session_caisse_principale: uuidSessionCaisse }),
+      body: JSON.stringify({
+        decision,
+        uuid_session_caisse_principale: uuidSessionCaisse,
+        requestId: demande.requestId
+      }),
       credentials: 'include'
     });
     setDemande(null);

@@ -8,6 +8,11 @@ const baseDir = path.join(os.homedir(), '.bdd-caisse');
 const ticketsDir = path.join(baseDir, 'tickets');
 const facturesDir = path.join(baseDir, 'factures');
 
+function getRequestTimeout() {
+  const configured = Number(process.env.WEBDAV_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : 30000;
+}
+
 // -------- 1. Fonction récursive pour lister tous les fichiers --------
 async function listLocalFiles(rootDir) {
   const results = [];
@@ -58,6 +63,7 @@ async function mkcolDir(baseUrl, headers, remoteDir) {
     method: 'MKCOL',
     url: targetUrl,
     headers,
+    timeout: getRequestTimeout(),
     validateStatus: () => true
   });
 
@@ -134,6 +140,7 @@ async function ensureRemoteDir(baseUrl, headers, remoteDir) {
         method: 'MKCOL',
         url: targetUrl,
         headers,
+        timeout: getRequestTimeout(),
         // on accepte tous les codes, on les analyse ensuite
         validateStatus: () => true
       });
@@ -166,7 +173,7 @@ async function uploadFileOnce(targetUrl, absPath, headers) {
     headers: { ...headers, 'Content-Type': 'application/pdf' },
     maxBodyLength: Infinity,
     maxContentLength: Infinity,
-    timeout: 30000
+    timeout: getRequestTimeout()
   });
 }
 
@@ -292,4 +299,9 @@ async function uploadTicketsAndFactures() {
   return { tickets, factures };
 }
 
-module.exports = { uploadTickets, uploadFactures, uploadTicketsAndFactures };
+module.exports = {
+  uploadTickets,
+  uploadFactures,
+  uploadTicketsAndFactures,
+  getRequestTimeout
+};

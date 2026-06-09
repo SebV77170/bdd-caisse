@@ -11,6 +11,7 @@ const fs = require('fs');
 const app = require('../app');
 const { sqlite } = require('../db');
 const genererTicketCloturePdf = require('../utils/genererTicketCloturePdf');
+const { createSecondaryOpeningGrant } = require('../secondaryOpeningAuthorization');
 
 function initTables() {
   const schemaPath = path.join(__dirname, '../schema.sql');
@@ -43,6 +44,15 @@ function seedUsers() {
     INSERT INTO users (uuid_user, prenom, nom, pseudo, pseudo_normalise, password, admin)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run('regular-1', 'Reg', 'User', 'regular', 'regular', regularHash, 1);
+}
+
+async function waitFor(check, timeoutMs = 1000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (check()) return;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  throw new Error('Condition asynchrone non satisfaite');
 }
 
 describe('Ouverture et fermeture de caisse', () => {
@@ -105,6 +115,37 @@ describe('Ouverture et fermeture de caisse', () => {
 
     expect(duplicate.status).toBe(400);
     expect(duplicate.body.error).toMatch(/déjà ouverte/i);
+  });
+
+  test('exige puis consomme une autorisation pour ouvrir une secondaire', async () => {
+    const cookie = await loginAsCashier();
+    const denied = await request(app)
+      .post('/api/caisse/ouverture')
+      .set('Cookie', cookie)
+      .send({
+        fond_initial: 0,
+        secondaire: true,
+        responsable_pseudo: 'admin',
+        mot_de_passe: 'adminSecret'
+      });
+    expect(denied.status).toBe(403);
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM session_caisse').get().count).toBe(0);
+
+    const token = createSecondaryOpeningGrant('192.168.1.20');
+    const opened = await request(app)
+      .post('/api/caisse/ouverture')
+      .set('Cookie', cookie)
+      .send({
+        fond_initial: 0,
+        secondaire: true,
+        authorization_token: token,
+        responsable_pseudo: 'admin',
+        mot_de_passe: 'adminSecret'
+      });
+    expect(opened.status).toBe(200);
+    expect(sqlite.prepare(
+      'SELECT issecondaire FROM session_caisse WHERE id_session = ?'
+    ).get(opened.body.id_session).issecondaire).toBe(1);
   });
 
   test('refuse une ouverture avec responsable non administrateur ou mot de passe invalide', async () => {
@@ -171,6 +212,36 @@ describe('Ouverture et fermeture de caisse', () => {
       uuid_session_caisse: open.body.id_session
     }));
     expect(genererTicketCloturePdf).toHaveBeenCalledWith(open.body.id_session, cloture.uuid_ticket);
+  });
+
+  test('ferme la caisse localement même si la synchronisation finale est hors ligne', async () => {
+    global.fetch.mockRejectedValueOnce(new Error('MySQL indisponible'));
+    const cookie = await loginAsCashier();
+    const open = await request(app)
+      .post('/api/caisse/ouverture')
+      .set('Cookie', cookie)
+      .send({ fond_initial: 500, responsable_pseudo: 'admin', mot_de_passe: 'adminSecret' });
+
+    const close = await request(app)
+      .post('/api/caisse/fermeture')
+      .set('Cookie', cookie)
+      .send({
+        uuid_session_caisse: open.body.id_session,
+        montant_reel: 500,
+        responsable_pseudo: 'admin',
+        mot_de_passe: 'adminSecret'
+      });
+
+    expect(close.status).toBe(200);
+    expect(close.body.success).toBe(true);
+    await waitFor(() => global.fetch.mock.calls.length === 1);
+
+    expect(sqlite.prepare(
+      'SELECT closed_at_utc FROM session_caisse WHERE id_session = ?'
+    ).get(open.body.id_session).closed_at_utc).toBeTruthy();
+    expect(sqlite.prepare(
+      'SELECT COUNT(*) AS count FROM ticketdecaisse WHERE cloture = 1'
+    ).get().count).toBe(1);
   });
 
   test('refuse la fermeture sans session ouverte ou sans responsable valide', async () => {

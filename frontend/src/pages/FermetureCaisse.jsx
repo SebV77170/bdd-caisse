@@ -10,6 +10,7 @@ import { useActiveSession } from '../contexts/SessionCaisseContext';
 import SiCaissePrincipale from '../utils/SiCaissePrincipale';
 import SiCaisseSecondaire from '../utils/SiCaisseSecondaire';
 import ResponsableForm from "../components/ResponsableForm";
+import PrincipalConnectionEditor from '../components/PrincipalConnectionEditor';
 import { eurosStringToCents } from '../utils/money';
 
 
@@ -28,6 +29,9 @@ function FermetureCaisse() {
   const [responsablePseudo, setResponsablePseudo] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [reductions, setReductions] = useState(null);
+  const [syncRecovery, setSyncRecovery] = useState(null);
+  const [retryingSync, setRetryingSync] = useState(false);
+  const [principalVerified, setPrincipalVerified] = useState(false);
   const navigate = useNavigate();
   const uuidSessionCaisse = activeSession?.uuid_session || null;
   const sessionCaisseOuverte = activeSession;
@@ -118,11 +122,58 @@ function FermetureCaisse() {
         toast.success(`✅ Données envoyées (${result.ids?.length || 0}) & caisse secondaire fermée.`);
         navigate('/Bilan', { state: { toastMessage: 'Caisse secondaire fermée et synchronisée !' } });
       } else {
-        toast.error('❌ Échec de l’envoi : ' + (result.message || 'Erreur inconnue.'));
+        setSyncRecovery({
+          ...result.recovery,
+          configuredIp: result.configuredIp || result.recovery?.configuredIp,
+          message: result.message || 'La synchronisation a échoué.'
+        });
+        setPrincipalVerified(false);
+        toast.error("La caisse est fermée, mais ses données n'ont pas rejoint la principale.");
       }
     } catch (err) {
       console.error(err);
-      toast.error('❌ Erreur de communication avec le serveur.');
+      toast.error('Erreur de communication avec le serveur local.');
+    }
+  };
+
+  const retrySecondarySync = async () => {
+    if (!syncRecovery?.startISO || !syncRecovery?.endISO) return;
+    setRetryingSync(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/sync/envoyer-secondaire-vers-principal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mode: 'resendWindow',
+          responsable_pseudo: responsablePseudo,
+          mot_de_passe: motDePasse,
+          window: {
+            startISO: syncRecovery.startISO,
+            endISO: syncRecovery.endISO
+          }
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        setSyncRecovery(previous => ({
+          ...previous,
+          configuredIp: result.configuredIp || previous.configuredIp,
+          message: result.message || 'Le nouvel envoi a échoué.'
+        }));
+        return;
+      }
+      toast.success(`${result.ids?.length || 0} opérations transférées à la caisse principale.`);
+      navigate('/Bilan', {
+        state: { toastMessage: 'Caisse secondaire fermée et synchronisée !' }
+      });
+    } catch {
+      setSyncRecovery(previous => ({
+        ...previous,
+        message: 'La caisse principale reste inaccessible.'
+      }));
+    } finally {
+      setRetryingSync(false);
     }
   };
 
@@ -356,6 +407,38 @@ function FermetureCaisse() {
           <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse et envoyer à la caisse principale</button>
         </form>
         </SiCaisseSecondaire>
+
+        {syncRecovery && (
+          <div className="alert alert-danger mt-3" role="alert">
+            <h3 className="h5">Données conservées, transfert non effectué</h3>
+            <p>
+              La caisse secondaire est bien fermée. Ses données sont toujours présentes
+              sur cet ordinateur, mais elles ne figurent pas encore dans les comptes de
+              la caisse principale.
+            </p>
+            <p>
+              Adresse utilisée : <strong>{syncRecovery.configuredIp || 'inconnue'}</strong><br />
+              {syncRecovery.message}
+            </p>
+            <PrincipalConnectionEditor
+              initialIp={syncRecovery.configuredIp}
+              onVerified={() => setPrincipalVerified(true)}
+            />
+            <button
+              type="button"
+              className="btn btn-danger mt-3"
+              disabled={!principalVerified || retryingSync}
+              onClick={retrySecondarySync}
+            >
+              {retryingSync ? 'Renvoi en cours...' : 'Renvoyer les données maintenant'}
+            </button>
+            {!principalVerified && (
+              <div className="small mt-2">
+                Testez et enregistrez d'abord la bonne adresse de la caisse principale.
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

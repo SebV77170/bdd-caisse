@@ -7,6 +7,7 @@ const fs = require('fs');
 const { spawn } = require('child_process');
 const http = require('http');
 const https = require('https');
+const { startUpdateCheckInBackground } = require('./updateStartupPolicy');
 
 
 let mainWindow;
@@ -764,9 +765,7 @@ function waitForBackendReady(callback) {
 }
 
 
-app.whenReady().then(async () => {
-  await checkForAppUpdate();
-
+app.whenReady().then(() => {
   if (!isDev) {
     launchBackend();
     waitForBackendReady(() => {
@@ -778,4 +777,9 @@ app.whenReady().then(async () => {
   } else {
     createWindow();
   }
+
+  startUpdateCheckInBackground(
+    () => checkForAppUpdate(),
+    error => console.error('❌ Vérification de mise à jour en arrière-plan échouée :', error?.message || error)
+  );
 });

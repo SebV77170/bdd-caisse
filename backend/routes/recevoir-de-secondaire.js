@@ -1,6 +1,8 @@
 // routes/recevoir-de-secondaire.js
 
 const express = require('express');
+const { randomUUID } = require('crypto');
+const { validateSyncEntry } = require('../utils/syncValidation');
 
 function buildDynamicUpdate(table, data, keyField) {
   const fields = Object.keys(data).filter(key => key !== keyField && data[key] !== undefined);
@@ -15,9 +17,103 @@ module.exports = function (io) {
 
   const safe = (val) => (val === undefined || val === null ? 0 : val);
 
-  // État en mémoire (process principal)
-  let pendingLogs = null;        // tableau de logs à traiter
-  let validationResult = null;   // null | { success:true, ids } | { success:false, message }
+  // Plusieurs caisses peuvent demander une synchronisation en parallèle.
+  const requests = new Map();
+  const openingRequests = new Map();
+
+  function findRequest(requestId) {
+    if (requestId) return requests.get(requestId);
+    if (requests.size === 1) return requests.values().next().value;
+    return null;
+  }
+
+  router.get('/status', (req, res) => {
+    const principalSession = sqlite.prepare(`
+      SELECT id_session
+      FROM session_caisse
+      WHERE closed_at_utc IS NULL
+        AND COALESCE(issecondaire, 0) = 0
+      LIMIT 1
+    `).get();
+    res.json({
+      success: true,
+      role: 'caisse-principale',
+      service: 'synchronisation-secondaire',
+      principalSessionOpen: !!principalSession,
+      principalSessionId: principalSession?.id_session || null
+    });
+  });
+
+  router.post('/ouverture/demande', (req, res) => {
+    const principalSession = sqlite.prepare(`
+      SELECT id_session
+      FROM session_caisse
+      WHERE closed_at_utc IS NULL
+        AND COALESCE(issecondaire, 0) = 0
+      LIMIT 1
+    `).get();
+    if (!principalSession) {
+      return res.status(409).json({
+        success: false,
+        error: "Aucune session de caisse principale n'est ouverte sur ce poste."
+      });
+    }
+
+    const requestId = randomUUID();
+    const openingRequest = {
+      requestId,
+      sourceId: req.body.sourceId || 'poste-inconnu',
+      sourceName: req.body.sourceName || 'Caisse secondaire',
+      registerNumber: req.body.registerNumber ?? null,
+      requestedBy: req.body.requestedBy || null,
+      principalSessionId: principalSession.id_session,
+      result: null,
+      expiresAt: Date.now() + 35_000
+    };
+    openingRequests.set(requestId, openingRequest);
+    io.emit('demande-ouverture-secondaire', {
+      type: 'DEMANDE_OUVERTURE_SECONDAIRE',
+      ...openingRequest,
+      result: undefined,
+      expiresAt: undefined
+    });
+    return res.json({ success: true, requestId });
+  });
+
+  router.post('/ouverture/repondre', (req, res) => {
+    if (!req.session?.user) {
+      return res.status(401).json({ success: false, error: 'Utilisateur principal non connecté.' });
+    }
+    const openingRequest = openingRequests.get(req.body.requestId);
+    if (!openingRequest || openingRequest.expiresAt <= Date.now()) {
+      if (openingRequest) openingRequests.delete(req.body.requestId);
+      return res.status(404).json({ success: false, error: 'Demande expirée ou introuvable.' });
+    }
+
+    const accepted = req.body.decision === 'accepter';
+    openingRequest.result = accepted
+      ? { success: true, decision: 'accepted' }
+      : { success: false, decision: 'refused' };
+    return res.json({ success: true });
+  });
+
+  router.post('/ouverture/attente', async (req, res) => {
+    const openingRequest = openingRequests.get(req.body.requestId);
+    if (!openingRequest) {
+      return res.status(404).json({ success: false, error: 'Demande introuvable.' });
+    }
+
+    while (openingRequest.result === null && openingRequest.expiresAt > Date.now()) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    const result = openingRequest.result || {
+      success: false,
+      decision: 'timeout'
+    };
+    openingRequests.delete(openingRequest.requestId);
+    return res.json(result);
+  });
 
   // util: combine "YYYY-MM-DD" + "HH:mm[:ss]" en ISO UTC
   const combineUTC = (d, t) => {
@@ -34,22 +130,32 @@ module.exports = function (io) {
       return res.status(400).json({ error: 'Payload invalide : tableau attendu' });
     }
 
-    // reset de l’état
-    pendingLogs = logs;
-    validationResult = null;
+    const requestId = randomUUID();
+    const syncRequest = {
+      requestId,
+      sourceId: req.body.sourceId || 'caisse-secondaire-inconnue',
+      logs,
+      validationResult: null
+    };
+    requests.set(requestId, syncRequest);
 
     io.emit('demande-sync-secondaire', {
       type: 'DEMANDE_SYNC',
-      message: 'La caisse secondaire veut vous envoyer ses données'
+      message: 'La caisse secondaire veut vous envoyer ses données',
+      requestId,
+      sourceId: syncRequest.sourceId
     });
 
-    res.json({ message: 'Demande de synchronisation reçue. En attente de validation sur la caisse principale.' });
+    res.json({
+      requestId,
+      message: 'Demande de synchronisation reçue. En attente de validation sur la caisse principale.'
+    });
   });
 
   // === 2) La secondaire attend la décision EFFECTIVE (long-poll) ===
   router.post('/attente-validation', async (req, res) => {
-    // si rien en attente
-    if (!pendingLogs && !validationResult) {
+    const syncRequest = findRequest(req.body.requestId);
+    if (!syncRequest) {
       return res.status(400).json({ success: false, message: 'Aucune synchronisation en attente.' });
     }
 
@@ -58,11 +164,11 @@ module.exports = function (io) {
     const start = Date.now();
 
     // boucle d’attente jusqu’à ce que validationResult soit fixé par /valider
-    while (validationResult === null && (Date.now() - start) < maxMs) {
+    while (syncRequest.validationResult === null && (Date.now() - start) < maxMs) {
       await new Promise(r => setTimeout(r, interval));
     }
 
-    if (validationResult === null) {
+    if (syncRequest.validationResult === null) {
       // Toujours pas de décision : on signale "en attente"
       // 202 Accepted = traitement asynchrone en cours
       return res.status(202).json({
@@ -73,20 +179,25 @@ module.exports = function (io) {
     }
 
     // Décision prête : on la renvoie telle quelle
-    return res.json(validationResult);
+    const result = syncRequest.validationResult;
+    requests.delete(syncRequest.requestId);
+    return res.json(result);
   });
 
   // === 3) Le caissier principal clique "valider" (ou refuse) ===
   router.post('/valider', (req, res) => {
-    const { decision, uuid_session_caisse_principale } = req.body;
-    if (!pendingLogs) {
+    const { decision, uuid_session_caisse_principale, requestId } = req.body;
+    const syncRequest = findRequest(requestId);
+    if (!syncRequest) {
       return res.status(400).json({ error: 'Aucune demande de synchronisation en attente' });
     }
 
     if (decision !== 'accepter') {
       // REFUS immédiat
-      validationResult = { success: false, message: 'Synchronisation refusée par la caisse principale.' };
-      pendingLogs = null;
+      syncRequest.validationResult = {
+        success: false,
+        message: 'Synchronisation refusée par la caisse principale.'
+      };
 
       io.emit('demande-sync-secondaire', {
         type: 'REFUS_SYNC',
@@ -97,10 +208,37 @@ module.exports = function (io) {
     }
 
     // DECISION = ACCEPTER → on applique les logs en base
-    const logs = pendingLogs;
+    const logs = syncRequest.logs;
+    const sourceId = syncRequest.sourceId;
     const db = sqlite;
+    let validationComplete = false;
 
     try {
+      const normalizedLogs = logs.map(log => {
+        const data = typeof log.payload === 'string'
+          ? JSON.parse(log.payload)
+          : log.payload;
+        validateSyncEntry(log.type, log.operation, data);
+        return { ...log, data };
+      });
+      const incomingTicketUuids = new Set(
+        normalizedLogs
+          .filter(log => log.type === 'ticketdecaisse' && log.operation === 'INSERT')
+          .map(log => log.data.uuid_ticket)
+      );
+      for (const log of normalizedLogs) {
+        if (!['objets_vendus', 'paiement_mixte'].includes(log.type)) continue;
+        const ticketExists = incomingTicketUuids.has(log.data.uuid_ticket)
+          || db.prepare('SELECT 1 FROM ticketdecaisse WHERE uuid_ticket = ? LIMIT 1')
+            .get(log.data.uuid_ticket);
+        if (!ticketExists) {
+          throw new Error(
+            `Référence vers un ticket absent : ${log.data.uuid_ticket}`
+          );
+        }
+      }
+      validationComplete = true;
+
       db.transaction(() => {
         // normalisation des montants pour "bilan"
         const norm = (data) => ({
@@ -135,11 +273,14 @@ module.exports = function (io) {
           WHERE date = ?
         `);
 
-        logs.forEach(log => {
-          const { type, operation, payload } = log;
-          const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
-
-          if (!type || !operation || !data) throw new Error('Entrée sync_log incomplète');
+        normalizedLogs.forEach(log => {
+          const { type, operation, data } = log;
+          const operationUuid = log.operation_uuid || `${sourceId}:legacy:${log.id}`;
+          const receipt = db.prepare(`
+            INSERT OR IGNORE INTO sync_received_operations (operation_uuid, source_id)
+            VALUES (?, ?)
+          `).run(operationUuid, sourceId);
+          if (receipt.changes === 0) return;
 
           if (type === 'ticketdecaisse') {
             if (operation === 'INSERT') {
@@ -278,30 +419,36 @@ module.exports = function (io) {
 
       // Succès : on fixe le résultat pour /attente-validation et on notifie
       const ids = logs.map(log => log.id);
-      validationResult = { success: true, ids };
-      pendingLogs = null;
+      syncRequest.validationResult = { success: true, ids };
 
       io.emit('demande-sync-secondaire', {
         type: 'SUCCES_SYNC',
         message: 'Les données ont bien été intégrées depuis la caisse secondaire.'
       });
       io.emit('bilanUpdated');
-      return res.json({ success: true });
+      return res.json({ success: true, accepted: ids, failed: [] });
 
     } catch (err) {
       console.error('Erreur application des opérations sync_log :', err);
-      validationResult = {
+      syncRequest.validationResult = {
         success: false,
         message: 'Échec de la synchronisation pendant le traitement.'
       };
-      pendingLogs = null;
 
       io.emit('demande-sync-secondaire', {
         type: 'ECHEC_SYNC',
         message: 'Échec de la synchronisation.'
       });
 
-      return res.status(500).json({ error: 'Erreur lors de l’application des données', details: err.message });
+      return res.status(validationComplete ? 500 : 422).json({
+        success: false,
+        accepted: [],
+        failed: [{ error: err.message }],
+        error: validationComplete
+          ? 'Erreur lors de l’application des données'
+          : 'Lot de synchronisation invalide',
+        details: err.message
+      });
     }
   });
 

@@ -7,7 +7,8 @@ jest.mock('react-toastify', () => ({
   toast: {
     error: jest.fn(),
     success: jest.fn(),
-    info: jest.fn()
+    info: jest.fn(),
+    warn: jest.fn()
   }
 }));
 
@@ -55,6 +56,7 @@ describe('FactureModal', () => {
     global.fetch.mockResolvedValue({
       json: jest.fn().mockResolvedValue({
         success: true,
+        emailSent: true,
         lien: 'factures/2026/facture.pdf'
       })
     });
@@ -81,6 +83,31 @@ describe('FactureModal', () => {
     expect(toast.info).toHaveBeenCalledWith(
       expect.stringContaining('client@example.test')
     );
+  });
+
+  test('signale la panne SMTP sans perdre la facture locale', async () => {
+    const onSuccess = jest.fn();
+    global.fetch.mockResolvedValue({
+      json: jest.fn().mockResolvedValue({
+        success: true,
+        emailSent: false,
+        emailError: 'SMTP indisponible',
+        lien: 'factures/2026/facture.pdf'
+      })
+    });
+    renderModal({ onSuccess });
+    fireEvent.change(screen.getByPlaceholderText('exemple@client.com'), {
+      target: { value: 'client@example.test' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Générer' }));
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(
+      'factures/2026/facture.pdf'
+    ));
+    expect(toast.warn).toHaveBeenCalledWith(
+      expect.stringContaining("n'a pas été envoyé")
+    );
+    expect(toast.info).not.toHaveBeenCalled();
   });
 
   test('signale une erreur serveur sans appeler le succès', async () => {

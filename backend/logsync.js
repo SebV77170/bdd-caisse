@@ -1,4 +1,5 @@
 const { sqlite } = require('./db'); // Adapté à ton système SQLite
+const { randomUUID } = require('crypto');
 
 /**
  * Enregistre une opération à synchroniser dans la table `sync_log`
@@ -11,9 +12,9 @@ function logSync(type, operation, data) {
     const payload = JSON.stringify(data);
 
     sqlite.prepare(`
-      INSERT INTO sync_log (type, operation, payload)
-      VALUES (?, ?, ?)
-    `).run(type, operation, payload);
+      INSERT INTO sync_log (operation_uuid, type, operation, payload)
+      VALUES (?, ?, ?, ?)
+    `).run(randomUUID(), type, operation, payload);
 
     
   } catch (err) {

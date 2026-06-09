@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import React, { useState, useEffect, useMemo, useContext, useRef } from 'react';
 import TactileInput from './TactileInput';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { toast } from 'react-toastify';
@@ -24,6 +24,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   const [codePostal, setCodePostal] = useState('');
   const [email, setEmail] = useState('');
   const [showMixte, setShowMixte] = useState(false);
+  const [validationEnCours, setValidationEnCours] = useState(false);
+  const validationEnCoursRef = useRef(false);
   const uuidSessionCaisse = activeSession?.uuid_session || null;
 
   // 💶 ESPÈCES — états modale/calculette
@@ -169,6 +171,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
   };
 
   const validerVente = (paiementsOverride = paiements) => {
+    if (validationEnCoursRef.current) return;
+
     if (!activeSession || !uuidSessionCaisse) {
       toast.error('Aucune session caisse ouverte !');
       return;
@@ -194,6 +198,9 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       email: email || null,
     };
 
+    validationEnCoursRef.current = true;
+    setValidationEnCours(true);
+
     fetch('http://localhost:3001/api/valider', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,12 +211,14 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       .then((result) => {
         console.log('Résultat serveur :', result);
         if (result.success) {
-          toast.success('Vente validée avec succès');
-          if (!reduction) {
+          toast.success(result.replayed
+            ? 'Vente déjà enregistrée, ticket retrouvé'
+            : 'Vente validée avec succès');
+          if (!reduction && !result.replayed) {
             const tampons = Math.floor(totalAvecReduction / 500);
             toast.success(`Ajoutez ${tampons} tampon(s) sur la carte de fidélité`);
           }
-          if (email) {
+          if (email && !result.replayed) {
             toast.success(`Un ticket sera envoyé à : ${email}`);
           }
 
@@ -225,7 +234,11 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       })
       .catch((err) => {
         console.error('Erreur lors de la validation', err);
-        toast.error('Erreur de communication');
+        toast.error('Erreur de communication. Vous pouvez relancer la validation sans risque de doublon.');
+      })
+      .finally(() => {
+        validationEnCoursRef.current = false;
+        setValidationEnCours(false);
       });
   };
 
@@ -332,20 +345,20 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
       {modePaiementBoutons ? (
         <>
           <div className="mt-3 d-flex flex-wrap gap-2">
-            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('carte')}>
+            <button className="btn btn-success flex-fill" disabled={validationEnCours} onClick={() => validerPaiementDirect('carte')}>
               Carte
             </button>
             {/* 🔁 ICI on ouvre la modale espèces au lieu de valider direct */}
-            <button className="btn btn-success flex-fill" onClick={() => { setMontantDonne(''); setShowCash(true); }}>
+            <button className="btn btn-success flex-fill" disabled={validationEnCours} onClick={() => { setMontantDonne(''); setShowCash(true); }}>
               Espèces
             </button>
-            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('virement')}>
+            <button className="btn btn-success flex-fill" disabled={validationEnCours} onClick={() => validerPaiementDirect('virement')}>
               Virement
             </button>
-            <button className="btn btn-success flex-fill" onClick={() => validerPaiementDirect('cheque')}>
+            <button className="btn btn-success flex-fill" disabled={validationEnCours} onClick={() => validerPaiementDirect('cheque')}>
               Chèque
             </button>
-            <button className="btn btn-warning flex-fill" onClick={() => setShowMixte(true)}>
+            <button className="btn btn-warning flex-fill" disabled={validationEnCours} onClick={() => setShowMixte(true)}>
               Mixte
             </button>
           </div>
@@ -388,6 +401,7 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
               <Button variant="secondary" onClick={() => setShowCash(false)}>Annuler</Button>
               <Button
                 variant="success"
+                disabled={validationEnCours}
                 onClick={() => {
                   // On valide la vente en "Espèces" pour le montant dû,
                   // et on informe le rendu.
@@ -416,8 +430,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
               <Button variant="secondary" onClick={() => setShowMixte(false)}>
                 Fermer
               </Button>
-              <Button variant="primary" onClick={() => { validerVente(); setShowMixte(false); }}>
-                Valider
+               <Button variant="primary" disabled={validationEnCours} onClick={() => { validerVente(); setShowMixte(false); }}>
+                 {validationEnCours ? 'Validation en cours...' : 'Valider'}
               </Button>
             </Modal.Footer>
           </Modal>
@@ -426,8 +440,8 @@ function ValidationVente({ total, id_temp_vente, onValide }) {
         <>
           {formulairePaiements}
           <div>Total saisi : {fmtEuros(totalPaiements)} €</div>
-          <button className="btn btn-success w-100 mt-3" onClick={() => validerVente()}>
-            Valider la vente
+          <button className="btn btn-success w-100 mt-3" disabled={validationEnCours} onClick={() => validerVente()}>
+            {validationEnCours ? 'Validation en cours...' : 'Valider la vente'}
           </button>
         </>
       )}

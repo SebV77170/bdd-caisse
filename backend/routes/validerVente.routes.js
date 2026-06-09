@@ -12,41 +12,27 @@ const PDFDocument = require('pdfkit');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const genererTicketPdf = require('../utils/genererTicketPdf');
 const { getSmtpTransporter, getSmtpFrom } = require('../smtp');
-
-// Fonction de normalisation des moyens de paiement
-const normalizePaymentMethod = (moyen) => {
-  const mapping = {
-    carte: 'carte',
-    cb: 'carte',
-    'cb visa': 'carte',
-    'cb_visa': 'carte',
-    espece: 'espece',
-    'espèce': 'espece',
-    'especes': 'espece',
-    cash: 'espece',
-    cheque: 'cheque',
-    chèque: 'cheque',
-    virement: 'virement',
-  };
-
-  return mapping[moyen.toLowerCase()] || moyen.toLowerCase();
-};
-
-
+const {
+  normalizePaymentMethod,
+  assertPaymentsMatchTotal
+} = require('../utils/payments');
+const { getBusinessDate } = require('../utils/dateTime');
 
 // Fonction pour insérer un ticket de caisse
-function insertTicket({ uuid_ticket, vendeur, id_vendeur, date_achat, articles, moyenGlobal, prixTotal, reductions, uuid_session_caisse }) {
+function insertTicket({ uuid_ticket, vendeur, id_vendeur, date_achat, articles, moyenGlobal, prixTotal, reductions, uuid_session_caisse, source_temp_vente }) {
   return sqlite.prepare(`
     INSERT INTO ticketdecaisse (
       uuid_ticket, nom_vendeur, id_vendeur, date_achat_dt,
       nbr_objet, moyen_paiement, prix_total, lien,
-      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene, uuid_session_caisse
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      reducbene, reducclient, reducgrospanierclient, reducgrospanierbene,
+      uuid_session_caisse, source_temp_vente
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     uuid_ticket, vendeur, id_vendeur, date_achat,
     articles.length, moyenGlobal, prixTotal, '',
     reductions.reducBene, reductions.reducClient,
-    reductions.reducGrosPanierClient, reductions.reducGrosPanierBene, uuid_session_caisse
+    reductions.reducGrosPanierClient, reductions.reducGrosPanierBene,
+    uuid_session_caisse, String(source_temp_vente)
   ).lastInsertRowid;
   
 }
@@ -126,9 +112,24 @@ const user = req.session.user;
 
   let id_ticket;
   let uuid_ticket;
+  let replayed = false;
 
   // Transaction principale d'enregistrement de la vente
   const executeTransaction = sqlite.transaction(() => {
+    const existingTicket = sqlite.prepare(`
+      SELECT id_ticket, uuid_ticket
+      FROM ticketdecaisse
+      WHERE source_temp_vente = ?
+      LIMIT 1
+    `).get(String(id_temp_vente));
+
+    if (existingTicket) {
+      id_ticket = existingTicket.id_ticket;
+      uuid_ticket = existingTicket.uuid_ticket;
+      replayed = true;
+      return;
+    }
+
     // Récupération des articles de la vente temporaire
     const articles = sqlite.prepare('SELECT * FROM ticketdecaissetemp WHERE id_temp_vente = ?').all(id_temp_vente);
     if (articles.length === 0) throw new Error('Aucun article trouvé');
@@ -146,6 +147,13 @@ const user = req.session.user;
     // Application de la réduction éventuelle
     const reduc = applyReduction(reductionType, prixTotal);
     prixTotal -= reduc.reduction;
+    let pm;
+    try {
+      pm = assertPaymentsMatchTotal(paiements, prixTotal);
+    } catch (error) {
+      error.statusCode = 400;
+      throw error;
+    }
 
     // Drapeaux de réduction pour la base
     const reductions = {
@@ -168,7 +176,8 @@ const user = req.session.user;
       moyenGlobal,
       prixTotal,
       reductions,
-      uuid_session_caisse
+      uuid_session_caisse,
+      source_temp_vente: id_temp_vente
     });
     logSync('ticketdecaisse', 'INSERT', {
       uuid_ticket,
@@ -208,13 +217,6 @@ const user = req.session.user;
     }
 
     // Gestion des paiements (mixte ou non)
-    const pm = { espece: 0, carte: 0, cheque: 0, virement: 0 };
-    paiements.forEach(p => {
-      const key = normalizePaymentMethod(p.moyen); // maintenant "espece" ou "cheque" bien mappé
-      if (key && pm.hasOwnProperty(key)) pm[key] += p.montant;
-    });
-
-
     // Insertion dans la table paiement_mixte
     if (prixTotal > 0) {
       sqlite.prepare(`
@@ -230,7 +232,7 @@ const user = req.session.user;
     sqlite.prepare('DELETE FROM ticketdecaissetemp WHERE id_temp_vente = ?').run(id_temp_vente);
 
     // Mise à jour du bilan journalier
-    const today = date_achat.slice(0, 10);
+    const today = getBusinessDate(new Date(date_achat));
     const poids = articles.reduce((s, a) => s + (a.poids || 0), 0);
     const bilanExistant = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
 
@@ -273,7 +275,11 @@ const user = req.session.user;
     executeTransaction(); // ⚠️ Cette fonction modifie uuid_ticket en closure
 
     // 2. Réponse immédiate au client (VENTE VALIDÉE)
-    res.json({ success: true, id_ticket, uuid_ticket });
+    res.json({ success: true, id_ticket, uuid_ticket, replayed });
+
+    if (replayed) {
+      return;
+    }
 
     // 3. Génération du PDF en tâche de fond (non bloquante)
     try {
@@ -294,7 +300,7 @@ const user = req.session.user;
 
   } catch (e) {
     console.error('❌ Erreur validation vente :', e.message);
-    res.status(500).json({ error: e.message });
+    res.status(e.statusCode || 500).json({ error: e.message });
   }
 });
 

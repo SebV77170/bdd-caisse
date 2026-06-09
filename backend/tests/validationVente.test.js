@@ -40,6 +40,9 @@ beforeEach(async () => {
   cookie = loginRes.headers['set-cookie'][0];
 
   sqlite.prepare('DELETE FROM ticketdecaisse').run();
+  sqlite.prepare('DELETE FROM objets_vendus').run();
+  sqlite.prepare('DELETE FROM paiement_mixte').run();
+  sqlite.prepare('DELETE FROM ticketdecaissetemp').run();
   sqlite.prepare('DELETE FROM bilan').run();
   sqlite.prepare('DELETE FROM vente').run();
 });
@@ -234,6 +237,8 @@ describe('Test de validation de la route validerVente.routes.js', () => {
     paiements: [{ moyen: 'carte', montant: 1000 }]
   });
 
+  spy.mockRestore();
+
   expect(res.status).toBe(500);
   expect(res.body.error).toMatch(/erreur simulée/i);
 
@@ -246,8 +251,65 @@ describe('Test de validation de la route validerVente.routes.js', () => {
   const temp = sqlite.prepare('SELECT * FROM ticketdecaissetemp WHERE id_temp_vente = ?').get(id_temp_vente);
   expect(temp).not.toBeUndefined();
 
-  spy.mockRestore();
 });
+
+  test('un nouvel envoi de la meme vente retourne le ticket existant sans doubler le bilan', async () => {
+    createTempSale(501);
+    const payload = {
+      id_temp_vente: 501,
+      reductionType: '',
+      paiements: [{ moyen: 'carte', montant: 1000 }]
+    };
+
+    const first = await request(app)
+      .post('/api/valider')
+      .set('Cookie', cookie)
+      .send(payload);
+    const retry = await request(app)
+      .post('/api/valider')
+      .set('Cookie', cookie)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(first.body.replayed).toBe(false);
+    expect(retry.status).toBe(200);
+    expect(retry.body).toEqual(expect.objectContaining({
+      success: true,
+      replayed: true,
+      id_ticket: first.body.id_ticket,
+      uuid_ticket: first.body.uuid_ticket
+    }));
+
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM ticketdecaisse').get().count).toBe(1);
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM paiement_mixte').get().count).toBe(1);
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM objets_vendus').get().count).toBe(1);
+
+    const bilan = sqlite.prepare('SELECT * FROM bilan').get();
+    expect(bilan.nombre_vente).toBe(1);
+    expect(bilan.prix_total).toBe(1000);
+    expect(bilan.prix_total_carte).toBe(1000);
+  });
+
+  test('deux validations simultanees de la meme vente ne creent quun ticket', async () => {
+    createTempSale(502);
+    const submit = () => request(app)
+      .post('/api/valider')
+      .set('Cookie', cookie)
+      .send({
+        id_temp_vente: 502,
+        reductionType: '',
+        paiements: [{ moyen: 'espece', montant: 1000 }]
+      });
+
+    const [first, second] = await Promise.all([submit(), submit()]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect([first.body.replayed, second.body.replayed].sort()).toEqual([false, true]);
+    expect(first.body.uuid_ticket).toBe(second.body.uuid_ticket);
+    expect(sqlite.prepare('SELECT COUNT(*) AS count FROM ticketdecaisse').get().count).toBe(1);
+    expect(sqlite.prepare('SELECT nombre_vente FROM bilan').get().nombre_vente).toBe(1);
+  });
 
 
   test('Retourne une erreur si id_temp_vente manquant', async () => {

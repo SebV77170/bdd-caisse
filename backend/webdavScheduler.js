@@ -25,10 +25,19 @@ async function runSync() {
   isRunning = true;
   const start = new Date();
   try {
-    const count = await uploadTicketsAndFactures();
+    const details = await uploadTicketsAndFactures();
+    const ticketCount = details?.tickets || {};
+    const invoiceCount = details?.factures || {};
+    const count = (ticketCount.success || 0) + (invoiceCount.success || 0);
+    const failed = (ticketCount.failed || 0) + (invoiceCount.failed || 0);
+    if (failed > 0) {
+      const error = new Error(`${failed} fichier(s) WebDAV non transfere(s)`);
+      error.details = details;
+      throw error;
+    }
     const end = new Date();
     saveState({ lastRun: start.toISOString(), lastDurationMs: end - start, lastResult: 'success', lastCount: count });
-    return { success: true, count };
+    return { success: true, count, details };
   } catch (error) {
     saveState({ lastRun: start.toISOString(), lastResult: 'error', error: error.message });
     throw error;

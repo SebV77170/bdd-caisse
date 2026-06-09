@@ -11,6 +11,11 @@ const { v4: uuidv4 } = require('uuid');
 const genererTicketPdf = require('../utils/genererTicketPdf');
 const { genererFriendlyIds } = require('../utils/genererFriendlyIds');
 const { log } = require('console');
+const {
+  normalizePaymentMethod,
+  assertPaymentsMatchTotal
+} = require('../utils/payments');
+const { getBusinessDate } = require('../utils/dateTime');
 
 // Route principale pour corriger un ticket de caisse
 router.post('/', (req, res) => {
@@ -39,7 +44,7 @@ router.post('/', (req, res) => {
   }
 
   const now = new Date().toISOString();
-  const today = now.slice(0, 10);
+  const today = getBusinessDate(new Date(now));
   const timestamp = Math.floor(Date.now() / 1000);
   const utilisateur = user.nom;
   const id_vendeur = user.uuid_user;
@@ -80,6 +85,13 @@ router.post('/', (req, res) => {
     // Calcule le prix total après correction
     let prixTotal = articles_correction_sans_reduction.reduce((sum, a) => sum + a.prix * a.nbr, 0);
     if (prixTotal < 0) prixTotal = 0;
+    let pm;
+    try {
+      pm = assertPaymentsMatchTotal(paiements, prixTotal);
+    } catch (validationError) {
+      validationError.statusCode = 400;
+      throw validationError;
+    }
 
     // Calcule le montant total à annuler
     let totalAnnulation = articles_sans_reduction.reduce((sum, a) => sum + a.prix * (-(a.nbr)), 0);
@@ -102,9 +114,9 @@ router.post('/', (req, res) => {
       };
     } else if (ticketOriginalData.moyen_paiement) {
       // Si pas de paiement mixte, on répartit selon le moyen de paiement principal
-      const moyen = ticketOriginalData.moyen_paiement.toLowerCase();
+      const moyen = normalizePaymentMethod(ticketOriginalData.moyen_paiement);
       const prixTotalOriginal = ticketOriginalData.prix_total;
-      if (moyen === 'especes') pmAnnul.espece = prixTotalOriginal;
+      if (moyen === 'espece') pmAnnul.espece = prixTotalOriginal;
       if (moyen === 'carte') pmAnnul.carte = prixTotalOriginal;
       if (moyen === 'cheque') pmAnnul.cheque = prixTotalOriginal;
       if (moyen === 'virement') pmAnnul.virement = prixTotalOriginal;
@@ -232,30 +244,27 @@ router.post('/', (req, res) => {
     }
 
     // Gestion des paiements pour le ticket corrigé
-    const pm = { espece: 0, carte: 0, cheque: 0, virement: 0 };
-    const normalisation = {
-      'espece': 'espece', 'espèce': 'espece', 'especes': 'espece', 'espèces': 'espece', 'carte': 'carte',
-      'chèque': 'cheque', 'chéque': 'cheque', 'cheque': 'cheque', 'virement': 'virement'
-    };
-    for (const p of paiements) {
-      const champ = normalisation[p.moyen?.toLowerCase()] || null;
-      if (champ && pm.hasOwnProperty(champ)) {
-        pm[champ] += p.montant;
-      }
-    }
+    const normalizedPayments = pm;
 
     sqlite.prepare(`
       INSERT INTO paiement_mixte (id_ticket, espece, carte, cheque, virement, uuid_ticket)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(uuid_ticket_corrige, pm.espece, pm.carte, pm.cheque, pm.virement, uuid_ticket_corrige);
+    `).run(
+      uuid_ticket_corrige,
+      normalizedPayments.espece,
+      normalizedPayments.carte,
+      normalizedPayments.cheque,
+      normalizedPayments.virement,
+      uuid_ticket_corrige
+    );
 
     logSync('paiement_mixte', 'INSERT', {
       id_ticket: uuid_ticket_corrige,
       uuid_ticket: uuid_ticket_corrige,
-      espece: pm.espece,
-      carte: pm.carte,
-      cheque: pm.cheque,
-      virement: pm.virement
+      espece: normalizedPayments.espece,
+      carte: normalizedPayments.carte,
+      cheque: normalizedPayments.cheque,
+      virement: normalizedPayments.virement
     });
 
     // Mise à jour du bilan quotidien
@@ -271,20 +280,20 @@ router.post('/', (req, res) => {
         WHERE date = ?
       `).run(
         ticketOriginalData.prix_total, prixTotal,
-        pmAnnul.espece, pm.espece,
-        pmAnnul.cheque, pm.cheque,
-        pmAnnul.carte, pm.carte,
-        pmAnnul.virement, pm.virement,
+        pmAnnul.espece, normalizedPayments.espece,
+        pmAnnul.cheque, normalizedPayments.cheque,
+        pmAnnul.carte, normalizedPayments.carte,
+        pmAnnul.virement, normalizedPayments.virement,
         today
       );
       logSync('bilan', 'UPDATE', {
         date: today,
         timestamp,
         prix_total: prixTotal - ticketOriginalData.prix_total,
-        espece: pm.espece - pmAnnul.espece,
-        cheque: pm.cheque - pmAnnul.cheque,
-        carte: pm.carte - pmAnnul.carte,
-        virement: pm.virement - pmAnnul.virement
+        espece: normalizedPayments.espece - pmAnnul.espece,
+        cheque: normalizedPayments.cheque - pmAnnul.cheque,
+        carte: normalizedPayments.carte - pmAnnul.carte,
+        virement: normalizedPayments.virement - pmAnnul.virement
       });
     } else {
       sqlite.prepare(`
@@ -295,10 +304,10 @@ router.post('/', (req, res) => {
       `).run(
         today, timestamp, 1, 0,
         prixTotal - ticketOriginalData.prix_total,
-        pm.espece - pmAnnul.espece,
-        pm.cheque - pmAnnul.cheque,
-        pm.carte - pmAnnul.carte,
-        pm.virement - pmAnnul.virement
+        normalizedPayments.espece - pmAnnul.espece,
+        normalizedPayments.cheque - pmAnnul.cheque,
+        normalizedPayments.carte - pmAnnul.carte,
+        normalizedPayments.virement - pmAnnul.virement
       );
       logSync('bilan', 'INSERT', {
         date: today,
@@ -306,10 +315,10 @@ router.post('/', (req, res) => {
         nombre_vente: 1,
         poids: 0,
         prix_total: prixTotal - ticketOriginalData.prix_total,
-        espece: pm.espece - pmAnnul.espece,
-        cheque: pm.cheque - pmAnnul.cheque,
-        carte: pm.carte - pmAnnul.carte,
-        virement: pm.virement - pmAnnul.virement
+        espece: normalizedPayments.espece - pmAnnul.espece,
+        cheque: normalizedPayments.cheque - pmAnnul.cheque,
+        carte: normalizedPayments.carte - pmAnnul.carte,
+        virement: normalizedPayments.virement - pmAnnul.virement
       });
     }
 
@@ -342,7 +351,9 @@ router.post('/', (req, res) => {
     res.json({ success: true, id_ticket_annulation: id_annul, id_ticket_correction: id_corrige });
   } catch (err) {
     console.error("Erreur lors de l'insertion de la correction :", err);
-    res.status(500).json({ error: "Erreur lors de l'insertion de la correction" });
+    res.status(err.statusCode || 500).json({
+      error: err.statusCode ? err.message : "Erreur lors de l'insertion de la correction"
+    });
   }
 });
 
@@ -374,11 +385,11 @@ router.post('/:uuid/supprimer', async (req, res) => {
       virement: paiementsOriginalMixte.virement || 0
     };
   } else if (ticket.moyen_paiement) {
-    const moyen = ticket.moyen_paiement.toLowerCase();
+    const moyen = normalizePaymentMethod(ticket.moyen_paiement);
     const prix = ticket.prix_total;
-    if (moyen === 'espèces') pmAnnul.espece = prix;
+    if (moyen === 'espece') pmAnnul.espece = prix;
     if (moyen === 'carte') pmAnnul.carte = prix;
-    if (moyen === 'chèque') pmAnnul.cheque = prix;
+    if (moyen === 'cheque') pmAnnul.cheque = prix;
     if (moyen === 'virement') pmAnnul.virement = prix;
   }
 
@@ -465,7 +476,7 @@ router.post('/:uuid/supprimer', async (req, res) => {
     });
 
     // Met à jour le bilan du jour
-    const today = now.slice(0, 10);
+    const today = getBusinessDate(new Date(now));
     const bilan = sqlite.prepare('SELECT * FROM bilan WHERE date = ?').get(today);
     if (bilan) {
       sqlite.prepare(`

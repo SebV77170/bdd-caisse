@@ -5,6 +5,17 @@ const fetch = require('node-fetch');
 const { getConfig } = require('../principalIpConfig');
 const verifyAdmin = require('../utils/verifyAdmin');
 const logSync = require('../logsync');
+const os = require('os');
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 // --- helper: ferme officiellement la caisse secondaire (UTC) + log UPDATE
 function fermerCaisseSecondaireAvantEnvoiUTC(req) {
@@ -69,19 +80,38 @@ function fermerCaisseSecondaireAvantEnvoiUTC(req) {
     montant_reel_virement: 0,
   });
 
-  return { id_session: sessionCaisse.id_session };
+  return {
+    id_session: sessionCaisse.id_session,
+    opened_at_utc: sessionCaisse.opened_at_utc,
+    closed_at_utc: nowUtcIso
+  };
+}
+
+function recoveryPayload(closedSession, configuredIp) {
+  if (!closedSession) return undefined;
+  return {
+    sessionId: closedSession.id_session,
+    startISO: closedSession.opened_at_utc,
+    endISO: closedSession.closed_at_utc,
+    configuredIp
+  };
 }
 
 // --- util: poll /attente-validation avec backoff
-async function pollValidation(baseUrl, { totalMs = 30000, intervalMs = 1200, maxIntervalMs = 3000 }) {
+async function pollValidation(baseUrl, requestId, { totalMs = 30000, intervalMs = 1200, maxIntervalMs = 3000 }) {
   const deadline = Date.now() + totalMs;
   let wait = intervalMs;
 
   while (Date.now() < deadline) {
-    const resp = await fetch(`${baseUrl}/api/sync/recevoir-de-secondaire/attente-validation`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const resp = await fetchWithTimeout(
+      `${baseUrl}/api/sync/recevoir-de-secondaire/attente-validation`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestId }),
+      },
+      28000
+    );
 
     // 200 => décision prête (success true/false)
     // 202 => toujours en attente
@@ -103,6 +133,8 @@ async function pollValidation(baseUrl, { totalMs = 30000, intervalMs = 1200, max
 
 // POST /api/sync/envoyer-secondaire-vers-principal
 router.post('/', async (req, res) => {
+  let closedSession = null;
+  let configuredIp = null;
   try {
     const { mode, window: wnd, responsable_pseudo, mot_de_passe } = req.body || {};
     const resendWindow = mode === 'resendWindow';
@@ -110,7 +142,7 @@ router.post('/', async (req, res) => {
     // 1) Fermer la secondaire si mode normal
     if (!resendWindow) {
       try {
-        fermerCaisseSecondaireAvantEnvoiUTC(req);
+        closedSession = fermerCaisseSecondaireAvantEnvoiUTC(req);
 
         // 🔔 émettre l’état fermé immédiatement (même si la principale refuse ensuite)
         const io = req.app.get('socketio');
@@ -154,37 +186,67 @@ router.post('/', async (req, res) => {
 
     // 3) Demande à la principale
     const { ip } = getConfig();
+    configuredIp = ip;
     const baseUrl = `http://${ip}:3001`;
 
-    const demande = await fetch(`${baseUrl}/api/sync/recevoir-de-secondaire/demande`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ logs: lignes }),
-    });
+    const demande = await fetchWithTimeout(
+      `${baseUrl}/api/sync/recevoir-de-secondaire/demande`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logs: lignes,
+          sourceId: process.env.CASH_REGISTER_ID || os.hostname()
+        }),
+      },
+      5000
+    );
     console.log('Envoi vers principale, status:', demande.status);
     const reponseDemande = await demande.json().catch(() => null);
 
     if (!demande.ok) {
       return res.status(502).json({
         success: false,
+        code: 'PRINCIPAL_UNREACHABLE',
         message: 'Caisse principale inaccessible ou refus de la demande.',
         erreur: reponseDemande?.message,
+        configuredIp,
+        recovery: recoveryPayload(closedSession, configuredIp)
+      });
+    }
+
+    const requestId = reponseDemande?.requestId;
+    if (!requestId) {
+      return res.status(502).json({
+        success: false,
+        code: 'INVALID_PRINCIPAL_RESPONSE',
+        message: 'La caisse principale n’a pas retourné d’identifiant de synchronisation.',
+        configuredIp,
+        recovery: recoveryPayload(closedSession, configuredIp)
       });
     }
 
     // 4) VRAIE attente de validation via long-poll (poll côté secondaire)
-    const result = await pollValidation(baseUrl, { totalMs: 35000, intervalMs: 1200, maxIntervalMs: 3000 });
+    const result = await pollValidation(
+      baseUrl,
+      requestId,
+      { totalMs: 35000, intervalMs: 1200, maxIntervalMs: 3000 }
+    );
 
     if (!result || !result.success) {
       // refus, erreur, ou timeout
       const msg = result?.message || 'Validation refusée par la principale.';
       return res.status(result?.pending ? 504 : 400).json({
         success: false,
+        code: result?.pending ? 'PRINCIPAL_TIMEOUT' : 'SYNC_REJECTED',
         message: msg,
+        configuredIp,
+        recovery: recoveryPayload(closedSession, configuredIp)
       });
     }
 
-    const idsValides = result.ids || [];
+    const submittedIds = new Set(lignes.map(ligne => ligne.id));
+    const idsValides = (result.ids || []).filter(id => submittedIds.has(id));
 
     // 5) Marquer comme envoyées en local
     const update = sqlite.prepare('UPDATE sync_log SET senttoprincipal = 1 WHERE id = ?');
@@ -196,7 +258,16 @@ router.post('/', async (req, res) => {
 
   } catch (err) {
     console.error('Erreur envoi vers principale :', err);
-    res.status(500).json({ success: false, message: 'Erreur serveur.', erreur: err.message });
+    res.status(502).json({
+      success: false,
+      code: 'PRINCIPAL_UNREACHABLE',
+      message: configuredIp
+        ? `Impossible de joindre la caisse principale configurée à l'adresse ${configuredIp}.`
+        : 'Impossible de joindre la caisse principale configurée.',
+      erreur: err.message,
+      configuredIp,
+      recovery: recoveryPayload(closedSession, configuredIp)
+    });
   }
 });
 

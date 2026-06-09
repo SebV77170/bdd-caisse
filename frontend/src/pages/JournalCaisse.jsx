@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import SessionDetails from '../components/SessionDetails';
 import ModificationDetails from '../components/ModificationDetails';
+import PrincipalConnectionEditor from '../components/PrincipalConnectionEditor';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './BilanTickets.css';
 
@@ -36,6 +37,7 @@ const JournalCaisse = () => {
   const [respPassword, setRespPassword] = useState('');
   const [sending, setSending] = useState(false);
   const [modalMsg, setModalMsg] = useState('');
+  const [principalIp, setPrincipalIp] = useState('');
 
   useEffect(() => {
     fetch('http://localhost:3001/api/caisse/journal')
@@ -73,6 +75,7 @@ const JournalCaisse = () => {
     setRespPseudo('');
     setRespPassword('');
     setModalMsg('');
+    setPrincipalIp('');
     setShowModal(true);
   };
 
@@ -227,6 +230,13 @@ const JournalCaisse = () => {
                       </strong>
                     </p>
                   )}
+
+                  <div className="mb-3">
+                    <PrincipalConnectionEditor
+                      initialIp={principalIp}
+                      onVerified={setPrincipalIp}
+                    />
+                  </div>
 
                   <div className="mb-3">
                     <label className="form-label">Pseudo du responsable</label>

@@ -107,8 +107,12 @@ CREATE TABLE IF NOT EXISTS ticketdecaisse (
   uuid_ticket TEXT,
   cloture INTEGER,
   uuid_session_caisse INTEGER,
-  flag_correction INTEGER DEFAULT 0
+  flag_correction INTEGER DEFAULT 0,
+  source_temp_vente TEXT
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ticketdecaisse_source_temp_vente
+ON ticketdecaisse(source_temp_vente);
 
 CREATE TABLE IF NOT EXISTS objets_vendus (
   id_achat INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -166,12 +170,22 @@ CREATE TABLE IF NOT EXISTS motifs_correction (
 
 CREATE TABLE IF NOT EXISTS sync_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  operation_uuid TEXT,
   type TEXT NOT NULL,
   operation TEXT NOT NULL,
   payload TEXT NOT NULL,
   synced INTEGER DEFAULT 0,
   senttoprincipal INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sync_log_operation_uuid
+ON sync_log(operation_uuid);
+
+CREATE TABLE IF NOT EXISTS sync_received_operations (
+  operation_uuid TEXT PRIMARY KEY,
+  source_id TEXT,
+  received_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS code_postal (
