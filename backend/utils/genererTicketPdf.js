@@ -114,7 +114,7 @@ function genererTicketPdf(uuid_ticket) {
 
   // 📝 Log optionnel
   try {
-    const logSync = require('../logsync');
+    const logSync = require('../logSync');
     logSync('ticketdecaisse', 'UPDATE', { uuid_ticket, lien: relativePath });
   } catch (e) {
     console.warn('logSync non disponible, pas de log enregistré.');

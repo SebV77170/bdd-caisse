@@ -4,7 +4,7 @@ const mockLogSync = jest.fn();
 
 jest.mock('node-fetch', () => mockFetch);
 jest.mock('../utils/verifyAdmin', () => mockVerifyAdmin);
-jest.mock('../logsync', () => mockLogSync);
+jest.mock('../logSync', () => mockLogSync);
 jest.mock('../principalIpConfig', () => ({
   getConfig: () => ({ ip: '192.0.2.10' })
 }));

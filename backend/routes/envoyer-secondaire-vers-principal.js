@@ -4,7 +4,7 @@ const { sqlite } = require('../db');
 const fetch = require('node-fetch');
 const { getConfig } = require('../principalIpConfig');
 const verifyAdmin = require('../utils/verifyAdmin');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 const os = require('os');
 
 async function fetchWithTimeout(url, options, timeoutMs) {

@@ -151,7 +151,7 @@ async function genererTicketCloturePdf(id_session, uuid_ticket) {
 
       // Log de sync pour propager le lien (optionnel)
       try {
-        const logSync = require('../logsync');
+        const logSync = require('../logSync');
         logSync('ticketdecaisse', 'UPDATE', { uuid_ticket, lien: relativePath });
       } catch {
         // silencieux si non dispo en contexte

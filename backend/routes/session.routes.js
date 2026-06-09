@@ -5,7 +5,7 @@ const router = express.Router();
 const { sqlite } = require('../db');
 const bcrypt = require('bcrypt');
 const session = require('../session');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 
 // util: renvoie 'YYYY-MM-DD' depuis un ISO
 const toYMD = (iso) => {

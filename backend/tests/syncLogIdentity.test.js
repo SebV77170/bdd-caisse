@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sqlite } = require('../db');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 
 describe('Identité des opérations de synchronisation', () => {
   beforeEach(() => {

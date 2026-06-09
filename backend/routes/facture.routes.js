@@ -5,7 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const genererFacturePdf = require('../utils/genererFacturePdf');
 const path = require('path');
 const fs = require('fs');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 const { getSmtpTransporter, getSmtpFrom } = require('../smtp');
 
 router.post('/:uuid_ticket', async (req, res) => {

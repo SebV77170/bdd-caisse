@@ -4,7 +4,7 @@ const os = require('os');
 const PDFDocument = require('pdfkit');
 const { sqlite } = require('../db');
 const { getFriendlyIdFromUuid } = require('../utils/genererFriendlyIds');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 const { drawPdfHeader } = require('./pdfHeader');
 
 

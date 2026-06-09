@@ -1,5 +1,5 @@
 const { sqlite } = require('../db');
-const logSync = require('../logsync');
+const logSync = require('../logSync');
 const session = require('../session');
 const { getConfig } = require('../storeConfig');
 
