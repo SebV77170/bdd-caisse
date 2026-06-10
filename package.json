@@ -8,6 +8,8 @@
     "test:installation": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-installation.ps1",
     "test:accounting": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-accounting.ps1",
     "test:performance": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-performance.ps1",
+    "tutorial:generate": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-tutorial.ps1",
+    "tutorial:menus": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-tutorial.ps1 -Tutorial menus",
     "test:endurance": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-endurance.ps1 --minutes=180 --sample-ms=5000",
     "test:endurance:smoke": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-endurance.ps1 --minutes=0.1 --sample-ms=500",
     "backup": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/sauvegarder-caisse.ps1",
