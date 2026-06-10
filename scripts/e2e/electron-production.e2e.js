@@ -39,12 +39,14 @@ const paymentCycle = [
     ]
   }
 ];
+const processStartedAt = Date.now();
 
 let backendProcess;
 let mainWindow;
 let syncServer;
 let finalSyncRequests = 0;
 let backendErrorOutput = '';
+let applicationOpeningMs = 0;
 
 function writeLog(message) {
   fs.mkdirSync(runtimeRoot, { recursive: true });
@@ -584,8 +586,15 @@ async function verifyPendingSaleSurvivesRestart() {
 }
 
 async function runScenario() {
+  const openingStartedAt = Date.now();
   await mainWindow.loadURL(appUrl);
   await waitForText("Bienvenue sur l'application de gestion caisse");
+  applicationOpeningMs = Date.now() - openingStartedAt;
+  assert(
+    applicationOpeningMs < 15000,
+    `L'ouverture de l'application est trop lente : ${applicationOpeningMs} ms.`
+  );
+  writeLog(`[performance] ouverture application: ${applicationOpeningMs} ms`);
   await capture('01-welcome.png');
 
   await clickButton('Commencer');
@@ -708,12 +717,19 @@ async function runScenario() {
   `);
   await fill('#resp-pseudo', 'e2e-admin');
   await fill('#resp-password', 'e2e-secret');
+  const closureStartedAt = Date.now();
   await clickButton('Fermer la caisse');
   await waitForCondition(
     `location.hash.toLowerCase().includes('/bilan')`,
     'La fermeture de caisse n’a pas redirigé vers le bilan.',
     15000
   );
+  const closureResponseMs = Date.now() - closureStartedAt;
+  assert(
+    closureResponseMs < 5000,
+    `La fermeture de caisse est trop lente : ${closureResponseMs} ms.`
+  );
+  writeLog(`[performance] fermeture locale: ${closureResponseMs} ms`);
 
   const state = await requestJson('/api/session/etat-caisse');
   assert(state.status === 200 && state.body.ouverte === false, 'La caisse reste ouverte après fermeture.');
@@ -736,6 +752,12 @@ async function runScenario() {
   const closurePdfPath = path.resolve(root, closureTicketWithPdf.lien);
   assert(fs.existsSync(closurePdfPath), `Le PDF de clôture est introuvable : ${closurePdfPath}`);
   assert(fs.statSync(closurePdfPath).size > 0, 'Le PDF de clôture généré est vide.');
+  const closurePdfMs = Date.now() - closureStartedAt;
+  assert(
+    closurePdfMs < 15000,
+    `La generation du PDF de cloture est trop lente : ${closurePdfMs} ms.`
+  );
+  writeLog(`[performance] fermeture avec PDF: ${closurePdfMs} ms`);
 
   const syncDeadline = Date.now() + 10000;
   while (finalSyncRequests < 1 && Date.now() < syncDeadline) {
@@ -822,6 +844,7 @@ app.whenReady().then(async () => {
 
     await runScenario();
     fs.writeFileSync(successMarker, 'ok');
+    writeLog(`[performance] scenario complet: ${Date.now() - processStartedAt} ms`);
     writeLog('E2E production réussi.');
     console.log('E2E production réussi : session caisse complète validée.');
     await shutdown(0);

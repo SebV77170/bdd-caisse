@@ -4,7 +4,8 @@ const os = require('os');
 const axios = require('axios');
 const cron = require('node-cron');
 
-const baseDir = path.join(os.homedir(), '.bdd-caisse');
+const baseDir = process.env.BDD_CAISSE_DATA_DIR
+  || path.join(os.homedir(), '.bdd-caisse');
 const configPath = path.join(baseDir, 'syncConfig.json');
 fs.mkdirSync(baseDir, { recursive: true });
 
@@ -31,7 +32,9 @@ async function callSync() {
   try {
     if (isSyncCalling) return;
     isSyncCalling = true;
-    await axios.post(`http://localhost:${port}/api/sync/`);
+    const targetUrl = process.env.SYNC_SCHEDULER_URL
+      || `http://localhost:${port}/api/sync/`;
+    await axios.post(targetUrl);
     console.log('✅ Synchronisation périodique exécutée');
   } catch (err) {
     console.error('Erreur de synchronisation périodique:', err.message);
@@ -43,7 +46,9 @@ async function callSync() {
 function scheduleJob() {
   if (job) job.stop();
   if (!enabled) return;
-  job = cron.schedule(`*/${interval} * * * *`, callSync);
+  const cronExpression = process.env.SYNC_SCHEDULER_CRON
+    || `*/${interval} * * * *`;
+  job = cron.schedule(cronExpression, callSync);
 }
 
 function startScheduler(p, ioInstance) {
@@ -63,4 +68,18 @@ function getConfig() {
   return { interval, enabled };
 }
 
-module.exports = { startScheduler, updateConfig, getConfig };
+function stopScheduler() {
+  if (job) {
+    job.stop();
+    job = null;
+  }
+  isSyncCalling = false;
+}
+
+module.exports = {
+  startScheduler,
+  stopScheduler,
+  updateConfig,
+  getConfig,
+  callSync
+};

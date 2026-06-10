@@ -425,6 +425,44 @@ Les travaux de robustesse ont notamment permis de :
 - éviter l'arrêt du backend avant la fin des opérations de clôture ;
 - ajouter des tests réels et nettoyés pour MySQL, SMTP et WebDAV.
 
+## Performance et endurance
+
+Le banc de performance local utilise les routes backend reelles avec une base
+SQLite isolee :
+
+```powershell
+npm run test:performance
+```
+
+Il couvre 500 puis 1 000 ventes dans une meme session, les temps de validation,
+les bilans par session, la croissance memoire et une base de cinq annees avec
+20 000 tickets. Les seuils imposes sont de 2 secondes pour une vente et de
+3 secondes pour un bilan courant.
+
+Le parcours `npm run test:e2e` mesure aussi le vrai demarrage Electron, la
+fermeture de caisse et le temps necessaire pour que le PDF de cloture soit
+effectivement ecrit.
+
+Pour verifier rapidement le harnais d'endurance :
+
+```powershell
+npm run test:endurance:smoke
+```
+
+Pour un controle de trois heures :
+
+```powershell
+npm run test:endurance
+```
+
+Le test d'endurance active le vrai planificateur de synchronisation, mais le
+redirige vers un serveur local controle. Il ne contacte donc aucun service
+distant. Son rapport final contient le nombre de declenchements, la latence
+maximale du bilan, le CPU moyen, la croissance de la memoire et celle des
+journaux. Il echoue si le bilan depasse 3 secondes, si la heap augmente de
+96 Mo, ou si une execution d'au moins 30 minutes montre une derive superieure
+a 16 Mo par heure.
+
 ## Routine recommandée
 
 Pendant le développement :

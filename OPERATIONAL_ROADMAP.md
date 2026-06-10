@@ -263,15 +263,16 @@ Critere de sortie : toutes les sources donnent le meme total au centime pres.
 
 ## Priorite 7 - Performance et endurance
 
-- [ ] Tester 500 puis 1 000 ventes dans une meme session.
-- [ ] Tester une base contenant plusieurs annees de ventes.
-- [ ] Mesurer le temps d'ouverture de l'application.
-- [ ] Mesurer le temps de validation d'une vente.
-- [ ] Mesurer le temps d'affichage des bilans.
-- [ ] Mesurer le temps de fermeture et de generation PDF.
+- [x] Tester 500 puis 1 000 ventes dans une meme session.
+- [x] Tester une base contenant plusieurs annees de ventes.
+- [x] Mesurer le temps d'ouverture de l'application.
+- [x] Mesurer le temps de validation d'une vente.
+- [x] Mesurer le temps d'affichage des bilans.
+- [x] Mesurer le temps de fermeture et de generation PDF.
 - [ ] Laisser l'application ouverte plusieurs heures avec le planificateur
-      actif.
-- [ ] Surveiller la memoire, le processeur et la taille des journaux.
+      actif. Le harnais est disponible et son cycle court passe, mais le cycle
+      de trois heures doit encore etre execute sur un poste representatif.
+- [x] Surveiller la memoire, le processeur et la taille des journaux.
 
 Seuils initiaux proposes :
 
@@ -279,6 +280,26 @@ Seuils initiaux proposes :
 - affichage d'un bilan courant en moins de 3 secondes ;
 - interface utilisable pendant les synchronisations ;
 - aucune croissance continue de memoire au repos.
+
+Commandes :
+
+```powershell
+npm run test:performance
+npm run test:endurance:smoke
+npm run test:endurance
+```
+
+`test:performance` valide 1 000 ventes par les routes reelles, controle un
+jalon a 500 ventes et charge cinq annees representant 20 000 tickets.
+`test:endurance` dure trois heures par defaut. Il active le vrai planificateur
+avec une cible locale isolee, mesure le bilan, la memoire, le processeur et la
+taille des journaux, sans contacter les services distants.
+
+Mesures du dernier parcours Electron controle :
+
+- ouverture de l'application : 437 ms ;
+- fermeture locale : 282 ms ;
+- fermeture avec PDF disponible : 311 ms.
 
 ## Priorite 8 - Erreurs utilisateur et ergonomie de secours
 

@@ -11,6 +11,7 @@ electron-app/node_modules
 # testing
 /coverage
 /.e2e-runtime
+/.tmp-endurance
 /e2e-artifacts
 
 
