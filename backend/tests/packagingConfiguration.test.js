@@ -9,11 +9,24 @@ describe('Configuration de l’installation Windows', () => {
       fs.readFileSync(path.join(root, 'electron-app/package.json'), 'utf8')
     );
     const resources = electronPackage.build.extraResources;
+    const packagedFiles = electronPackage.build.files;
 
     expect(electronPackage.build.win.target).toBe('nsis');
     expect(electronPackage.build.nsis.include).toBe('installer.nsh');
+    expect(packagedFiles).toEqual(expect.arrayContaining([
+      'main.js',
+      'preload.js',
+      'updateStartupPolicy.js'
+    ]));
     expect(resources).toEqual(expect.arrayContaining([
-      expect.objectContaining({ to: 'backend' }),
+      expect.objectContaining({
+        to: 'backend',
+        filter: expect.arrayContaining([
+          '!tests{,/**/*}',
+          '!**/*.map',
+          '!**/*.log'
+        ])
+      }),
       expect.objectContaining({ to: 'node.exe' }),
       expect.objectContaining({ to: 'database' }),
       expect.objectContaining({ to: 'frontend_build' }),
@@ -21,6 +34,7 @@ describe('Configuration de l’installation Windows', () => {
       expect.objectContaining({ to: 'tools/sauvegarder-caisse.ps1' }),
       expect.objectContaining({ to: 'tools/restaurer-caisse.ps1' })
     ]));
+    expect(resources.filter(resource => resource.to === 'backend')).toHaveLength(1);
   });
 
   test('ne programme aucune suppression du profil de caisse à la désinstallation', () => {
