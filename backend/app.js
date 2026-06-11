@@ -70,6 +70,7 @@ const secondaryOpeningRoutes = require('./routes/secondaryOpening.routes');
 const friendlyRoutes = require('./routes/friendly.routes');
 const motifsRoutes = require('./routes/motifs.routes');
 const webdavRoutes = require('./routes/webdav.routes');
+const createReceiveRouter = require('./routes/recevoir-de-secondaire');
 
 
 
@@ -105,6 +106,12 @@ app.use('/api/boutons', boutonsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/motifs', motifsRoutes);
 app.use('/api/sync/envoyer-secondaire-vers-principal', envoyerSecondaireVersPrincipal);
+const socketio = {
+  emit(...args) {
+    app.get('socketio')?.emit(...args);
+  }
+};
+app.use('/api/sync/recevoir-de-secondaire', createReceiveRouter(socketio));
 app.use('/api/friendly', friendlyRoutes);
 app.use('/api/webdav', webdavRoutes);
 
