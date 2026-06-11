@@ -125,6 +125,34 @@ function selectPendingLogsForWindow(startISO, endISO) {
   });
 }
 
+function countSalesForWindow(startISO, endISO) {
+  const rows = sqlite.prepare(`
+    SELECT payload
+    FROM sync_log
+    WHERE type = 'ticketdecaisse'
+      AND operation = 'INSERT'
+      AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
+  `).all(startISO, endISO);
+
+  return new Set(
+    rows
+      .map(row => {
+        try {
+          return JSON.parse(row.payload);
+        } catch {
+          return null;
+        }
+      })
+      .filter(payload => (
+        payload?.uuid_ticket
+        && !payload.cloture
+        && !payload.flag_annulation
+        && !payload.flag_correction
+      ))
+      .map(payload => payload.uuid_ticket)
+  ).size;
+}
+
 // --- util: poll /attente-validation avec backoff
 async function pollValidation(baseUrl, requestId, { totalMs = 30000, intervalMs = 1200, maxIntervalMs = 3000 }) {
   const deadline = Date.now() + totalMs;
@@ -198,7 +226,13 @@ router.post('/', async (req, res) => {
 
 
       if (!lignes.length) {
-        return res.json({ success: true, message: 'Aucune donnée à envoyer dans cette fenêtre.' });
+        return res.json({
+          success: true,
+          alreadySynced: true,
+          message: 'Toutes les données de cette session sont déjà synchronisées.',
+          ids: [],
+          salesTransferred: countSalesForWindow(wnd.startISO, wnd.endISO)
+        });
       }
     } else {
       lignes = selectPendingLogsForWindow(
@@ -206,7 +240,16 @@ router.post('/', async (req, res) => {
         closedSession.closed_at_utc
       );
       if (!lignes.length) {
-        return res.json({ success: true, message: 'Aucune donnée à envoyer.' });
+        return res.json({
+          success: true,
+          alreadySynced: true,
+          message: 'Toutes les données de cette session sont déjà synchronisées.',
+          ids: [],
+          salesTransferred: countSalesForWindow(
+            closedSession.opened_at_utc,
+            closedSession.closed_at_utc
+          )
+        });
       }
     }
 

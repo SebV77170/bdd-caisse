@@ -19,12 +19,31 @@ module.exports = function (io) {
 
   // Plusieurs caisses peuvent demander une synchronisation en parallèle.
   const requests = new Map();
+  const completedRequests = new Map();
   const openingRequests = new Map();
 
   function findRequest(requestId) {
-    if (requestId) return requests.get(requestId);
+    if (requestId) return requests.get(requestId) || completedRequests.get(requestId);
     if (requests.size === 1) return requests.values().next().value;
     return null;
+  }
+
+  function rememberCompletedRequest(syncRequest) {
+    completedRequests.set(syncRequest.requestId, syncRequest);
+    setTimeout(() => {
+      completedRequests.delete(syncRequest.requestId);
+    }, 5 * 60 * 1000).unref?.();
+  }
+
+  function buildBatchKey(sourceId, logs) {
+    const operationUuids = logs
+      .map(log => log.operation_uuid)
+      .filter(Boolean)
+      .sort();
+    if (operationUuids.length !== logs.length || operationUuids.length === 0) {
+      return null;
+    }
+    return `${sourceId}:${operationUuids.join(',')}`;
   }
 
   router.get('/status', (req, res) => {
@@ -131,12 +150,55 @@ module.exports = function (io) {
     }
 
     const requestId = randomUUID();
+    const sourceId = req.body.sourceId || 'caisse-secondaire-inconnue';
+    const batchKey = buildBatchKey(sourceId, logs);
+    if (batchKey) {
+      const existingRequest = [...requests.values()]
+        .find(request => request.batchKey === batchKey);
+      if (existingRequest) {
+        return res.json({
+          requestId: existingRequest.requestId,
+          duplicate: true,
+          message: 'Cette demande est déjà en attente de validation.'
+        });
+      }
+    }
+
     const syncRequest = {
       requestId,
-      sourceId: req.body.sourceId || 'caisse-secondaire-inconnue',
+      sourceId,
+      batchKey,
       logs,
       validationResult: null
     };
+
+    const operationUuids = logs
+      .map(log => log.operation_uuid)
+      .filter(Boolean);
+    if (operationUuids.length === logs.length && operationUuids.length > 0) {
+      const alreadyReceived = operationUuids.every(operationUuid => (
+        sqlite.prepare(`
+          SELECT 1
+          FROM sync_received_operations
+          WHERE operation_uuid = ?
+          LIMIT 1
+        `).get(operationUuid)
+      ));
+      if (alreadyReceived) {
+        syncRequest.validationResult = {
+          success: true,
+          ids: logs.map(log => log.id),
+          replayed: true
+        };
+        rememberCompletedRequest(syncRequest);
+        return res.json({
+          requestId,
+          replayed: true,
+          message: 'Lot déjà intégré sur la caisse principale.'
+        });
+      }
+    }
+
     requests.set(requestId, syncRequest);
 
     io.emit('demande-sync-secondaire', {
@@ -181,6 +243,7 @@ module.exports = function (io) {
     // Décision prête : on la renvoie telle quelle
     const result = syncRequest.validationResult;
     requests.delete(syncRequest.requestId);
+    rememberCompletedRequest(syncRequest);
     return res.json(result);
   });
 
@@ -190,6 +253,14 @@ module.exports = function (io) {
     const syncRequest = findRequest(requestId);
     if (!syncRequest) {
       return res.status(400).json({ error: 'Aucune demande de synchronisation en attente' });
+    }
+    if (syncRequest.validationResult !== null) {
+      return res.json({
+        success: syncRequest.validationResult.success,
+        alreadyProcessed: true,
+        accepted: syncRequest.validationResult.ids || [],
+        failed: []
+      });
     }
 
     if (decision !== 'accepter') {

@@ -31,6 +31,7 @@ function FermetureCaisse() {
   const [reductions, setReductions] = useState(null);
   const [syncRecovery, setSyncRecovery] = useState(null);
   const [retryingSync, setRetryingSync] = useState(false);
+  const [closingSecondary, setClosingSecondary] = useState(false);
   const [principalVerified, setPrincipalVerified] = useState(false);
   const navigate = useNavigate();
   const uuidSessionCaisse = activeSession?.uuid_session || null;
@@ -106,10 +107,12 @@ function FermetureCaisse() {
   // Ferme la caisse secondaire + envoie vers la principale (route unique côté backend)
   const handleSubmitSecondaire = async (e) => {
     e.preventDefault();
+    if (closingSecondary) return;
     if (!uuidSessionCaisse) return toast.error("Aucune session caisse ouverte !");
     if (!responsablePseudo || !motDePasse) {
       return toast.error('Pseudo responsable et mot de passe requis');
     }
+    setClosingSecondary(true);
     try {
       const res = await fetch('http://localhost:3001/api/sync/envoyer-secondaire-vers-principal', {
         method: 'POST',
@@ -141,6 +144,8 @@ function FermetureCaisse() {
     } catch (err) {
       console.error(err);
       toast.error('Erreur de communication avec le serveur local.');
+    } finally {
+      setClosingSecondary(false);
     }
   };
 
@@ -413,7 +418,9 @@ function FermetureCaisse() {
             setMotDePasse={setMotDePasse}
             onSubmit={handleSubmitSecondaire}
           />
-          <button type="submit" style={{ marginTop: 10 }}>Fermer la caisse et envoyer à la caisse principale</button>
+          <button type="submit" disabled={closingSecondary} style={{ marginTop: 10 }}>
+            {closingSecondary ? 'Synchronisation en attente...' : 'Fermer la caisse et envoyer à la caisse principale'}
+          </button>
         </form>
         </SiCaisseSecondaire>
 

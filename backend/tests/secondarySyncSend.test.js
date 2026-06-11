@@ -190,6 +190,39 @@ describe('Envoi d’une caisse secondaire vers la principale', () => {
     });
   });
 
+  test('compte les ventes d’une session déjà entièrement synchronisée', async () => {
+    sqlite.prepare(`
+      INSERT INTO sync_log (
+        type, operation, payload, synced, senttoprincipal, created_at
+      ) VALUES (
+        'ticketdecaisse',
+        'INSERT',
+        '{"uuid_ticket":"ticket-déjà-envoyé","id_vendeur":"user-1","nbr_objet":1,"prix_total":300}',
+        0,
+        1,
+        '2026-06-11 10:00:00'
+      )
+    `).run();
+
+    const res = await request(createApp()).post('/send').send({
+      mode: 'resendWindow',
+      window: {
+        startISO: '2026-06-11T09:59:00.000Z',
+        endISO: '2026-06-11T10:01:00.000Z'
+      },
+      responsable_pseudo: 'admin',
+      mot_de_passe: 'secret'
+    });
+
+    expect(res.body).toMatchObject({
+      success: true,
+      alreadySynced: true,
+      salesTransferred: 1,
+      ids: []
+    });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   test('ne marque aucun log si la principale refuse la demande', async () => {
     sqlite.prepare(`
       INSERT INTO session_caisse (

@@ -125,6 +125,51 @@ describe('Synchronisation reçue depuis une caisse secondaire', () => {
     );
   });
 
+  test('déduplique une demande concurrente et rejoue son accusé de réception', async () => {
+    const payload = {
+      sourceId: 'caisse-a',
+      logs: [{
+        id: 50,
+        operation_uuid: 'operation-bilan-rejouable',
+        type: 'bilan',
+        operation: 'INSERT',
+        payload: {
+          date: '2026-06-11',
+          timestamp: 3,
+          nombre_vente: 1,
+          prix_total: 300
+        }
+      }]
+    };
+
+    const first = await request(app).post('/sync/demande').send(payload);
+    const duplicate = await request(app).post('/sync/demande').send(payload);
+
+    expect(duplicate.body).toMatchObject({
+      requestId: first.body.requestId,
+      duplicate: true
+    });
+
+    await request(app).post('/sync/valider').send({
+      decision: 'accepter',
+      requestId: first.body.requestId,
+      uuid_session_caisse_principale: 'principal-1'
+    });
+    expect((await request(app).post('/sync/attente-validation').send({
+      requestId: first.body.requestId
+    })).body).toMatchObject({ success: true, ids: [50] });
+
+    const replay = await request(app).post('/sync/demande').send(payload);
+    expect(replay.body.replayed).toBe(true);
+    expect((await request(app).post('/sync/attente-validation').send({
+      requestId: replay.body.requestId
+    })).body).toMatchObject({
+      success: true,
+      ids: [50],
+      replayed: true
+    });
+  });
+
   test('applique atomiquement ticket, objet, paiement, bilan et session', async () => {
     const logs = [
       {
