@@ -16,6 +16,7 @@ try {
     tests\databaseLifecycle.test.js `
     tests\historicalMigrations.test.js `
     tests\packagingConfiguration.test.js `
+    tests\releaseInfo.test.js `
     tests\updateStartupPolicy.test.js `
     --runInBand `
     --no-cache

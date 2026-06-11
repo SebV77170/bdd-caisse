@@ -36,6 +36,7 @@ const [showBoutons, setShowBoutons] = useState(false);
   const [webdavState, setWebdavState] = useState(null);
   const [updateMessage, setUpdateMessage] = useState('');
   const [updateChecking, setUpdateChecking] = useState(false);
+  const [versionInfo, setVersionInfo] = useState(null);
 
   const [showPassModal, setShowPassModal] = useState(false);
   const { devMode, setDevMode } = useContext(DevModeContext);
@@ -109,6 +110,17 @@ const [showBoutons, setShowBoutons] = useState(false);
       setUpdateMessage(`${prefix} ${status.message}`);
       setUpdateChecking(['checking', 'download-started', 'update-available', 'download-progress'].includes(status.status));
     });
+  }, []);
+
+  useEffect(() => {
+    if (!window.electron?.getVersionInfo) return;
+
+    window.electron.getVersionInfo()
+      .then(info => setVersionInfo(info))
+      .catch(() => setVersionInfo({
+        version: 'inconnue',
+        notes: 'Les informations de cette version sont indisponibles.'
+      }));
   }, []);
 
   const save = async () => {
@@ -377,6 +389,18 @@ const [showBoutons, setShowBoutons] = useState(false);
 
       <h3>⬆️ Mise à jour application</h3>
       <p className="mb-2">Vérifie immédiatement s'il existe une nouvelle version sur le serveur de release WebDAV.</p>
+      <div className="border rounded p-3 mb-3 bg-light">
+        <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <strong>Version installée</strong>
+          <span className="badge text-bg-primary">
+            {versionInfo?.version || 'Chargement...'}
+          </span>
+        </div>
+        <div className="fw-semibold mb-1">Nouveautés de cette version</div>
+        <div style={{ whiteSpace: 'pre-wrap' }}>
+          {versionInfo?.notes || 'Chargement des notes de version...'}
+        </div>
+      </div>
       <Button variant="secondary" onClick={checkForAppUpdates} disabled={updateChecking}>
         {updateChecking ? '🔎 Recherche en cours...' : '🔎 Rechercher une mise à jour'}
       </Button>

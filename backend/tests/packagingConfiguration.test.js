@@ -16,7 +16,9 @@ describe('Configuration de l’installation Windows', () => {
     expect(packagedFiles).toEqual(expect.arrayContaining([
       'main.js',
       'preload.js',
-      'updateStartupPolicy.js'
+      'updateStartupPolicy.js',
+      'releaseInfo.js',
+      'release-info.json'
     ]));
     expect(resources).toEqual(expect.arrayContaining([
       expect.objectContaining({

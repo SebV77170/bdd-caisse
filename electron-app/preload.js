@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electron', {
   ouvrirDevTools: () => ipcRenderer.send('devtools-open'),
   ensureInteractiveLight: () => ipcRenderer.invoke('ui/ensure-interactive-light'),
   ensureInteractiveRaise: () => ipcRenderer.invoke('ui/ensure-interactive-raise'),
+  getVersionInfo: () => ipcRenderer.invoke('app/get-version-info'),
   checkForUpdates: () => ipcRenderer.invoke('app/check-for-updates'),
   onUpdateStatus: (callback) => {
     const listener = (_event, payload) => callback(payload);

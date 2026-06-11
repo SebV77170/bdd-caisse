@@ -13,6 +13,7 @@ const appDir = path.resolve(__dirname, '..');
 const distDir = path.join(appDir, 'dist');
 const packageJsonPath = path.join(appDir, 'package.json');
 const packageLockPath = path.join(appDir, 'package-lock.json');
+const releaseInfoPath = path.join(appDir, 'release-info.json');
 const packageJson = require(packageJsonPath);
 
 function parseDotEnvValue(value) {
@@ -338,6 +339,13 @@ function getReleaseNotes() {
   return `Mise à jour ${packageJson.version}`;
 }
 
+function writeReleaseInfo(releaseNotes) {
+  fs.writeFileSync(releaseInfoPath, JSON.stringify({
+    version: packageJson.version,
+    notes: releaseNotes
+  }, null, 2) + '\n', 'utf8');
+}
+
 function escapeYamlString(value) {
   return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
@@ -549,6 +557,7 @@ async function main() {
   }
 
   const buildUpdateUrl = process.env.BDD_CAISSE_UPDATE_URL || null;
+  writeReleaseInfo(getReleaseNotes());
   runElectronBuilder(buildUpdateUrl);
 
   if (buildUpdateUrl) {

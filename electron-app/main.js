@@ -8,6 +8,7 @@ const { spawn } = require('child_process');
 const http = require('http');
 const https = require('https');
 const { startUpdateCheckInBackground } = require('./updateStartupPolicy');
+const { loadReleaseInfo } = require('./releaseInfo');
 
 
 let mainWindow;
@@ -544,6 +545,9 @@ ipcMain.handle('ui/ensure-interactive-light', () => { ensureInteractiveLight(); 
 ipcMain.handle('ui/ensure-interactive-raise', () => { ensureInteractiveRaise(); return true; });
 ipcMain.handle('app/check-for-updates', async () => {
   return checkForAppUpdate('manual');
+});
+ipcMain.handle('app/get-version-info', () => {
+  return loadReleaseInfo(path.join(__dirname, 'release-info.json'), app.getVersion());
 });
 
 function createWindow() {

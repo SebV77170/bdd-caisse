@@ -23,6 +23,8 @@
       "main.js",
       "preload.js",
       "updateStartupPolicy.js",
+      "releaseInfo.js",
+      "release-info.json",
       "assets/**/*",
       "build/**/*",
       "!node_modules/.cache",

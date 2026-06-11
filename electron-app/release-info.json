@@ -1,0 +1,4 @@
+{
+  "version": "2.0.2",
+  "notes": "Correction du lancement après installation.\nOptimisation du contenu de l’installeur.\nAffichage de la version installée et de ses nouveautés dans les paramètres."
+}
