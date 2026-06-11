@@ -51,8 +51,21 @@ function buildSubnetCandidates(localAddresses = getLocalIpv4Addresses()) {
 }
 
 async function isPrincipalCandidate(ip, timeoutMs = 500) {
+  const diagnostic = await inspectPrincipalCandidate(ip, timeoutMs);
+  return diagnostic.isPrincipalOpen;
+}
+
+async function inspectPrincipalCandidate(ip, timeoutMs = 500) {
   const host = normalizePrincipalHost(ip);
-  if (!host) return false;
+  if (!host) {
+    return {
+      host,
+      reachable: false,
+      isPrincipal: false,
+      isPrincipalOpen: false,
+      reason: 'Adresse de caisse principale vide ou invalide.'
+    };
+  }
 
   try {
     const { response, data } = await fetchJsonWithTimeout(
@@ -60,11 +73,34 @@ async function isPrincipalCandidate(ip, timeoutMs = 500) {
       {},
       timeoutMs
     );
-    return response.ok
-      && data.role === 'caisse-principale'
-      && data.principalSessionOpen === true;
-  } catch {
-    return false;
+    const isPrincipal = response.ok && data.role === 'caisse-principale';
+    const isPrincipalOpen = isPrincipal && data.principalSessionOpen === true;
+    let reason = null;
+    if (!response.ok) {
+      reason = `Le poste ${host} a répondu avec le statut HTTP ${response.status}.`;
+    } else if (!isPrincipal) {
+      reason = `Le poste ${host} répond, mais son service n'est pas identifié comme une caisse principale.`;
+    } else if (!isPrincipalOpen) {
+      reason = `Le poste ${host} répond comme caisse principale, mais aucune session principale n'y est ouverte.`;
+    }
+    return {
+      host,
+      reachable: true,
+      isPrincipal,
+      isPrincipalOpen,
+      reason,
+      remote: data
+    };
+  } catch (error) {
+    return {
+      host,
+      reachable: false,
+      isPrincipal: false,
+      isPrincipalOpen: false,
+      reason: error.name === 'AbortError'
+        ? `Le poste ${host} ne répond pas sur le port 3001 dans le délai prévu.`
+        : `Impossible de joindre ${host}:3001 (${error.message}).`
+    };
   }
 }
 
@@ -98,6 +134,7 @@ module.exports = {
   fetchJsonWithTimeout,
   normalizePrincipalHost,
   buildSubnetCandidates,
+  inspectPrincipalCandidate,
   isPrincipalCandidate,
   discoverPrincipalCandidates
 };

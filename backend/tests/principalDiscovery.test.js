@@ -1,7 +1,12 @@
 const {
   normalizePrincipalHost,
-  buildSubnetCandidates
+  buildSubnetCandidates,
+  inspectPrincipalCandidate
 } = require('../utils/principalDiscovery');
+
+const mockFetch = jest.requireMock('node-fetch');
+
+jest.mock('node-fetch', () => jest.fn());
 
 describe('Découverte de la caisse principale', () => {
   test.each([
@@ -18,5 +23,22 @@ describe('Découverte de la caisse principale', () => {
     expect(candidates).toContain('192.168.10.1');
     expect(candidates).toContain('192.168.10.254');
     expect(candidates).not.toContain('192.168.10.42');
+  });
+
+  test('explique lorsqu’un poste principal répond sans session ouverte', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({
+        role: 'caisse-principale',
+        principalSessionOpen: false
+      })
+    });
+
+    const result = await inspectPrincipalCandidate('192.168.1.25', 1000);
+
+    expect(result.reachable).toBe(true);
+    expect(result.isPrincipalOpen).toBe(false);
+    expect(result.reason).toContain('aucune session principale');
   });
 });

@@ -6,6 +6,7 @@ const { getConfig: getStoreConfig } = require('../storeConfig');
 const {
   fetchJsonWithTimeout,
   normalizePrincipalHost,
+  inspectPrincipalCandidate,
   isPrincipalCandidate,
   discoverPrincipalCandidates
 } = require('../utils/principalDiscovery');
@@ -56,16 +57,19 @@ router.post('/authorize', async (req, res) => {
 
   try {
     const candidates = [];
+    let configuredDiagnostic = null;
     let configuredIpReachable = false;
     if (configuredIp) {
-      configuredIpReachable = await isPrincipalCandidate(configuredIp, 4000);
+      configuredDiagnostic = await inspectPrincipalCandidate(configuredIp, 4000);
+      configuredIpReachable = configuredDiagnostic.isPrincipalOpen;
       if (!configuredIpReachable) {
         await new Promise(resolve => setTimeout(resolve, 250));
-        configuredIpReachable = await isPrincipalCandidate(configuredIp, 4000);
+        configuredDiagnostic = await inspectPrincipalCandidate(configuredIp, 4000);
+        configuredIpReachable = configuredDiagnostic.isPrincipalOpen;
       }
     }
 
-    if (configuredIpReachable) {
+    if (configuredIpReachable || configuredDiagnostic?.isPrincipal) {
       candidates.push(configuredIp);
     } else {
       candidates.push(...await discoverPrincipalCandidates({
@@ -75,19 +79,21 @@ router.post('/authorize', async (req, res) => {
     }
 
     if (candidates.length === 0) {
-      const configuredHint = configuredIp
-        ? ` La caisse configurée (${configuredIp}:3001) ne répond pas comme une caisse principale ouverte. Vérifiez que les deux postes sont sur le même réseau et que le pare-feu autorise le port TCP 3001 sur la caisse principale.`
-        : '';
+      const configuredHint = configuredDiagnostic?.reason
+        || (configuredIp
+          ? `La caisse configurée (${configuredIp}:3001) ne répond pas comme une caisse principale ouverte.`
+          : 'Aucune adresse de caisse principale n’est configurée.');
       return res.status(404).json({
         success: false,
         code: 'PRINCIPAL_NOT_FOUND',
         configuredIp,
-        diagnostic: configuredHint.trim(),
+        diagnostic: `${configuredHint} Vérifiez le réseau et le pare-feu Windows du poste principal (port TCP 3001).`,
         error: "Aucune caisse principale ouverte n'a été trouvée sur le réseau."
       });
     }
 
     const uniqueCandidates = [...new Set(candidates)];
+    let lastRemoteError = null;
     for (const ip of uniqueCandidates) {
       try {
         const confirmation = await requestHumanConfirmation(ip, source);
@@ -109,7 +115,11 @@ router.post('/authorize', async (req, res) => {
             error: 'La caisse principale a refusé l’ouverture de cette caisse secondaire.'
           });
         }
-      } catch {
+        lastRemoteError = confirmation.message || confirmation.error || null;
+      } catch (error) {
+        lastRemoteError = error.name === 'AbortError'
+          ? `La caisse principale ${ip} n'a pas répondu à la demande dans le délai prévu.`
+          : `La communication avec la caisse principale ${ip} a échoué (${error.message}).`;
         // Le poste a pu disparaître entre la découverte et la confirmation.
       }
     }
@@ -117,6 +127,8 @@ router.post('/authorize', async (req, res) => {
     return res.status(504).json({
       success: false,
       code: 'PRINCIPAL_CONFIRMATION_TIMEOUT',
+      details: lastRemoteError,
+      diagnostic: lastRemoteError,
       error: "Aucune caisse principale n'a confirmé la demande dans le délai prévu."
     });
   } catch (error) {
