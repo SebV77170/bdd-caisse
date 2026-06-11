@@ -606,7 +606,7 @@ function launchBackend() {
 
   if (backendProcess) {
     console.log('⚠️ Backend déjà lancé, on ne relance pas');
-    return;
+    return backendProcess;
   }
   const isDev = !app.isPackaged;
 
@@ -637,6 +637,8 @@ console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
   backendProcess.on('close', (code) => {
     console.log(`🚪 Backend fermé avec le code ${code}`);
   });
+
+  return backendProcess;
 }
 
 function verifierSessionUtilisateur() {
@@ -747,17 +749,36 @@ ipcMain.on('devtools-open', () => {
 // 🚀 Lancement global
 const isDev = !app.isPackaged;
 
-function waitForBackendReady(callback) {
+function waitForBackendReady(processHandle, callback) {
   const maxRetries = 50;
   let retries = 0;
+  let settled = false;
+
+  const fail = (message) => {
+    if (settled) return;
+    settled = true;
+    console.error(message);
+    dialog.showErrorBox(
+      'Impossible de démarrer Bdd-caisse',
+      `${message}\n\nConsultez le fichier backend-err.log dans le dossier d'installation.`
+    );
+    app.exit(1);
+  };
+
+  processHandle?.once('close', (code) => {
+    fail(`Le serveur interne s'est arrêté pendant le démarrage (code ${code ?? 'inconnu'}).`);
+  });
 
   const tryConnect = () => {
     http.get('http://localhost:3001', (res) => {
+      if (settled) return;
+      settled = true;
       console.log('✅ Backend prêt, on charge la fenêtre');
       callback();
     }).on('error', () => {
+      if (settled) return;
       if (retries >= maxRetries) {
-        console.error('❌ Backend toujours pas prêt après plusieurs essais');
+        fail("Le serveur interne n'a pas répondu après 15 secondes.");
         return;
       }
       retries++;
@@ -771,8 +792,8 @@ function waitForBackendReady(callback) {
 
 app.whenReady().then(() => {
   if (!isDev) {
-    launchBackend();
-    waitForBackendReady(() => {
+    const processHandle = launchBackend();
+    waitForBackendReady(processHandle, () => {
       verifierSessionUtilisateur(); // optionnel mais logique ici
       console.log('✅ Le backend a répondu, ouverture de la fenêtre Electron');
 

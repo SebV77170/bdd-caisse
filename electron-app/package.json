@@ -1,6 +1,6 @@
 {
   "name": "bdd-caisse-app",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "main": "main.js",
   "description": "Logiciel de caisse de RessourceBrie (Electron + React + Node). Implementation WebDAV pour la synchronisation des tickets.",
   "author": {
@@ -36,10 +36,19 @@
         "to": "backend",
         "filter": [
           "**/*",
+          "!node_modules{,/**/*}",
           "!tests{,/**/*}",
           "!coverage{,/**/*}",
           "!**/*.map",
           "!**/*.log"
+        ]
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules",
+        "filter": [
+          "**/*",
+          "!**/*.map"
         ]
       },
       {

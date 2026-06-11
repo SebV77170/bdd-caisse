@@ -5,6 +5,7 @@ const mockUpdateConfig = jest.fn();
 
 jest.mock('../utils/principalDiscovery', () => ({
   fetchJsonWithTimeout: (...args) => mockFetchJson(...args),
+  normalizePrincipalHost: value => String(value || '').trim(),
   isPrincipalCandidate: (...args) => mockIsPrincipalCandidate(...args),
   discoverPrincipalCandidates: (...args) => mockDiscoverCandidates(...args)
 }));
@@ -83,5 +84,7 @@ describe('Autorisation d’ouverture d’une caisse secondaire', () => {
 
     expect(response.status).toBe(404);
     expect(response.body.code).toBe('PRINCIPAL_NOT_FOUND');
+    expect(response.body.diagnostic).toContain('192.168.1.99:3001');
+    expect(mockIsPrincipalCandidate).toHaveBeenCalledTimes(2);
   });
 });

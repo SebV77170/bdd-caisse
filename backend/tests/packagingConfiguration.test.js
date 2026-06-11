@@ -24,10 +24,15 @@ describe('Configuration de l’installation Windows', () => {
       expect.objectContaining({
         to: 'backend',
         filter: expect.arrayContaining([
+          '!node_modules{,/**/*}',
           '!tests{,/**/*}',
           '!**/*.map',
           '!**/*.log'
         ])
+      }),
+      expect.objectContaining({
+        to: 'backend/node_modules',
+        filter: expect.arrayContaining(['!**/*.map'])
       }),
       expect.objectContaining({ to: 'node.exe' }),
       expect.objectContaining({ to: 'database' }),
@@ -37,6 +42,7 @@ describe('Configuration de l’installation Windows', () => {
       expect.objectContaining({ to: 'tools/restaurer-caisse.ps1' })
     ]));
     expect(resources.filter(resource => resource.to === 'backend')).toHaveLength(1);
+    expect(resources.filter(resource => resource.to === 'backend/node_modules')).toHaveLength(1);
   });
 
   test('ne programme aucune suppression du profil de caisse à la désinstallation', () => {

@@ -62,4 +62,23 @@ describe('Diagnostic de la caisse principale', () => {
     expect(result.body.success).toBe(false);
     expect(mockUpdateConfig).not.toHaveBeenCalled();
   });
+
+  test('normalise une URL et exige une session principale ouverte', async () => {
+    mockFetch.mockResolvedValueOnce(response(200, {
+      role: 'caisse-principale',
+      principalSessionOpen: false
+    }));
+
+    const result = await request(createApp())
+      .post('/principal-ip/test-and-save')
+      .send({ ip: 'http://192.168.1.25:3001/' });
+
+    expect(result.status).toBe(502);
+    expect(result.body.details).toContain('aucune session de caisse principale');
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://192.168.1.25:3001/api/sync/recevoir-de-secondaire/status',
+      expect.objectContaining({ signal: expect.anything() })
+    );
+    expect(mockUpdateConfig).not.toHaveBeenCalled();
+  });
 });

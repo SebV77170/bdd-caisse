@@ -53,7 +53,8 @@ function OuvertureCaisse() {
       });
       const data = await response.json();
       if (!response.ok || !data.success) {
-        setMessage(data.error || "La caisse principale n'a pas autorisé l'ouverture.");
+        const error = data.error || "La caisse principale n'a pas autorisé l'ouverture.";
+        setMessage(data.diagnostic ? `${error} ${data.diagnostic}` : error);
         return null;
       }
       setSecondaryAuthorization(data);

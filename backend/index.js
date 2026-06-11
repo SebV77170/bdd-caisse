@@ -19,7 +19,7 @@ app.set('socketio', io);
 const recevoirDeSecondaire = require('./routes/recevoir-de-secondaire')(io);
 app.use('/api/sync/recevoir-de-secondaire', recevoirDeSecondaire);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Serveur backend lancé sur http://localhost:${PORT}`);
   startScheduler(PORT, io);
   startWebdavScheduler();

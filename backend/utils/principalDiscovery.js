@@ -1,6 +1,22 @@
 const os = require('os');
 const fetch = require('node-fetch');
 
+function normalizePrincipalHost(value) {
+  const input = String(value || '').trim();
+  if (!input) return '';
+
+  try {
+    const url = new URL(input.includes('://') ? input : `http://${input}`);
+    return url.hostname;
+  } catch {
+    return input
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .split(':')[0]
+      .trim();
+  }
+}
+
 async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 800) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -35,9 +51,12 @@ function buildSubnetCandidates(localAddresses = getLocalIpv4Addresses()) {
 }
 
 async function isPrincipalCandidate(ip, timeoutMs = 500) {
+  const host = normalizePrincipalHost(ip);
+  if (!host) return false;
+
   try {
     const { response, data } = await fetchJsonWithTimeout(
-      `http://${ip}:3001/api/sync/recevoir-de-secondaire/status`,
+      `http://${host}:3001/api/sync/recevoir-de-secondaire/status`,
       {},
       timeoutMs
     );
@@ -77,6 +96,7 @@ async function discoverPrincipalCandidates({
 
 module.exports = {
   fetchJsonWithTimeout,
+  normalizePrincipalHost,
   buildSubnetCandidates,
   isPrincipalCandidate,
   discoverPrincipalCandidates

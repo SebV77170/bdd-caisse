@@ -5,6 +5,7 @@ const { getConfig: getPrincipalConfig, updateConfig } = require('../principalIpC
 const { getConfig: getStoreConfig } = require('../storeConfig');
 const {
   fetchJsonWithTimeout,
+  normalizePrincipalHost,
   isPrincipalCandidate,
   discoverPrincipalCandidates
 } = require('../utils/principalDiscovery');
@@ -44,7 +45,7 @@ router.post('/authorize', async (req, res) => {
     return res.status(401).json({ success: false, error: 'Aucun utilisateur connecté.' });
   }
 
-  const configuredIp = getPrincipalConfig().ip;
+  const configuredIp = normalizePrincipalHost(getPrincipalConfig().ip);
   const store = getStoreConfig();
   const source = {
     sourceId: process.env.CASH_REGISTER_ID || os.hostname(),
@@ -55,17 +56,33 @@ router.post('/authorize', async (req, res) => {
 
   try {
     const candidates = [];
-    if (configuredIp && await isPrincipalCandidate(configuredIp, 1500)) {
+    let configuredIpReachable = false;
+    if (configuredIp) {
+      configuredIpReachable = await isPrincipalCandidate(configuredIp, 4000);
+      if (!configuredIpReachable) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        configuredIpReachable = await isPrincipalCandidate(configuredIp, 4000);
+      }
+    }
+
+    if (configuredIpReachable) {
       candidates.push(configuredIp);
     } else {
-      candidates.push(...await discoverPrincipalCandidates());
+      candidates.push(...await discoverPrincipalCandidates({
+        timeoutMs: 1000,
+        concurrency: 48
+      }));
     }
 
     if (candidates.length === 0) {
+      const configuredHint = configuredIp
+        ? ` La caisse configurée (${configuredIp}:3001) ne répond pas comme une caisse principale ouverte. Vérifiez que les deux postes sont sur le même réseau et que le pare-feu autorise le port TCP 3001 sur la caisse principale.`
+        : '';
       return res.status(404).json({
         success: false,
         code: 'PRINCIPAL_NOT_FOUND',
         configuredIp,
+        diagnostic: configuredHint.trim(),
         error: "Aucune caisse principale ouverte n'a été trouvée sur le réseau."
       });
     }
