@@ -3,7 +3,7 @@ const logSync = require('../logSync');
 const session = require('../session');
 const { getConfig } = require('../storeConfig');
 
-function genererFriendlyIds(uuid, type = 'vente') {
+function genererFriendlyIds(uuid, type = 'vente', options = {}) {
   const prefixMap = {
     vente: 'T',
     correction: 'C',
@@ -51,7 +51,7 @@ function genererFriendlyIds(uuid, type = 'vente') {
     uuid,
     id_friendly: idFriendly,
     type
-  });
+  }, options);
 
   return idFriendly; // Utile si tu veux l'afficher ou le loguer
 }

@@ -165,6 +165,13 @@ function getMysqlConfig() {
 let db;
 
 function ensureOperationalMigrations(database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name TEXT PRIMARY KEY,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   const ticketTable = database
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ticketdecaisse'")
     .get();

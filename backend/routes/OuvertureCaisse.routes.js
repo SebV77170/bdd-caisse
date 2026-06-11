@@ -49,7 +49,9 @@ router.post('/ouverture', (req, res) => {
   // 3) Préparer l’insert (UTC + données)
   const nowUtcIso = new Date().toISOString(); // opened_at_utc
   const id_session = uuidv4();
-  genererFriendlyIds(id_session, 'session');
+  genererFriendlyIds(id_session, 'session', {
+    isSecondary: issecondaire === 1
+  });
 
   const caissiers = JSON.stringify([utilisateur.nom]);
   const fondInitialCents = Number.isFinite(+fond_initial) ? +fond_initial : 0;

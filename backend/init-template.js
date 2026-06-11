@@ -205,6 +205,11 @@ CREATE TABLE sync_received_operations (
   received_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE app_migrations (
+  name TEXT PRIMARY KEY,
+  applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE code_postal (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   code TEXT NOT NULL,
