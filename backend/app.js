@@ -115,6 +115,14 @@ app.use('/api/sync/recevoir-de-secondaire', createReceiveRouter(socketio));
 app.use('/api/friendly', friendlyRoutes);
 app.use('/api/webdav', webdavRoutes);
 
+app.get('/api/health', (_req, res) => {
+  res.json({
+    service: 'bdd-caisse-backend',
+    version: process.env.BDD_CAISSE_APP_VERSION || null,
+    pid: process.pid
+  });
+});
+
 fs.mkdirSync(baseDir, { recursive: true });
 app.use('/factures', express.static(path.join(baseDir, 'factures')));
 

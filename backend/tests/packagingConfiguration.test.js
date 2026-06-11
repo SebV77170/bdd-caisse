@@ -54,5 +54,20 @@ describe('Configuration de l’installation Windows', () => {
     expect(installer).not.toMatch(/\.bdd-caisse/i);
     expect(installer).not.toMatch(/\bRMDir\b|\bDelete\b/i);
     expect(installer).toMatch(/taskkill/i);
+    expect(installer).toMatch(/resources\\backend\\index\.js/i);
+    expect(installer).toMatch(/Invoke-CimMethod -MethodName Terminate/i);
+  });
+
+  test('garde le backend lié au cycle de vie Electron', () => {
+    const main = fs.readFileSync(
+      path.join(root, 'electron-app/main.js'),
+      'utf8'
+    );
+
+    expect(main).toMatch(/requestSingleInstanceLock\(\)/);
+    expect(main).toMatch(/\/api\/health/);
+    expect(main).toMatch(/detached:\s*false/);
+    expect(main).toMatch(/windowsHide:\s*true/);
+    expect(main).not.toMatch(/backendProcess\.unref\(\)/);
   });
 });

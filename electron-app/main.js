@@ -19,6 +19,18 @@ let _lastEnsure = 0;
 let updateBaseUrl = null;
 let runtimeEnvLoaded = false;
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
+app.on('second-instance', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+});
+
 function parseDotEnvValue(value) {
   const trimmed = String(value).trim();
   if (!trimmed) return '';
@@ -624,18 +636,21 @@ function launchBackend() {
 
   backendProcess = spawn(command, args, {
   cwd: path.dirname(backendPath),
-  env: { ...process.env, NODE_ENV: isDev ? 'development' : 'production' },
-  detached: true,
+  env: {
+    ...process.env,
+    NODE_ENV: isDev ? 'development' : 'production',
+    BDD_CAISSE_APP_VERSION: app.getVersion()
+  },
+  detached: false,
+  windowsHide: true,
   stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
   shell: false
 });
 console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
 
-  backendProcess.unref(); // ← permet au processus de continuer seul et silencieux
-
-
   backendProcess.on('close', (code) => {
     console.log(`🚪 Backend fermé avec le code ${code}`);
+    backendProcess = null;
   });
 
   return backendProcess;
@@ -753,6 +768,7 @@ function waitForBackendReady(processHandle, callback) {
   const maxRetries = 50;
   let retries = 0;
   let settled = false;
+  let backendExitCode = null;
 
   const fail = (message) => {
     if (settled) return;
@@ -766,19 +782,36 @@ function waitForBackendReady(processHandle, callback) {
   };
 
   processHandle?.once('close', (code) => {
-    fail(`Le serveur interne s'est arrêté pendant le démarrage (code ${code ?? 'inconnu'}).`);
+    backendExitCode = code;
   });
 
   const tryConnect = () => {
-    http.get('http://localhost:3001', (res) => {
-      if (settled) return;
-      settled = true;
-      console.log('✅ Backend prêt, on charge la fenêtre');
-      callback();
+    http.get('http://127.0.0.1:3001/api/health', (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        if (settled) return;
+
+        try {
+          const health = JSON.parse(body);
+          if (res.statusCode === 200 && health.service === 'bdd-caisse-backend') {
+            settled = true;
+            console.log(`✅ Backend prêt (PID ${health.pid}), on charge la fenêtre`);
+            callback();
+            return;
+          }
+        } catch {}
+
+        fail('Le port 3001 est utilisé par un service qui n’est pas Bdd-caisse.');
+      });
     }).on('error', () => {
       if (settled) return;
       if (retries >= maxRetries) {
-        fail("Le serveur interne n'a pas répondu après 15 secondes.");
+        const exitDetail = backendExitCode === null
+          ? ''
+          : ` Le processus s'est arrêté avec le code ${backendExitCode}.`;
+        fail(`Le serveur interne n'a pas répondu après 15 secondes.${exitDetail}`);
         return;
       }
       retries++;

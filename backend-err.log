@@ -222,3 +222,37 @@ Emitted 'error' event on Server instance at:
 }
 
 Node.js v22.13.1
+node:internal/modules/cjs/loader:1404
+  throw err;
+  ^
+
+Error: Cannot find module 'statuses'
+Require stack:
+- C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\node_modules\finalhandler\index.js
+- C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\node_modules\express\lib\application.js
+- C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\node_modules\express\lib\express.js
+- C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\node_modules\express\index.js
+- C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\app.js
+- C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\index.js
+    at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+    at Function._load (node:internal/modules/cjs/loader:1211:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Module.require (node:internal/modules/cjs/loader:1487:12)
+    at require (node:internal/modules/helpers:135:16)
+    at Object.<anonymous> (C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\backend\node_modules\finalhandler\index.js:19:16)
+    at Module._compile (node:internal/modules/cjs/loader:1730:14) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    'C:\\Users\\Seb Bis\\AppData\\Local\\Programs\\bdd-caisse-app\\resources\\backend\\node_modules\\finalhandler\\index.js',
+    'C:\\Users\\Seb Bis\\AppData\\Local\\Programs\\bdd-caisse-app\\resources\\backend\\node_modules\\express\\lib\\application.js',
+    'C:\\Users\\Seb Bis\\AppData\\Local\\Programs\\bdd-caisse-app\\resources\\backend\\node_modules\\express\\lib\\express.js',
+    'C:\\Users\\Seb Bis\\AppData\\Local\\Programs\\bdd-caisse-app\\resources\\backend\\node_modules\\express\\index.js',
+    'C:\\Users\\Seb Bis\\AppData\\Local\\Programs\\bdd-caisse-app\\resources\\backend\\app.js',
+    'C:\\Users\\Seb Bis\\AppData\\Local\\Programs\\bdd-caisse-app\\resources\\backend\\index.js'
+  ]
+}
+
+Node.js v22.17.1

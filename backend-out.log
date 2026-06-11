@@ -32,3 +32,13 @@
 ✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
 [2025-07-12 08:13:50] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
 [2025-07-12 08:13:50] DEBUG Creating transport: nodemailer (7.0.5; +https://nodemailer.com/; SMTP/7.0.5[client:7.0.5])
+📂 Base existante conservée
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+📂 frontendBuildPath : C:\Users\Seb Bis\Sites\bdd-caisse\electron-app\dist\win-unpacked\resources\frontend_build
+📄 index.html exists ? true
+Serveur backend lancé sur http://localhost:3001
+📂 Base existante conservée
+✅ Connecté à SQLite : C:\Users\Seb Bis\.bdd-caisse\ressourcebrie-sqlite.db
+📂 frontendBuildPath : C:\Users\Seb Bis\AppData\Local\Programs\bdd-caisse-app\resources\frontend_build
+📄 index.html exists ? true
+Serveur backend lancé sur http://localhost:3001

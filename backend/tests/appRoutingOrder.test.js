@@ -23,4 +23,15 @@ describe('Ordre des routes de production', () => {
       principalSessionOpen: false
     }));
   });
+
+  test('expose une identité de backend pour le démarrage Electron', async () => {
+    const response = await request(app).get('/api/health');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toMatch(/^application\/json/);
+    expect(response.body).toEqual(expect.objectContaining({
+      service: 'bdd-caisse-backend',
+      pid: process.pid
+    }));
+  });
 });

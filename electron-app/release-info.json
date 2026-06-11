@@ -1,4 +1,4 @@
 {
-  "version": "2.0.3",
-  "notes": "Correction du backend absent après installation.\nAffichage d'une erreur explicite si le serveur interne ne démarre pas.\nOptimisation du contenu de l'installeur.\nAffichage de la version installée et de ses nouveautés dans les paramètres."
+  "version": "2.0.5",
+  "notes": "Masquage de la fenêtre de console Node au démarrage de l'application."
 }
