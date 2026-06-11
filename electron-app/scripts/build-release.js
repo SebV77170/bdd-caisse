@@ -336,6 +336,21 @@ function getReleaseNotes() {
     return process.env.BDD_CAISSE_RELEASE_NOTES.trim();
   }
 
+  if (fs.existsSync(releaseInfoPath)) {
+    try {
+      const currentReleaseInfo = JSON.parse(fs.readFileSync(releaseInfoPath, 'utf8'));
+      if (
+        currentReleaseInfo.version === packageJson.version
+        && typeof currentReleaseInfo.notes === 'string'
+        && currentReleaseInfo.notes.trim()
+      ) {
+        return currentReleaseInfo.notes.trim();
+      }
+    } catch {
+      // Le fichier sera recréé avec les valeurs de repli ci-dessous.
+    }
+  }
+
   return `Mise à jour ${packageJson.version}`;
 }
 

@@ -14,7 +14,7 @@ const backendEntry = path.join(root, 'backend', 'index.js');
 const seedScript = path.join(root, 'scripts', 'e2e', 'seed-production-db.js');
 const preloadScript = path.join(root, 'scripts', 'e2e', 'preload.js');
 const backendPort = 3101;
-const appUrl = `http://localhost:${backendPort}`;
+const appUrl = `http://127.0.0.1:${backendPort}`;
 const syncPort = 3102;
 const syncUrl = `http://127.0.0.1:${syncPort}/sync`;
 const successMarker = path.join(runtimeRoot, 'e2e-success');
@@ -123,7 +123,7 @@ async function waitForBackend(timeoutMs = 20000) {
     } catch {}
     await wait(200);
   }
-  throw new Error('Le backend E2E ne répond pas sur le port 3001.');
+  throw new Error(`Le backend E2E ne répond pas sur le port ${backendPort}.`);
 }
 
 function launchBackend() {
@@ -200,7 +200,7 @@ async function evaluate(expression) {
 
 async function rendererRequest(pathname) {
   return evaluate(`
-    fetch(${JSON.stringify(`http://localhost:3001${pathname}`)}, {
+    fetch(${JSON.stringify(`${appUrl}${pathname}`)}, {
       credentials: 'include'
     }).then(async response => ({
       status: response.status,
@@ -802,7 +802,7 @@ app.whenReady().then(async () => {
     prepareDatabase();
     if (await isPortOpen(backendPort)) {
       throw new Error(
-        'Le port 3001 est déjà utilisé. Fermez l’application de caisse avant le test E2E.'
+        `Le port ${backendPort} est déjà utilisé. Fermez l’application de caisse avant le test E2E.`
       );
     }
 
