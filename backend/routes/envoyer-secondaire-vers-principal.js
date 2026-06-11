@@ -105,20 +105,59 @@ function selectPendingLogsForWindow(startISO, endISO) {
     ORDER BY id
   `).all(startISO, endISO);
 
+  const incomingTicketUuids = rows
+    .filter(row => row.type === 'ticketdecaisse' && row.operation === 'INSERT')
+    .map(row => {
+      try {
+        return JSON.parse(row.payload).uuid_ticket;
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  const singleIncomingTicketUuid = incomingTicketUuids.length === 1
+    ? incomingTicketUuids[0]
+    : null;
+  const updatePayload = sqlite.prepare(
+    'UPDATE sync_log SET payload = ? WHERE id = ?'
+  );
+
   return rows.map(row => {
     if (row.type !== 'objets_vendus' || row.operation !== 'INSERT') return row;
 
     try {
       const payload = JSON.parse(row.payload);
-      if (!payload.uuid_ticket && payload.id_ticket) {
-        return {
-          ...row,
-          payload: JSON.stringify({
-            ...payload,
-            uuid_ticket: payload.id_ticket
-          })
-        };
-      }
+      if (payload.uuid_ticket) return row;
+
+      const soldObject = payload.uuid_objet
+        ? sqlite.prepare(`
+            SELECT uuid_ticket
+            FROM objets_vendus
+            WHERE uuid_objet = ?
+            LIMIT 1
+          `).get(payload.uuid_objet)
+        : null;
+      const ticket = !soldObject?.uuid_ticket && payload.id_ticket
+        ? sqlite.prepare(`
+            SELECT uuid_ticket
+            FROM ticketdecaisse
+            WHERE id_ticket = ? OR uuid_ticket = ?
+            LIMIT 1
+          `).get(payload.id_ticket, payload.id_ticket)
+        : null;
+      const uuidTicket = soldObject?.uuid_ticket
+        || ticket?.uuid_ticket
+        || singleIncomingTicketUuid
+        || payload.id_ticket;
+
+      if (!uuidTicket) return row;
+
+      const repairedPayload = JSON.stringify({
+        ...payload,
+        uuid_ticket: uuidTicket
+      });
+      updatePayload.run(repairedPayload, row.id);
+      return { ...row, payload: repairedPayload };
     } catch {}
 
     return row;
@@ -317,26 +356,16 @@ router.post('/', async (req, res) => {
 
     const submittedIds = new Set(lignes.map(ligne => ligne.id));
     const idsValides = (result.ids || []).filter(id => submittedIds.has(id));
-    const validIds = new Set(idsValides);
-    const salesTransferred = new Set(
-      lignes
-        .filter(ligne => validIds.has(ligne.id))
-        .filter(ligne => ligne.type === 'ticketdecaisse' && ligne.operation === 'INSERT')
-        .map(ligne => {
-          try {
-            return JSON.parse(ligne.payload);
-          } catch {
-            return null;
-          }
-        })
-        .filter(payload => (
-          payload?.uuid_ticket
-          && !payload.cloture
-          && !payload.flag_annulation
-          && !payload.flag_correction
-        ))
-        .map(payload => payload.uuid_ticket)
-    ).size;
+    const syncWindow = resendWindow
+      ? wnd
+      : {
+          startISO: closedSession.opened_at_utc,
+          endISO: closedSession.closed_at_utc
+        };
+    const salesTransferred = countSalesForWindow(
+      syncWindow.startISO,
+      syncWindow.endISO
+    );
 
     // 5) Marquer comme envoyées en local
     const update = sqlite.prepare('UPDATE sync_log SET senttoprincipal = 1 WHERE id = ?');

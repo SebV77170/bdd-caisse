@@ -53,7 +53,15 @@ function insertArticles(uuid_ticket, articles, vendeur, id_vendeur, date_achat) 
       item.categorie, item.souscat, date_achat, now,
       item.prix, item.nbr
     );
-    logSync('objets_vendus', 'INSERT', { uuid_ticket, uuid_objet, ...item, nom_vendeur: vendeur, id_vendeur, date_achat, timestamp: now });
+    logSync('objets_vendus', 'INSERT', {
+      ...item,
+      uuid_ticket,
+      uuid_objet,
+      nom_vendeur: vendeur,
+      id_vendeur,
+      date_achat,
+      timestamp: now
+    });
   }
 }
 

@@ -190,6 +190,54 @@ describe('Envoi d’une caisse secondaire vers la principale', () => {
     });
   });
 
+  test('repairs a sold object from the local row before the first send', async () => {
+    sqlite.prepare(`
+      INSERT INTO ticketdecaisse (
+        uuid_ticket, id_vendeur, nbr_objet, prix_total
+      ) VALUES ('ticket-local', 'user-1', 1, 100)
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO objets_vendus (
+        uuid_ticket, uuid_objet, id_vendeur, timestamp, nbr, nom, prix
+      ) VALUES ('ticket-local', 'objet-local', 'user-1', 1, 1, 'Article', 100)
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO sync_log (type, operation, payload, synced, senttoprincipal)
+      VALUES (
+        'objets_vendus',
+        'INSERT',
+        '{"uuid_objet":"objet-local","id_vendeur":"user-1","timestamp":1,"nbr":1}',
+        0,
+        0
+      )
+    `).run();
+    const logId = sqlite.prepare('SELECT MAX(id) AS id FROM sync_log').get().id;
+
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(200, { requestId: 'request-repaired' }))
+      .mockResolvedValueOnce(jsonResponse(200, {
+        success: true,
+        ids: [logId]
+      }));
+
+    const res = await request(createApp()).post('/send').send({
+      mode: 'resendWindow',
+      window: {
+        startISO: '2000-01-01T00:00:00.000Z',
+        endISO: '2100-01-01T00:00:00.000Z'
+      },
+      responsable_pseudo: 'admin',
+      mot_de_passe: 'secret'
+    });
+
+    expect(res.status).toBe(200);
+    const submitted = JSON.parse(mockFetch.mock.calls[0][1].body).logs;
+    expect(JSON.parse(submitted[0].payload).uuid_ticket).toBe('ticket-local');
+    expect(JSON.parse(
+      sqlite.prepare('SELECT payload FROM sync_log WHERE id = ?').get(logId).payload
+    ).uuid_ticket).toBe('ticket-local');
+  });
+
   test('compte les ventes d’une session déjà entièrement synchronisée', async () => {
     sqlite.prepare(`
       INSERT INTO sync_log (

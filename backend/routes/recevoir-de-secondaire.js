@@ -46,6 +46,39 @@ module.exports = function (io) {
     return `${sourceId}:${operationUuids.join(',')}`;
   }
 
+  function normalizeIncomingLogs(logs) {
+    const parsedLogs = logs.map(log => ({
+      ...log,
+      data: typeof log.payload === 'string'
+        ? JSON.parse(log.payload)
+        : { ...log.payload }
+    }));
+    const incomingTicketUuids = parsedLogs
+      .filter(log => log.type === 'ticketdecaisse' && log.operation === 'INSERT')
+      .map(log => log.data.uuid_ticket)
+      .filter(Boolean);
+    const singleIncomingTicketUuid = incomingTicketUuids.length === 1
+      ? incomingTicketUuids[0]
+      : null;
+
+    return parsedLogs.map(log => {
+      if (
+        log.type === 'objets_vendus'
+        && log.operation === 'INSERT'
+        && !log.data.uuid_ticket
+      ) {
+        const legacyTicketUuid = log.data.id_ticket;
+        log.data.uuid_ticket = (
+          legacyTicketUuid && incomingTicketUuids.includes(legacyTicketUuid)
+        )
+          ? legacyTicketUuid
+          : singleIncomingTicketUuid;
+      }
+      validateSyncEntry(log.type, log.operation, log.data);
+      return log;
+    });
+  }
+
   router.get('/status', (req, res) => {
     const principalSession = sqlite.prepare(`
       SELECT id_session
@@ -155,13 +188,14 @@ module.exports = function (io) {
     if (batchKey) {
       const existingRequest = [...requests.values()]
         .find(request => request.batchKey === batchKey);
-      if (existingRequest) {
+      if (existingRequest?.validationResult === null) {
         return res.json({
           requestId: existingRequest.requestId,
           duplicate: true,
           message: 'Cette demande est déjà en attente de validation.'
         });
       }
+      if (existingRequest) requests.delete(existingRequest.requestId);
     }
 
     const syncRequest = {
@@ -285,13 +319,7 @@ module.exports = function (io) {
     let validationComplete = false;
 
     try {
-      const normalizedLogs = logs.map(log => {
-        const data = typeof log.payload === 'string'
-          ? JSON.parse(log.payload)
-          : log.payload;
-        validateSyncEntry(log.type, log.operation, data);
-        return { ...log, data };
-      });
+      const normalizedLogs = normalizeIncomingLogs(logs);
       const incomingTicketUuids = new Set(
         normalizedLogs
           .filter(log => log.type === 'ticketdecaisse' && log.operation === 'INSERT')
@@ -506,6 +534,8 @@ module.exports = function (io) {
         message: 'Échec de la synchronisation pendant le traitement.',
         details: err.message
       };
+      requests.delete(syncRequest.requestId);
+      rememberCompletedRequest(syncRequest);
 
       io.emit('demande-sync-secondaire', {
         type: 'ECHEC_SYNC',

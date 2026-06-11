@@ -270,6 +270,74 @@ describe('Synchronisation reçue depuis une caisse secondaire', () => {
     ).get('2026-06-08')).toEqual({ nombre_vente: 1, prix_total_carte: 1200 });
   });
 
+  test('attaches an object without uuid_ticket to the only ticket in the batch', async () => {
+    const demand = await request(app).post('/sync/demande').send({
+      sourceId: 'caisse-a',
+      logs: [
+        {
+          id: 16,
+          operation_uuid: 'operation-ticket-repare',
+          type: 'ticketdecaisse',
+          operation: 'INSERT',
+          payload: {
+            uuid_ticket: 'ticket-repare',
+            id_vendeur: 'user-1',
+            nbr_objet: 1,
+            prix_total: 100
+          }
+        },
+        {
+          id: 17,
+          operation_uuid: 'operation-objet-repare',
+          type: 'objets_vendus',
+          operation: 'INSERT',
+          payload: {
+            uuid_objet: 'objet-repare',
+            id_vendeur: 'user-1',
+            timestamp: 1,
+            nbr: 1,
+            nom: 'Article',
+            prix: 100
+          }
+        }
+      ]
+    });
+
+    const validation = await request(app).post('/sync/valider').send({
+      decision: 'accepter',
+      requestId: demand.body.requestId
+    });
+
+    expect(validation.status).toBe(200);
+    expect(sqlite.prepare(
+      'SELECT uuid_ticket FROM objets_vendus WHERE uuid_objet = ?'
+    ).get('objet-repare')).toEqual({ uuid_ticket: 'ticket-repare' });
+  });
+
+  test('creates a fresh request after the same batch was rejected', async () => {
+    const payload = {
+      sourceId: 'caisse-a',
+      logs: [{
+        id: 25,
+        operation_uuid: 'operation-a-corriger',
+        type: 'ticketdecaisse',
+        operation: 'INSERT',
+        payload: { uuid_ticket: 'ticket-incomplet' }
+      }]
+    };
+    const first = await request(app).post('/sync/demande').send(payload);
+    const rejection = await request(app).post('/sync/valider').send({
+      decision: 'accepter',
+      requestId: first.body.requestId
+    });
+    const retry = await request(app).post('/sync/demande').send(payload);
+
+    expect(rejection.status).toBe(422);
+    expect(retry.status).toBe(200);
+    expect(retry.body.requestId).not.toBe(first.body.requestId);
+    expect(retry.body.duplicate).not.toBe(true);
+  });
+
   test('annule toute la transaction si un log est invalide', async () => {
     await request(app).post('/sync/demande').send({
       logs: [
