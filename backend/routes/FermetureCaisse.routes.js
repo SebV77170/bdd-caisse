@@ -148,7 +148,7 @@ router.post('/', (req, res) => {
   // Création d'un ticket de clôture (ticket de caisse spécial)
   const vendeur = utilisateur.nom;
   const id_vendeur = utilisateur.uuid_user;
-  const date_achat_dt = new Date().toISOString().slice(0, 19).replace('T', ' '); // conserve ton format
+  const date_achat_dt = closed_at_utc;
   const uuid_ticket = uuidv4();
 
   const result = sqlite.prepare(`

@@ -209,7 +209,8 @@ describe('Ouverture et fermeture de caisse', () => {
     const cloture = sqlite.prepare('SELECT * FROM ticketdecaisse WHERE cloture = 1').get();
     expect(cloture).toEqual(expect.objectContaining({
       prix_total: 0,
-      uuid_session_caisse: open.body.id_session
+      uuid_session_caisse: open.body.id_session,
+      date_achat_dt: session.closed_at_utc
     }));
     expect(genererTicketCloturePdf).toHaveBeenCalledWith(open.body.id_session, cloture.uuid_ticket);
   });

@@ -13,12 +13,21 @@ import { toast } from 'react-toastify';
 import FactureModal from '../components/factureModal';
 import SiCaisseOuverte from '../utils/SiCaisseOuverte';
 import { useConfirm } from "../contexts/ConfirmContext";
+import {
+  dateKeyToLocalDate,
+  formatParisDateTime,
+  getLocalDateKey,
+  getParisDateKey,
+  parseUtcDate,
+} from '../utils/dateTime';
 
 const socket = io('http://localhost:3001');
 
 const BilanTickets = () => {
   const [tickets, setTickets] = useState([]);
-  const [filtreDate, setFiltreDate] = useState(new Date());
+  const [filtreDate, setFiltreDate] = useState(
+    () => dateKeyToLocalDate(getParisDateKey(new Date()))
+  );
   const [datesDisponibles, setDatesDisponibles] = useState([]);
   const [details, setDetails] = useState({});
   const [ticketActif, setTicketActif] = useState(null);
@@ -65,8 +74,8 @@ const ordreCaisse = ['especes', 'carte', 'cheque', 'virement', 'mixte', 'autre']
 
 const compareTickets = (a, b) => {
   // --- helpers ---
-  const tsA = new Date(a.date_achat_dt).getTime() || 0;
-  const tsB = new Date(b.date_achat_dt).getTime() || 0;
+  const tsA = parseUtcDate(a.date_achat_dt).getTime() || 0;
+  const tsB = parseUtcDate(b.date_achat_dt).getTime() || 0;
 
   // --- TRI PAR MOYEN DE PAIEMENT ---
   if (triPaiement !== 'none') {
@@ -110,8 +119,8 @@ const compareTickets = (a, b) => {
         .then(data => {
           setTickets(data);
           const dates = Array.from(
-            new Set(data.map(ticket => new Date(ticket.date_achat_dt).toDateString()))
-          ).map(d => new Date(d));
+            new Set(data.map(ticket => getParisDateKey(ticket.date_achat_dt)).filter(Boolean))
+          ).map(dateKeyToLocalDate);
           setDatesDisponibles(dates);
         })
         .catch(err => console.error('Erreur chargement tickets :', err));
@@ -133,13 +142,8 @@ const compareTickets = (a, b) => {
     return ticket.reducbene || ticket.reducclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene;
   };
 
-  const isSameDay = (d1, d2) =>
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate();
-
   const ticketsFiltres = tickets
-  .filter(ticket => isSameDay(new Date(ticket.date_achat_dt), filtreDate))
+  .filter(ticket => getParisDateKey(ticket.date_achat_dt) === getLocalDateKey(filtreDate))
   .sort(compareTickets);
 
 
@@ -289,7 +293,7 @@ const compareTickets = (a, b) => {
                   >
                     <td>{ticket.id_friendly}</td>
                     <td>{ticket.nom_vendeur || '—'}</td>
-                    <td>{new Date(ticket.date_achat_dt).toLocaleString('fr-FR')}</td>                    
+                    <td>{formatParisDateTime(ticket.date_achat_dt)}</td>
                     <td>{labelMoyen(normalizeMoyen(ticket.moyen_paiement))}</td>
                     <td>
                       {typeof ticket.prix_total === 'number'

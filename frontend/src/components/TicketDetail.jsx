@@ -1,6 +1,7 @@
 // ✅ Composant React : affichage d'un ticket avec paiements mixtes
 import React, { useEffect, useState } from 'react';
 import TicketHistory from './TicketHistory';
+import { formatParisDateTime } from '../utils/dateTime';
 
 function TicketDetail({ uuid_ticket,id_friendly, id_friendly_annule, id_friendly_corrige }) {
   const [data, setData] = useState(null);
@@ -38,7 +39,7 @@ if (!data.ticket) {
       )}
 
 
-      <p><strong>Date :</strong> {ticket.date_achat_dt}</p>
+      <p><strong>Date :</strong> {formatParisDateTime(ticket.date_achat_dt)}</p>
       <p><strong>Vendeur :</strong> {ticket.nom_vendeur}</p>
 
    {(ticket.reducbene || ticket.reducclient || ticket.reducgrospanierclient || ticket.reducgrospanierbene) ? (

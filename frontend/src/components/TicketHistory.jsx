@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatParisDateTime } from '../utils/dateTime';
 
 const PAYMENT_LABELS = {
   espece: 'Espèces',
@@ -150,7 +151,7 @@ function TicketHistory({ historique = [] }) {
             <div className="border rounded p-3 bg-light" key={entry.id}>
               <div>
                 <strong>Date :</strong>{' '}
-                {new Date(entry.date_correction).toLocaleString('fr-FR')}
+                {formatParisDateTime(entry.date_correction)}
               </div>
               <div><strong>Utilisateur :</strong> {entry.utilisateur || 'Non renseigné'}</div>
               {entry.motif && <div><strong>Motif :</strong> {entry.motif}</div>}
