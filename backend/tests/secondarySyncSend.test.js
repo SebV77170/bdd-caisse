@@ -100,6 +100,51 @@ describe('Envoi d’une caisse secondaire vers la principale', () => {
     );
   });
 
+  test('le premier envoi exclut les logs non envoyés des anciennes sessions', async () => {
+    sqlite.prepare(`
+      INSERT INTO session_caisse (
+        id_session, opened_at_utc, fond_initial, issecondaire
+      ) VALUES ('secondary-current', '2000-01-02T00:00:00.000Z', 0, 1)
+    `).run();
+    sqlite.prepare(`
+      INSERT INTO sync_log (
+        type, operation, payload, synced, senttoprincipal, created_at
+      ) VALUES (
+        'bilan', 'INSERT', '{"date":"1999-01-01"}', 0, 0, '1999-01-01 12:00:00'
+      )
+    `).run();
+    const historicalId = sqlite.prepare(
+      `SELECT id FROM sync_log WHERE created_at = '1999-01-01 12:00:00'`
+    ).get().id;
+    sqlite.prepare(`
+      INSERT INTO sync_log (type, operation, payload, synced, senttoprincipal)
+      VALUES ('bilan', 'INSERT', '{"date":"2026-06-11"}', 0, 0)
+    `).run();
+    const currentId = sqlite.prepare(
+      'SELECT MAX(id) AS id FROM sync_log'
+    ).get().id;
+
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(200, { requestId: 'request-current' }))
+      .mockResolvedValueOnce(jsonResponse(200, {
+        success: true,
+        ids: [currentId]
+      }));
+
+    const res = await request(createApp()).post('/send').send({
+      responsable_pseudo: 'admin',
+      mot_de_passe: 'secret'
+    });
+
+    expect(res.status).toBe(200);
+    const submitted = JSON.parse(mockFetch.mock.calls[0][1].body).logs;
+    expect(submitted.map(log => log.id)).toContain(currentId);
+    expect(submitted.map(log => log.id)).not.toContain(historicalId);
+    expect(sqlite.prepare(
+      'SELECT senttoprincipal FROM sync_log WHERE id = ?'
+    ).get(historicalId)).toEqual({ senttoprincipal: 0 });
+  });
+
   test('ne marque aucun log si la principale refuse la demande', async () => {
     sqlite.prepare(`
       INSERT INTO session_caisse (

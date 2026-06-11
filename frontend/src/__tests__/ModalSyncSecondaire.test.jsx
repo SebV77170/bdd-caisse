@@ -20,7 +20,10 @@ jest.mock('../contexts/SessionCaisseContext', () => ({
 describe('ModalSyncSecondaire', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ success: true })
+    });
   });
 
   afterEach(() => {
@@ -43,5 +46,21 @@ describe('ModalSyncSecondaire', () => {
       })
     ));
     expect(mockSetDemande).toHaveBeenCalledWith(null);
+  });
+
+  test('affiche le détail et conserve la demande si le lot est invalide', async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({
+        error: 'Lot de synchronisation invalide',
+        details: 'Référence vers un ticket absent'
+      })
+    });
+
+    render(<ModalSyncSecondaire />);
+    fireEvent.click(screen.getByRole('button', { name: /Accepter/ }));
+
+    expect(await screen.findByText('Référence vers un ticket absent')).toBeInTheDocument();
+    expect(mockSetDemande).not.toHaveBeenCalledWith(null);
   });
 });

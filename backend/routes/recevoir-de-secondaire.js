@@ -432,7 +432,8 @@ module.exports = function (io) {
       console.error('Erreur application des opérations sync_log :', err);
       syncRequest.validationResult = {
         success: false,
-        message: 'Échec de la synchronisation pendant le traitement.'
+        message: 'Échec de la synchronisation pendant le traitement.',
+        details: err.message
       };
 
       io.emit('demande-sync-secondaire', {

@@ -97,6 +97,15 @@ function recoveryPayload(closedSession, configuredIp) {
   };
 }
 
+function selectPendingLogsForWindow(startISO, endISO) {
+  return sqlite.prepare(`
+    SELECT * FROM sync_log
+    WHERE senttoprincipal = 0
+      AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
+    ORDER BY id
+  `).all(startISO, endISO);
+}
+
 // --- util: poll /attente-validation avec backoff
 async function pollValidation(baseUrl, requestId, { totalMs = 30000, intervalMs = 1200, maxIntervalMs = 3000 }) {
   const deadline = Date.now() + totalMs;
@@ -164,12 +173,7 @@ router.post('/', async (req, res) => {
       if (!wnd?.startISO || !wnd?.endISO) {
         return res.status(400).json({ success: false, message: 'Fenêtre temporelle manquante.' });
       }
-      lignes = sqlite.prepare(`
-        SELECT * FROM sync_log
-        WHERE senttoprincipal = 0
-          AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-        ORDER BY id
-      `).all(wnd.startISO, wnd.endISO);
+      lignes = selectPendingLogsForWindow(wnd.startISO, wnd.endISO);
       console.log(lignes);
       console.log('taille JSON logs =', new TextEncoder().encode(JSON.stringify(lignes)).length, 'bytes');
 
@@ -178,7 +182,10 @@ router.post('/', async (req, res) => {
         return res.json({ success: true, message: 'Aucune donnée à envoyer dans cette fenêtre.' });
       }
     } else {
-      lignes = sqlite.prepare(`SELECT * FROM sync_log WHERE senttoprincipal = 0 ORDER BY id`).all();
+      lignes = selectPendingLogsForWindow(
+        closedSession.opened_at_utc,
+        closedSession.closed_at_utc
+      );
       if (!lignes.length) {
         return res.json({ success: true, message: 'Aucune donnée à envoyer.' });
       }
@@ -240,6 +247,7 @@ router.post('/', async (req, res) => {
         success: false,
         code: result?.pending ? 'PRINCIPAL_TIMEOUT' : 'SYNC_REJECTED',
         message: msg,
+        details: result?.details,
         configuredIp,
         recovery: recoveryPayload(closedSession, configuredIp)
       });

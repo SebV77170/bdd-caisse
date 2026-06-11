@@ -125,9 +125,10 @@ function FermetureCaisse() {
         setSyncRecovery({
           ...result.recovery,
           configuredIp: result.configuredIp || result.recovery?.configuredIp,
-          message: result.message || 'La synchronisation a échoué.'
+          message: [result.message, result.details].filter(Boolean).join(' ')
+            || 'La synchronisation a échoué.'
         });
-        setPrincipalVerified(false);
+        setPrincipalVerified(result.code === 'SYNC_REJECTED');
         toast.error("La caisse est fermée, mais ses données n'ont pas rejoint la principale.");
       }
     } catch (err) {
@@ -159,7 +160,8 @@ function FermetureCaisse() {
         setSyncRecovery(previous => ({
           ...previous,
           configuredIp: result.configuredIp || previous.configuredIp,
-          message: result.message || 'Le nouvel envoi a échoué.'
+          message: [result.message, result.details].filter(Boolean).join(' ')
+            || 'Le nouvel envoi a échoué.'
         }));
         return;
       }
