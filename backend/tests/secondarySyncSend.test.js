@@ -61,7 +61,13 @@ describe('Envoi d’une caisse secondaire vers la principale', () => {
     `).run();
     sqlite.prepare(`
       INSERT INTO sync_log (type, operation, payload, synced, senttoprincipal)
-      VALUES ('bilan', 'INSERT', '{"date":"2026-06-08"}', 0, 0)
+      VALUES (
+        'ticketdecaisse',
+        'INSERT',
+        '{"uuid_ticket":"ticket-1","id_vendeur":"user-1","nbr_objet":1,"prix_total":100}',
+        0,
+        0
+      )
     `).run();
     const logId = sqlite.prepare('SELECT id FROM sync_log').get().id;
 
@@ -80,6 +86,7 @@ describe('Envoi d’une caisse secondaire vers la principale', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ids).toEqual([logId]);
+    expect(res.body.salesTransferred).toBe(1);
     expect(sqlite.prepare(
       'SELECT closed_at_utc, responsable_fermeture FROM session_caisse'
     ).get()).toMatchObject({ responsable_fermeture: 'Responsable' });
@@ -143,6 +150,44 @@ describe('Envoi d’une caisse secondaire vers la principale', () => {
     expect(sqlite.prepare(
       'SELECT senttoprincipal FROM sync_log WHERE id = ?'
     ).get(historicalId)).toEqual({ senttoprincipal: 0 });
+  });
+
+  test('répare un ancien log objets_vendus utilisant id_ticket comme UUID', async () => {
+    sqlite.prepare(`
+      INSERT INTO sync_log (type, operation, payload, synced, senttoprincipal)
+      VALUES (
+        'objets_vendus',
+        'INSERT',
+        '{"id_ticket":"ticket-legacy","uuid_objet":"objet-1","id_vendeur":"user-1","timestamp":1,"nbr":1}',
+        0,
+        0
+      )
+    `).run();
+    const logId = sqlite.prepare('SELECT MAX(id) AS id FROM sync_log').get().id;
+
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(200, { requestId: 'request-legacy' }))
+      .mockResolvedValueOnce(jsonResponse(200, {
+        success: true,
+        ids: [logId]
+      }));
+
+    const res = await request(createApp()).post('/send').send({
+      mode: 'resendWindow',
+      window: {
+        startISO: '2000-01-01T00:00:00.000Z',
+        endISO: '2100-01-01T00:00:00.000Z'
+      },
+      responsable_pseudo: 'admin',
+      mot_de_passe: 'secret'
+    });
+
+    expect(res.status).toBe(200);
+    const submitted = JSON.parse(mockFetch.mock.calls[0][1].body).logs;
+    expect(JSON.parse(submitted[0].payload)).toMatchObject({
+      id_ticket: 'ticket-legacy',
+      uuid_ticket: 'ticket-legacy'
+    });
   });
 
   test('ne marque aucun log si la principale refuse la demande', async () => {

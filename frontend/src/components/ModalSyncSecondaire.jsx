@@ -1,5 +1,5 @@
 // src/components/ModalSyncSecondaire.js
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSyncModal } from '../contexts/SyncModalContext';
 import './ModalSyncSecondaire.css';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
@@ -11,7 +11,11 @@ export default function ModalSyncSecondaire() {
   const uuidSessionCaisse = activeSession?.uuid_session || null;
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
- 
+
+  useEffect(() => {
+    setError('');
+    setSubmitting(false);
+  }, [demande?.requestId]);
 
   if (!demande) return null;
 
@@ -52,8 +56,8 @@ export default function ModalSyncSecondaire() {
           aria-busy={submitting}
           style={{ marginTop: '1em', display: 'flex', gap: '1em' }}
         >
-          <button onClick={() => repondre('accepter')}>✅ Accepter</button>
-          <button onClick={() => repondre('refuser')}>❌ Refuser</button>
+          <button disabled={submitting} onClick={() => repondre('accepter')}>✅ Accepter</button>
+          <button disabled={submitting} onClick={() => repondre('refuser')}>❌ Refuser</button>
         </div>
       </div>
     </div>

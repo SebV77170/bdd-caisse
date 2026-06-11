@@ -98,12 +98,31 @@ function recoveryPayload(closedSession, configuredIp) {
 }
 
 function selectPendingLogsForWindow(startISO, endISO) {
-  return sqlite.prepare(`
+  const rows = sqlite.prepare(`
     SELECT * FROM sync_log
     WHERE senttoprincipal = 0
       AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
     ORDER BY id
   `).all(startISO, endISO);
+
+  return rows.map(row => {
+    if (row.type !== 'objets_vendus' || row.operation !== 'INSERT') return row;
+
+    try {
+      const payload = JSON.parse(row.payload);
+      if (!payload.uuid_ticket && payload.id_ticket) {
+        return {
+          ...row,
+          payload: JSON.stringify({
+            ...payload,
+            uuid_ticket: payload.id_ticket
+          })
+        };
+      }
+    } catch {}
+
+    return row;
+  });
 }
 
 // --- util: poll /attente-validation avec backoff
@@ -255,6 +274,26 @@ router.post('/', async (req, res) => {
 
     const submittedIds = new Set(lignes.map(ligne => ligne.id));
     const idsValides = (result.ids || []).filter(id => submittedIds.has(id));
+    const validIds = new Set(idsValides);
+    const salesTransferred = new Set(
+      lignes
+        .filter(ligne => validIds.has(ligne.id))
+        .filter(ligne => ligne.type === 'ticketdecaisse' && ligne.operation === 'INSERT')
+        .map(ligne => {
+          try {
+            return JSON.parse(ligne.payload);
+          } catch {
+            return null;
+          }
+        })
+        .filter(payload => (
+          payload?.uuid_ticket
+          && !payload.cloture
+          && !payload.flag_annulation
+          && !payload.flag_correction
+        ))
+        .map(payload => payload.uuid_ticket)
+    ).size;
 
     // 5) Marquer comme envoyées en local
     const update = sqlite.prepare('UPDATE sync_log SET senttoprincipal = 1 WHERE id = ?');
@@ -262,7 +301,12 @@ router.post('/', async (req, res) => {
     tx(idsValides);
 
     // 6) Réponse OK au front
-    res.json({ success: true, message: `${idsValides.length} lignes envoyées et validées.`, ids: idsValides });
+    res.json({
+      success: true,
+      message: `${idsValides.length} lignes envoyées et validées.`,
+      ids: idsValides,
+      salesTransferred
+    });
 
   } catch (err) {
     console.error('Erreur envoi vers principale :', err);

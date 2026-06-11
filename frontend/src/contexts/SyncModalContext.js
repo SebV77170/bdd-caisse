@@ -12,7 +12,9 @@ export const SyncModalProvider = ({ children }) => {
 
   useEffect(() => {
     const handler = (data) => {
-      setDemande(data); // data = { type: 'DEMANDE_SYNC', message: '...' }
+      if (data?.type === 'DEMANDE_SYNC') {
+        setDemande(data);
+      }
     };
     const openingHandler = (data) => {
       setDemandeOuverture(data);

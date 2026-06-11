@@ -205,6 +205,15 @@ describe('Tests de correction de ticket', () => {
       .prepare('SELECT prix_total FROM ticketdecaisse WHERE uuid_ticket = ?')
       .get(res.body.id_annul);
     expect(ticketAnnulation.prix_total).toBe(-1000);
+
+    const objectLog = sqlite.prepare(`
+      SELECT payload
+      FROM sync_log
+      WHERE type = 'objets_vendus' AND operation = 'INSERT'
+      ORDER BY id DESC
+      LIMIT 1
+    `).get();
+    expect(JSON.parse(objectLog.payload).uuid_ticket).toBe(res.body.id_annul);
   });
 
   test('Crée une correction sans réduction', async () => {

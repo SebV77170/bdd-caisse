@@ -442,6 +442,7 @@ router.post('/:uuid/supprimer', async (req, res) => {
       );
       logSync('objets_vendus', 'INSERT', {
         id_ticket: id_annul,
+        uuid_ticket: uuid_ticket_annul,
         nom: obj.nom,
         prix: obj.prix,
         nbr: quantiteAnnulee,

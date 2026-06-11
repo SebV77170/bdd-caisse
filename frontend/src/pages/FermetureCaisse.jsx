@@ -37,6 +37,13 @@ function FermetureCaisse() {
   const sessionCaisseOuverte = activeSession;
   const [useCompteEspeces, setUseCompteEspeces] = useState(false); // ✅ NEW
 
+  const syncSuccessMessage = (result) => {
+    const entries = result.ids?.length || 0;
+    const sales = result.salesTransferred || 0;
+    const saleLabel = sales > 1 ? 'ventes transférées' : 'vente transférée';
+    return `${sales} ${saleLabel} (${entries} écritures techniques).`;
+  };
+
 
   // Affiche l'UUID de la session caisse dans la console (debug)
   console.log("UUID session caisse en contexte :", uuidSessionCaisse);
@@ -119,7 +126,7 @@ function FermetureCaisse() {
       });
       const result = await res.json();
       if (result.success) {
-        toast.success(`✅ Données envoyées (${result.ids?.length || 0}) & caisse secondaire fermée.`);
+        toast.success(`Caisse secondaire fermée et synchronisée : ${syncSuccessMessage(result)}`);
         navigate('/Bilan', { state: { toastMessage: 'Caisse secondaire fermée et synchronisée !' } });
       } else {
         setSyncRecovery({
@@ -165,7 +172,7 @@ function FermetureCaisse() {
         }));
         return;
       }
-      toast.success(`${result.ids?.length || 0} opérations transférées à la caisse principale.`);
+      toast.success(`Synchronisation terminée : ${syncSuccessMessage(result)}`);
       navigate('/Bilan', {
         state: { toastMessage: 'Caisse secondaire fermée et synchronisée !' }
       });
