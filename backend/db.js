@@ -180,6 +180,42 @@ function ensureOperationalMigrations(database) {
     )
   `);
 
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS pre_tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid_pre_ticket TEXT UNIQUE NOT NULL,
+      statut TEXT NOT NULL DEFAULT 'brouillon',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      created_by TEXT,
+      created_by_name TEXT,
+      device_name TEXT,
+      client_label TEXT,
+      commentaire TEXT,
+      claimed_by TEXT,
+      claimed_at TEXT,
+      converted_id_temp_vente INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pre_tickets_statut_updated
+    ON pre_tickets(statut, updated_at);
+
+    CREATE TABLE IF NOT EXISTS pre_ticket_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      uuid_pre_ticket TEXT NOT NULL,
+      id_produit INTEGER,
+      nom TEXT NOT NULL,
+      categorie TEXT,
+      souscat TEXT,
+      prix INTEGER NOT NULL,
+      nbr INTEGER NOT NULL,
+      prixt INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pre_ticket_items_uuid
+    ON pre_ticket_items(uuid_pre_ticket);
+  `);
+
   const ticketTable = database
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ticketdecaisse'")
     .get();

@@ -1,4 +1,6 @@
 // socket.js
 import { io } from "socket.io-client";
-const socket = io('http://localhost:3001', { withCredentials: true }); // adapte l'URL si besoin
+import { API_BASE } from './apiBase';
+
+const socket = io(API_BASE, { withCredentials: true });
 export default socket;

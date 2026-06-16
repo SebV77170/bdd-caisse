@@ -7,11 +7,12 @@ const os = require('os');
 const fs = require('fs');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
+const { corsOrigin } = require('./allowedOrigins');
 
 
 // Middleware de base
 app.use(cors({
-  origin: 'http://localhost:3000', // ou '*', selon ton frontend
+  origin: corsOrigin,
   credentials: true
 }));
 
@@ -49,6 +50,7 @@ const validerVenteRoutes = require('./routes/validerVente.routes');
 const ventesRoutes = require('./routes/ventes.routes');
 const produitsRoutes = require('./routes/produits');
 const ticketRoutes = require('./routes/ticket.routes');
+const preTicketsRoutes = require('./routes/preTickets.routes');
 const bilanRoutes = require('./routes/bilan.routes')
 const correctionRoutes = require('./routes/correction.routes');
 const sessionRoutes = require('./routes/session.routes');
@@ -83,6 +85,7 @@ const createReceiveRouter = require('./routes/recevoir-de-secondaire');
 
 app.use('/api/produits', produitsRoutes);
 app.use('/api/ticket', ticketRoutes);
+app.use('/api/pre-tickets', preTicketsRoutes);
 app.use('/api/valider', validerVenteRoutes);
 app.use('/api/ventes', ventesRoutes);
 app.use('/api/bilan', bilanRoutes);
@@ -137,6 +140,10 @@ console.log('📄 index.html exists ?', fs.existsSync(path.join(frontendBuildPat
 
 if (fs.existsSync(path.join(frontendBuildPath, 'index.html'))) {
   app.use(express.static(frontendBuildPath));
+
+  app.get('/pre-tickets/tablette', (_req, res) => {
+    res.redirect('/#/pre-tickets/tablette');
+  });
 
   app.get('*', (req, res) => {
     res.sendFile(path.join(frontendBuildPath, 'index.html'));

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext'; // ✅
 import { useActiveSession } from '../contexts/SessionCaisseContext'; // ✅ pour vérifier si une caisse est ouverte
 import ResponsableForm from "../components/ResponsableForm";
 import { toast } from 'react-toastify';
+import { apiUrl } from '../utils/apiBase';
 
 
 function LoginPage() {
@@ -14,7 +15,9 @@ function LoginPage() {
   //const sessionOuverte = activeSession?.sessionCaisseOuverte || activeSession?.caisseSecondaireActive || false ; // ✅ pour savoir si la caisse est ouverte
   //const [sessionOuverte, setSessionOuverte] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useSession(); // ✅
+  const from = location.state?.from;
 
   console.log('Session ouverte:', activeSession); // Pour déboguer
 
@@ -41,7 +44,7 @@ function LoginPage() {
   // ✅ Si une caisse est ouverte, on ajoute le caissier
   if (activeSession) {
     try {
-      await fetch('http://localhost:3001/api/session/ajouter-caissier', {
+      await fetch(apiUrl('/api/session/ajouter-caissier'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // 🔑 pour transmettre la session
@@ -51,10 +54,10 @@ function LoginPage() {
       console.error('Erreur mise à jour caissiers:', err);
     }
 
-    navigate('/caisse'); // Redirige vers la page caisse
+    navigate(from || '/caisse'); // Redirige vers la page demandee
 
   } else {
-    navigate('/caisse-non-ouverte'); // Redirige vers la page caisse non ouverte si pas de session caisse
+    navigate(from || '/caisse-non-ouverte'); // Redirige vers la page demandee
   }
 
 } catch (err) {

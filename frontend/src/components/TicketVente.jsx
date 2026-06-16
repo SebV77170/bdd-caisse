@@ -2,6 +2,7 @@ import React, { useRef, useContext } from 'react';
 import TactileInput from './TactileInput';
 import { ModeTactileContext } from '../contexts/ModeTactileContext';
 import { useConfirm } from "../contexts/ConfirmContext";
+import { apiUrl } from '../utils/apiBase';
 
 
 function TicketVente({ ticket, onChange, onDelete, onSave }) {
@@ -19,9 +20,10 @@ function TicketVente({ ticket, onChange, onDelete, onSave }) {
       const quantite = article?.nbr || 1;
       const prixt = prixCents * quantite;
 
-      await fetch(`http://localhost:3001/api/ticket/${id}`, {
+      await fetch(apiUrl(`/api/ticket/${id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ prix: prixCents, prixt })
       });
 
@@ -36,9 +38,10 @@ function TicketVente({ ticket, onChange, onDelete, onSave }) {
       const prixCents = article?.prix ?? Math.round(article.prixt / (article.nbr || 1));
       const prixt = prixCents * parsed;
 
-      await fetch(`http://localhost:3001/api/ticket/${id}`, {
+      await fetch(apiUrl(`/api/ticket/${id}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ nbr: parsed, prixt })
       });
 

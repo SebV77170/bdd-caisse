@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SessionCaisseProvider, SessionCaisseSecondaireProvider } from './SessionCaisseContext';
 import { useSession } from './SessionContext';
+import { apiUrl } from '../utils/apiBase';
 
 function SessionCaisseAutoProvider({ children }) {
   const navigate = useNavigate();
@@ -13,8 +14,8 @@ function SessionCaisseAutoProvider({ children }) {
     const detectCaisse = async () => {
       try {
         const [resP, resS] = await Promise.all([
-          fetch('http://localhost:3001/api/session/etat-caisse',{credentials: 'include'}),
-          fetch('http://localhost:3001/api/session/etat-caisse-secondaire',{credentials: 'include'})
+          fetch(apiUrl('/api/session/etat-caisse'), { credentials: 'include' }),
+          fetch(apiUrl('/api/session/etat-caisse-secondaire'), { credentials: 'include' })
         ]);
         const [dataP, dataS] = await Promise.all([resP.json(), resS.json()]);
 

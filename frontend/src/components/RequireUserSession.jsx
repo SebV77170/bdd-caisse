@@ -10,7 +10,7 @@ function RequireUserSession({ children }) {
   useEffect(() => {
     if (loading) return; // En attente de la session
     if (!user && location.pathname !== '/login') {
-      navigate('/login');
+      navigate('/login', { state: { from: location.pathname } });
     }
   }, [user, loading, location.pathname, navigate]);
 

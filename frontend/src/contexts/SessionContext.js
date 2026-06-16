@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../utils/apiBase';
 
 const SessionContext = createContext();
 
@@ -10,7 +11,7 @@ export const SessionProvider = ({ children }) => {
 
   // ✅ Chargement initial au démarrage de l'app
   useEffect(() => {
-    fetch('http://localhost:3001/api/session', {
+    fetch(apiUrl('/api/session'), {
       credentials: 'include' // 🔑 Pour que le cookie soit envoyé
     })
       .then(res => {
@@ -28,7 +29,7 @@ export const SessionProvider = ({ children }) => {
 
   // ✅ Connexion manuelle (ex: après POST /api/session)
   const login = async (credentials) => {
-    const res = await fetch('http://localhost:3001/api/session', {
+    const res = await fetch(apiUrl('/api/session'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -43,7 +44,7 @@ export const SessionProvider = ({ children }) => {
 
   // ✅ Déconnexion manuelle
   const logout = () => {
-    fetch('http://localhost:3001/api/session', {
+    fetch(apiUrl('/api/session'), {
       method: 'DELETE',
       credentials: 'include'
     })

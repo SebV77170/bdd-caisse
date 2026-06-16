@@ -10,6 +10,7 @@ import JournalCaisse from '../pages/JournalCaisse';
 import CompareSchemas from '../pages/CompareSchemas';
 import DbConfig from '../pages/DbConfig';
 import Parametres from '../pages/Parametres';
+import PreTicketTablette from '../pages/PreTicketTablette';
 import RequireUserSession from './RequireUserSession';
 import RequireUserAndCaisseSession from './RequireUserAndCaisseSession';
 import CaisseNonOuverte from '../pages/CaisseNonOuverte';
@@ -27,6 +28,15 @@ export default function MainRoutes() {
       />
 
       <Route path="/login" element={<LoginPage />} />
+
+      <Route
+        path="/pre-tickets/tablette"
+        element={
+          <RequireUserSession>
+            <PreTicketTablette />
+          </RequireUserSession>
+        }
+      />
 
       <Route
         path="/ouverture-caisse"

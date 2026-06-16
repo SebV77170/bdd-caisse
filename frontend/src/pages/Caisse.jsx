@@ -6,10 +6,12 @@ import CategorieSelector from '../components/CategorieSelector';
 import BoutonsCaisse from '../components/BoutonsCaisse';
 import TicketVente from '../components/TicketVente';
 import ValidationVente from '../components/ValidationVente';
+import PreTicketQueue from '../components/PreTicketQueue';
 import { toast } from 'react-toastify';
 import { useLocation } from 'react-router-dom';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useConfirm } from "../contexts/ConfirmContext";
+import { apiUrl } from '../utils/apiBase';
 
 
 function Caisse() {
@@ -26,7 +28,7 @@ function Caisse() {
 
 
   useEffect(() => {
-  fetch('http://localhost:3001/api/produits/organises')
+  fetch(apiUrl('/api/produits/organises'), { credentials: 'include' })
     .then(res => res.json())
     .then(data => {
       setBoutons(data);
@@ -51,7 +53,7 @@ function Caisse() {
 
 
   const chargerVentes = useCallback(() => {
-    fetch('http://localhost:3001/api/ventes')
+    fetch(apiUrl('/api/ventes'), { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setVentes(data);
@@ -61,11 +63,12 @@ function Caisse() {
       });
   }, [venteActive]);
 
-  const chargerTicket = useCallback(() => {
+  const chargerTicket = useCallback((idOverride = null) => {
     
 
-    if (!venteActive) return;
-    fetch(`http://localhost:3001/api/ticket/${venteActive}`)
+    const id = idOverride || venteActive;
+    if (!id) return;
+    fetch(apiUrl(`/api/ticket/${id}`), { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setTicketModif(data);
@@ -90,7 +93,7 @@ function Caisse() {
       }, [location.state]);
 
   const nouvelleVente = () => {
-    fetch('http://localhost:3001/api/ventes', { method: 'POST' })
+    fetch(apiUrl('/api/ventes'), { method: 'POST', credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         setVenteActive(data.id_temp_vente);
@@ -100,9 +103,10 @@ function Caisse() {
 
   const ajouterAuTicket = (produit) => {
     if (!venteActive) return;
-    fetch('http://localhost:3001/api/ticket', {
+    fetch(apiUrl('/api/ticket'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ id_produit: produit.id_bouton, quantite: 1, id_temp_vente: venteActive })
     })
       .then(() => chargerTicket())
@@ -110,7 +114,7 @@ function Caisse() {
   };
 
   const supprimerArticle = (id) => {
-    fetch(`http://localhost:3001/api/ticket/${id}`, { method: 'DELETE' })
+    fetch(apiUrl(`/api/ticket/${id}`), { method: 'DELETE', credentials: 'include' })
       .then(() => chargerTicket());
   };
 
@@ -142,8 +146,9 @@ function Caisse() {
     });
     if (!ok) return;
 
-    fetch(`http://localhost:3001/api/ventes/${venteActive}`, {
-      method: 'DELETE'
+    fetch(apiUrl(`/api/ventes/${venteActive}`), {
+      method: 'DELETE',
+      credentials: 'include'
     })
       .then(() => {
         setVenteActive(null);
@@ -156,6 +161,13 @@ function Caisse() {
 
 
   const totalTicket = ticketModif.reduce((sum, item) => sum + item.prixt, 0);
+
+  const recupererPreTicket = (idTempVente) => {
+    setVenteActive(idTempVente);
+    chargerVentes();
+    chargerTicket(idTempVente);
+    setOuvert(false);
+  };
 
   /* if (!sessionCaisseOuverte) {
     return (
@@ -173,6 +185,7 @@ function Caisse() {
   return (
     <div className="container-fluid p-0 h-100 d-flex flex-column overflow-hidden">
 
+      <PreTicketQueue onRecovered={recupererPreTicket} />
 
       <div className="bg-light border-bottom sticky-top py-2 px-3" style={{ overflowX: 'auto', whiteSpace: 'nowrap', zIndex: 1020 }}>
         <div className="d-inline-flex gap-2">

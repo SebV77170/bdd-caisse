@@ -9,9 +9,12 @@ import RemoteMysqlWarning from './components/RemoteMysqlWarning';
 import { SyncModalProvider } from './contexts/SyncModalContext';
 import ModalSyncSecondaire from './components/ModalSyncSecondaire';
 import ModalOuvertureSecondaire from './components/ModalOuvertureSecondaire';
+import { useLocation } from 'react-router-dom';
 //import FocusHud from './components/FocusHud';
 
 function App() {
+  const location = useLocation();
+  const isTabletPreTicket = location.pathname.startsWith('/pre-tickets/tablette');
 
   // dans App.jsx
 useEffect(() => {
@@ -36,12 +39,12 @@ useEffect(() => {
    
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
         {/* <FocusHud /> */}
-        <MainNavbar />
-        <BilanJour />
-        <RemoteMysqlWarning />
+        {!isTabletPreTicket && <MainNavbar />}
+        {!isTabletPreTicket && <BilanJour />}
+        {!isTabletPreTicket && <RemoteMysqlWarning />}
         <SyncModalProvider>
-          <ModalSyncSecondaire />
-          <ModalOuvertureSecondaire />
+          {!isTabletPreTicket && <ModalSyncSecondaire />}
+          {!isTabletPreTicket && <ModalOuvertureSecondaire />}
           <MainRoutes />
         </SyncModalProvider>
         

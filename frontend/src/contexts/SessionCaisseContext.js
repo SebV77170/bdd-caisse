@@ -1,6 +1,7 @@
 // src/contexts/SessionCaisseContext.jsx
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import socket from '../utils/socket';
+import { apiUrl } from '../utils/apiBase';
 
 const SessionCaisseContext = createContext();
 const SessionCaisseSecondaireContext = createContext();
@@ -31,7 +32,7 @@ export function SessionCaisseProvider({ children }) {
 
   const refreshSessionCaisse = useCallback(() => {
     // on retourne la Promise pour pouvoir await dans useEffect
-    return fetch('http://localhost:3001/api/session/etat-caisse', { credentials: 'include' })
+    return fetch(apiUrl('/api/session/etat-caisse'), { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.ouverte) {
@@ -93,7 +94,7 @@ export function SessionCaisseSecondaireProvider({ children }) {
   const [isReady, setIsReady] = useState(false); // ✅ NEW
 
   const refreshCaisseSecondaire = useCallback(() => {
-    return fetch('http://localhost:3001/api/session/etat-caisse-secondaire', { credentials: 'include' })
+    return fetch(apiUrl('/api/session/etat-caisse-secondaire'), { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.ouverte && !sessionCaisseOuverte) {
