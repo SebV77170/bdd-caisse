@@ -11,6 +11,14 @@ const baseDir = path.join(os.homedir(), '.bdd-caisse');
 const dbConfigPath = path.join(baseDir, 'dbConfig.json');
 fs.mkdirSync(baseDir, { recursive: true });
 
+function normalizePseudo(pseudo) {
+  return String(pseudo || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 function getMysqlPresets() {
   const presets = [];
   for (const key of Object.keys(process.env)) {
@@ -176,6 +184,31 @@ function ensureOperationalMigrations(database) {
     .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'ticketdecaisse'")
     .get();
 
+  const usersTable = database
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'users'")
+    .get();
+
+  if (usersTable) {
+    const userColumns = database.prepare('PRAGMA table_info(users)').all();
+    if (!userColumns.some(column => column.name === 'pseudo_normalise')) {
+      database.prepare('ALTER TABLE users ADD COLUMN pseudo_normalise TEXT').run();
+    }
+
+    const usersWithoutNormalizedPseudo = database
+      .prepare("SELECT uuid_user, pseudo FROM users WHERE pseudo_normalise IS NULL OR pseudo_normalise = ''")
+      .all();
+    if (usersWithoutNormalizedPseudo.length > 0) {
+      const updatePseudoNormalise = database.prepare(
+        'UPDATE users SET pseudo_normalise = ? WHERE uuid_user = ?'
+      );
+      database.transaction(users => {
+        for (const user of users) {
+          updatePseudoNormalise.run(normalizePseudo(user.pseudo), user.uuid_user);
+        }
+      })(usersWithoutNormalizedPseudo);
+    }
+  }
+
   if (!ticketTable) return;
 
   const columns = database.prepare('PRAGMA table_info(ticketdecaisse)').all();
@@ -257,5 +290,6 @@ module.exports = {
   getMysqlPool, // ✅ export dynamique
   getMysqlConfig,
   updateMysqlConfig,
-  getMysqlPresets
+  getMysqlPresets,
+  ensureOperationalMigrations
 };

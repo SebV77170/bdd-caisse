@@ -4,6 +4,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const Database = require('better-sqlite3');
 const { initializePersistentDatabase } = require('../databaseLifecycle');
+const { ensureOperationalMigrations } = require('../db');
 
 const root = path.resolve(__dirname, '../..');
 const historicalVersions = [
@@ -90,11 +91,18 @@ describe.each(historicalVersions)('Migration historique %s', version => {
         JSON.stringify({ localName: version, registerNumber: 4 })
       );
 
-      const migrated = initializePersistentDatabase({ userDataDir, resourceDir });
+      const migrated = initializePersistentDatabase({
+        userDataDir,
+        resourceDir,
+        ensureMigrations: ensureOperationalMigrations
+      });
       try {
         expect(migrated.db.prepare(
           'SELECT COUNT(*) AS count FROM users WHERE pseudo = ?'
         ).get(`migration-${version}`).count).toBe(1);
+        expect(migrated.db.prepare(
+          'SELECT pseudo_normalise FROM users WHERE pseudo = ?'
+        ).get(`migration-${version}`).pseudo_normalise).toBe(`migration-${version}`);
         expect(migrated.db.prepare(
           'SELECT COUNT(*) AS count FROM ticketdecaisse WHERE uuid_ticket = ?'
         ).get(`ticket-${version}`).count).toBe(1);
@@ -103,7 +111,11 @@ describe.each(historicalVersions)('Migration historique %s', version => {
         migrated.db.close();
       }
 
-      const secondLaunch = initializePersistentDatabase({ userDataDir, resourceDir });
+      const secondLaunch = initializePersistentDatabase({
+        userDataDir,
+        resourceDir,
+        ensureMigrations: ensureOperationalMigrations
+      });
       try {
         expect(secondLaunch.migration.changed).toBe(false);
       } finally {

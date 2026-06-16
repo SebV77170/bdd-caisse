@@ -633,6 +633,10 @@ function launchBackend() {
   const args = isDev ? [backendPath] : [backendPath]; // ✅ ici aussi !
 
   console.log(`🚀 Lancement backend : ${command} ${args.join(' ')}`);
+  const backendLogDir = app.getPath('userData');
+  fs.mkdirSync(backendLogDir, { recursive: true });
+  const backendOutLogPath = path.join(backendLogDir, 'backend-out.log');
+  const backendErrLogPath = path.join(backendLogDir, 'backend-err.log');
 
   backendProcess = spawn(command, args, {
   cwd: path.dirname(backendPath),
@@ -643,10 +647,15 @@ function launchBackend() {
   },
   detached: false,
   windowsHide: true,
-  stdio: ['ignore', fs.openSync('backend-out.log', 'a'), fs.openSync('backend-err.log', 'a')],
+  stdio: ['ignore', fs.openSync(backendOutLogPath, 'a'), fs.openSync(backendErrLogPath, 'a')],
   shell: false
 });
 console.log(`🔁 PID backend lancé : ${backendProcess.pid}`);
+console.log(`📄 Logs backend : ${backendOutLogPath} / ${backendErrLogPath}`);
+
+  backendProcess.on('error', (error) => {
+    console.error('❌ Impossible de lancer le backend :', error?.message || error);
+  });
 
   backendProcess.on('close', (code) => {
     console.log(`🚪 Backend fermé avec le code ${code}`);
@@ -765,10 +774,13 @@ ipcMain.on('devtools-open', () => {
 const isDev = !app.isPackaged;
 
 function waitForBackendReady(processHandle, callback) {
-  const maxRetries = 50;
+  const timeoutMs = Number(process.env.BDD_CAISSE_BACKEND_READY_TIMEOUT_MS || 60000);
+  const retryDelayMs = 300;
+  const maxRetries = Math.ceil(timeoutMs / retryDelayMs);
   let retries = 0;
   let settled = false;
   let backendExitCode = null;
+  const backendErrLogPath = path.join(app.getPath('userData'), 'backend-err.log');
 
   const fail = (message) => {
     if (settled) return;
@@ -776,7 +788,7 @@ function waitForBackendReady(processHandle, callback) {
     console.error(message);
     dialog.showErrorBox(
       'Impossible de démarrer Bdd-caisse',
-      `${message}\n\nConsultez le fichier backend-err.log dans le dossier d'installation.`
+      `${message}\n\nConsultez le fichier de log : ${backendErrLogPath}`
     );
     app.exit(1);
   };
@@ -811,11 +823,11 @@ function waitForBackendReady(processHandle, callback) {
         const exitDetail = backendExitCode === null
           ? ''
           : ` Le processus s'est arrêté avec le code ${backendExitCode}.`;
-        fail(`Le serveur interne n'a pas répondu après 15 secondes.${exitDetail}`);
+        fail(`Le serveur interne n'a pas répondu après ${Math.round(timeoutMs / 1000)} secondes.${exitDetail}`);
         return;
       }
       retries++;
-      setTimeout(tryConnect, 300); // réessaye après 300ms
+      setTimeout(tryConnect, retryDelayMs);
     });
   };
 

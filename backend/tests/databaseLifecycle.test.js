@@ -4,6 +4,7 @@ const path = require('path');
 const Database = require('better-sqlite3');
 const { initializePersistentDatabase } = require('../databaseLifecycle');
 const { syncSqliteWithTemplate } = require('../syncSqliteWithTemplate');
+const { ensureOperationalMigrations } = require('../db');
 
 function createRuntimeRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'bdd-caisse-lifecycle-'));
@@ -39,7 +40,11 @@ describe('Installation et migration SQLite', () => {
     const resourceDir = copyResources(runtimeRoot);
     const userDataDir = path.join(runtimeRoot, 'profile', '.bdd-caisse');
 
-    const initialized = initializePersistentDatabase({ userDataDir, resourceDir });
+    const initialized = initializePersistentDatabase({
+      userDataDir,
+      resourceDir,
+      ensureMigrations: ensureOperationalMigrations
+    });
     try {
       expect(initialized.created).toBe(true);
       expect(fs.existsSync(initialized.databasePath)).toBe(true);
@@ -51,6 +56,11 @@ describe('Installation et migration SQLite', () => {
         ).get().count
       ).toBeGreaterThan(10);
       expect(initialized.db.prepare('PRAGMA quick_check').get().quick_check).toBe('ok');
+      expect(
+        initialized.db.prepare(
+          "SELECT COUNT(*) AS count FROM users WHERE pseudo_normalise IS NULL OR pseudo_normalise = ''"
+        ).get().count
+      ).toBe(0);
     } finally {
       initialized.db.close();
     }
@@ -97,7 +107,11 @@ describe('Installation et migration SQLite', () => {
       JSON.stringify({ localName: 'ANCIEN', registerNumber: 7 })
     );
 
-    const firstLaunch = initializePersistentDatabase({ userDataDir, resourceDir });
+    const firstLaunch = initializePersistentDatabase({
+      userDataDir,
+      resourceDir,
+      ensureMigrations: ensureOperationalMigrations
+    });
     try {
       expect(firstLaunch.created).toBe(false);
       expect(firstLaunch.migration.changed).toBe(true);
@@ -111,6 +125,9 @@ describe('Installation et migration SQLite', () => {
         pseudo: 'ancien',
         note_version_historique: 'à conserver'
       });
+      expect(firstLaunch.db.prepare(
+        "SELECT pseudo_normalise FROM users WHERE uuid_user = 'legacy-user'"
+      ).get().pseudo_normalise).toBe('ancien');
       expect(firstLaunch.db.prepare(
         "SELECT prix_total FROM ticketdecaisse WHERE uuid_ticket = 'legacy-ticket'"
       ).get().prix_total).toBe(1234);
@@ -134,7 +151,11 @@ describe('Installation et migration SQLite', () => {
       fs.readFileSync(path.join(userDataDir, 'storeConfig.json'), 'utf8')
     )).toEqual({ localName: 'ANCIEN', registerNumber: 7 });
 
-    const secondLaunch = initializePersistentDatabase({ userDataDir, resourceDir });
+    const secondLaunch = initializePersistentDatabase({
+      userDataDir,
+      resourceDir,
+      ensureMigrations: ensureOperationalMigrations
+    });
     try {
       expect(secondLaunch.created).toBe(false);
       expect(secondLaunch.migration.changed).toBe(false);
