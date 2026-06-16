@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../styles/App.scss';
 import VenteSelector from '../components/VenteSelector';
@@ -12,10 +12,12 @@ import { useLocation } from 'react-router-dom';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useConfirm } from "../contexts/ConfirmContext";
 import { apiUrl } from '../utils/apiBase';
+import { PreTicketQueueVisibilityContext } from '../contexts/PreTicketQueueVisibilityContext';
 
 
 function Caisse() {
   const activeSession = useActiveSession();
+  const { preTicketQueueVisible } = useContext(PreTicketQueueVisibilityContext);
   const [boutons, setBoutons] = useState({});
   const [categories, setCategories] = useState([]);
   const [categorieActive, setCategorieActive] = useState('');
@@ -185,7 +187,7 @@ function Caisse() {
   return (
     <div className="container-fluid p-0 h-100 d-flex flex-column overflow-hidden">
 
-      <PreTicketQueue onRecovered={recupererPreTicket} />
+      {preTicketQueueVisible && <PreTicketQueue onRecovered={recupererPreTicket} />}
 
       <div className="bg-light border-bottom sticky-top py-2 px-3" style={{ overflowX: 'auto', whiteSpace: 'nowrap', zIndex: 1020 }}>
         <div className="d-inline-flex gap-2">

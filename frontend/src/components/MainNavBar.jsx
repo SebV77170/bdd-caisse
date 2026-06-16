@@ -5,10 +5,11 @@ import { DevModeContext } from '../contexts/DevModeContext';
 import { useActiveSession } from '../contexts/SessionCaisseContext';
 import { useSession } from '../contexts/SessionContext';
 import { ModePaiementBoutonsContext } from '../contexts/ModePaiementBoutonsContext';
+import { PreTicketQueueVisibilityContext } from '../contexts/PreTicketQueueVisibilityContext';
 import ModeTactileToggle from './ModeTactileToggle';
 import { toast } from 'react-toastify';
-import { io } from 'socket.io-client';
-const socket = io('http://localhost:3001');
+import { apiUrl } from '../utils/apiBase';
+import socket from '../utils/socket';
 
 function MainNavbar() {
   const activeSession = useActiveSession();
@@ -18,6 +19,7 @@ function MainNavbar() {
   const [syncStatus, setSyncStatus] = useState(null);
   const navigate = useNavigate();
   const { modePaiementBoutons, setModePaiementBoutons } = useContext(ModePaiementBoutonsContext);
+  const { preTicketQueueVisible, setPreTicketQueueVisible } = useContext(PreTicketQueueVisibilityContext);
 
   useEffect(() => {
     const startHandler = () => {
@@ -91,6 +93,19 @@ function MainNavbar() {
 
           <div className="d-flex align-items-center ms-auto">
             <ModeTactileToggle />
+            <div className="form-check form-switch text-white me-2" title="Afficher les pre-tickets en attente">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="preTicketQueueSwitch"
+                checked={preTicketQueueVisible}
+                onChange={() => setPreTicketQueueVisible(prev => !prev)}
+              />
+              <label className="form-check-label" htmlFor="preTicketQueueSwitch">
+                PT
+              </label>
+            </div>
             <div className="form-check form-switch text-white me-2">
               <input
                 className="form-check-input"
@@ -109,7 +124,7 @@ function MainNavbar() {
   onClick={async () => {
     setSyncStatus('loading');
     try {
-      const res = await fetch('http://localhost:3001/api/sync?debug=true', { method: 'POST' });
+      const res = await fetch(apiUrl('/api/sync?debug=true'), { method: 'POST', credentials: 'include' });
       const result = await res.json();
 
       if (result.debug) {
@@ -151,7 +166,7 @@ function MainNavbar() {
               className="btn btn-sm btn-outline-light me-2"
               onClick={() => {
                 localStorage.removeItem('vendeur');
-                fetch('http://localhost:3001/api/session', { method: 'DELETE' });
+                fetch(apiUrl('/api/session'), { method: 'DELETE', credentials: 'include' });
                 navigate('/login');
               }}
             >

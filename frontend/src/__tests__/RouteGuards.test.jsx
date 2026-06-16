@@ -34,7 +34,9 @@ describe('Route guards', () => {
 
   test('RequireUserSession redirige un visiteur vers login', async () => {
     render(<RequireUserSession><div>Privé</div></RequireUserSession>);
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login'));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login', {
+      state: { from: '/protected' }
+    }));
     expect(screen.queryByText('Privé')).not.toBeInTheDocument();
   });
 

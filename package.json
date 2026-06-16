@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "test": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-all.ps1",
+    "test:list": ".\\electron-app\\vendor\\node.exe .\\scripts\\list-tests.js",
     "test:all": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-production.ps1",
     "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-e2e.ps1",
     "test:installation": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/test-installation.ps1",

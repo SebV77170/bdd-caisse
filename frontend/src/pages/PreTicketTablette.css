@@ -1,10 +1,16 @@
 .pre-ticket-tablet {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) minmax(320px, 36vw);
+  grid-template-columns: 168px minmax(0, 1fr) minmax(300px, 34vw);
   height: 100vh;
+  height: 100dvh;
   min-height: 0;
+  overflow: hidden;
   background: #f6f7f9;
   color: #1f2933;
+}
+
+.pre-ticket-floating-submit {
+  display: none;
 }
 
 .pre-ticket-categories,
@@ -17,7 +23,7 @@
 .pre-ticket-categories {
   border-right: 1px solid #d9dee7;
   background: #ffffff;
-  padding: 12px;
+  padding: 10px;
   overflow-y: auto;
 }
 
@@ -30,16 +36,16 @@
 .pre-ticket-toolbar {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
   align-items: center;
-  padding: 12px 16px;
+  padding: 10px 12px;
   border-bottom: 1px solid #d9dee7;
   background: #ffffff;
 }
 
 .pre-ticket-toolbar h1 {
   margin: 0;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 700;
 }
 
@@ -57,20 +63,29 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: 10px;
+}
+
+.pre-ticket-product-scroll .btn {
+  width: 132px !important;
+  min-height: 66px !important;
+  padding: 0.4rem !important;
+  border-radius: 8px !important;
+  font-size: 0.95rem !important;
 }
 
 .pre-ticket-current {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   border-left: 1px solid #d9dee7;
   background: #ffffff;
-  padding: 14px;
+  padding: 10px;
 }
 
 .pre-ticket-current h2 {
-  font-size: 1.2rem;
-  margin: 0 0 12px;
+  font-size: 1.05rem;
+  margin: 0 0 8px;
 }
 
 .pre-ticket-items {
@@ -89,10 +104,10 @@
 
 .pre-ticket-line {
   display: grid;
-  grid-template-columns: 40px minmax(90px, 1fr) 62px 82px 82px;
-  gap: 8px;
+  grid-template-columns: 34px minmax(72px, 1fr) 54px 72px 74px;
+  gap: 6px;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
   border-bottom: 1px solid #eef1f5;
 }
 
@@ -112,23 +127,146 @@
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid #d9dee7;
-  padding: 14px 0;
-  font-size: 1.35rem;
+  padding: 10px 0;
+  font-size: 1.15rem;
+  flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
+.pre-ticket-current > .btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1180px) {
   .pre-ticket-tablet {
-    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-columns: 140px minmax(0, 1fr) 292px;
+    padding-bottom: 72px;
+  }
+
+  .pre-ticket-floating-submit {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid #c8d0dc;
+    background: #ffffff;
+    box-shadow: 0 -3px 12px rgba(16, 24, 40, 0.15);
+  }
+
+  .pre-ticket-floating-submit span {
+    display: block;
+    color: #52606d;
+    font-size: 0.82rem;
+    line-height: 1;
+  }
+
+  .pre-ticket-floating-submit strong {
+    display: block;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .pre-ticket-floating-submit .btn {
+    min-height: 46px;
+    flex: 1;
+    max-width: 460px;
+    font-weight: 700;
+  }
+
+  .pre-ticket-meta {
+    grid-template-columns: minmax(120px, 1fr);
+    width: min(260px, 42vw);
+  }
+
+  .pre-ticket-product-scroll .btn {
+    width: 118px !important;
+    min-height: 62px !important;
+    font-size: 0.88rem !important;
+  }
+
+  .pre-ticket-line {
+    grid-template-columns: 32px minmax(60px, 1fr) 48px 64px;
+  }
+
+  .pre-ticket-line strong {
+    grid-column: 2 / -1;
+    text-align: right;
+  }
+}
+
+@media (max-width: 920px) {
+  .pre-ticket-tablet {
+    grid-template-columns: 124px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 58dvh) minmax(260px, 42dvh);
+    padding-bottom: 72px;
+  }
+
+  .pre-ticket-categories,
+  .pre-ticket-products {
+    grid-row: 1;
   }
 
   .pre-ticket-current {
     grid-column: 1 / -1;
-    min-height: 38vh;
+    grid-row: 2;
+    min-height: 0;
     border-left: 0;
     border-top: 1px solid #d9dee7;
   }
 
+  .pre-ticket-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .pre-ticket-meta {
     grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .pre-ticket-product-scroll .btn {
+    width: 108px !important;
+    min-height: 58px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .pre-ticket-line {
+    grid-template-columns: 32px minmax(80px, 1fr) 48px 64px 72px;
+  }
+
+  .pre-ticket-line strong {
+    grid-column: auto;
+    text-align: right;
+  }
+}
+
+@media (max-height: 680px) {
+  .pre-ticket-current h2 {
+    display: none;
+  }
+
+  .pre-ticket-total {
+    padding: 6px 0;
+  }
+
+  .pre-ticket-current > .btn {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    font-size: 1rem;
+  }
+
+  .pre-ticket-floating-submit {
+    padding-top: 8px;
+  }
+
+  .pre-ticket-floating-submit .btn {
+    min-height: 42px;
+    font-size: 0.95rem;
   }
 }

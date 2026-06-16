@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const app = require('../app');
 const { sqlite } = require('../db');
+const { getBusinessDate } = require('../utils/dateTime');
 
 function initTables() {
   const schema = fs.readFileSync(path.join(__dirname, '../schema.sql'), 'utf8');
@@ -37,6 +38,8 @@ function seedTicket(uuid = 'ticket-1') {
 }
 
 describe('Routes /api/bilan', () => {
+  const businessDate = getBusinessDate();
+
   beforeEach(() => {
     initTables();
     for (const table of [
@@ -145,8 +148,8 @@ describe('Routes /api/bilan', () => {
       INSERT INTO bilan (
         date, timestamp, nombre_vente, poids, prix_total,
         prix_total_espece, prix_total_cheque, prix_total_carte, prix_total_virement
-      ) VALUES (date('now'), strftime('%s','now'), 2, 0, 3000, 1000, 0, 2000, 0)
-    `).run();
+      ) VALUES (?, strftime('%s','now'), 2, 0, 3000, 1000, 0, 2000, 0)
+    `).run(businessDate);
 
     const res = await request(app).get('/api/bilan/jour');
     expect(res.status).toBe(200);

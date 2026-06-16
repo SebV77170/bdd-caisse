@@ -65,11 +65,15 @@ function prefixOutput(stream, suite, target) {
 
 console.log('Lancement des tests backend et frontend en parallele...');
 
+const startedAt = Date.now();
+const results = new Map();
+
 const children = suites.map(suite => {
   if (!fs.existsSync(suite.script)) {
     throw new Error(`Dependance manquante pour ${suite.name}: ${suite.script}`);
   }
 
+  const suiteStartedAt = Date.now();
   const child = spawn(process.execPath, [suite.script, ...suite.args], {
     cwd: suite.cwd,
     env: environment,
@@ -81,28 +85,64 @@ const children = suites.map(suite => {
     prefixOutput(child.stdout, suite, process.stdout),
     prefixOutput(child.stderr, suite, process.stderr)
   ]);
-  return { suite, child, outputDone };
+  return { suite, child, outputDone, suiteStartedAt };
 });
 
 let completed = 0;
 let exitCode = 0;
 
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes === 0) return `${seconds}s`;
+  return `${minutes}m ${seconds}s`;
+}
+
+function printSummary() {
+  const totalDuration = formatDuration(Date.now() - startedAt);
+  const lines = suites.map(suite => {
+    const result = results.get(suite.name);
+    const code = result ? result.code : 'inconnu';
+    const duration = result ? formatDuration(result.duration) : '-';
+    const status = result && result.code === 0 ? 'OK' : 'ECHEC';
+
+    return `  ${suite.name.padEnd(8)} ${status.padEnd(5)} code ${String(code).padEnd(7)} ${duration}`;
+  });
+
+  process.stderr.write('\n');
+  process.stderr.write('Bilan des tests\n');
+  process.stderr.write('----------------\n');
+  for (const line of lines) process.stderr.write(`${line}\n`);
+  process.stderr.write(`  total    ${exitCode === 0 ? 'OK' : 'ECHEC'}          ${totalDuration}\n`);
+}
+
 function finish() {
+  printSummary();
   fs.rmSync(tempDir, { recursive: true, force: true });
   process.exitCode = exitCode;
 }
 
-for (const { suite, child, outputDone } of children) {
+for (const { suite, child, outputDone, suiteStartedAt } of children) {
   child.on('error', error => {
     console.error(`[${suite.name}] Impossible de lancer les tests: ${error.message}`);
     exitCode = 1;
+    results.set(suite.name, {
+      code: 'erreur',
+      duration: Date.now() - suiteStartedAt
+    });
   });
 
   child.on('close', async code => {
     await outputDone;
     completed += 1;
     if (code !== 0) exitCode = 1;
-    console.log(`[${suite.name}] termine avec le code ${code}.`);
+    results.set(suite.name, {
+      code,
+      duration: Date.now() - suiteStartedAt
+    });
+    process.stderr.write(`[${suite.name}] termine avec le code ${code}.\n`);
 
     if (completed === children.length) finish();
   });

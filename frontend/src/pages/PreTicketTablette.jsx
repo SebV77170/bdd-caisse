@@ -172,6 +172,20 @@ function PreTicketTablette() {
 
   return (
     <div className="pre-ticket-tablet">
+      <div className="pre-ticket-floating-submit">
+        <div>
+          <span>Total</span>
+          <strong>{formatEuros(total)} EUR</strong>
+        </div>
+        <button
+          className="btn btn-primary"
+          disabled={busy || items.length === 0}
+          onClick={envoyerPreTicket}
+        >
+          Transmettre a la caisse principale
+        </button>
+      </div>
+
       <aside className="pre-ticket-categories">
         <button className="btn btn-success w-100 mb-3" onClick={nouveauPreTicket}>
           Nouveau
@@ -253,7 +267,7 @@ function PreTicketTablette() {
           disabled={busy || items.length === 0}
           onClick={envoyerPreTicket}
         >
-          Envoyer a la caisse
+          Transmettre a la caisse principale
         </button>
       </aside>
     </div>

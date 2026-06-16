@@ -7,7 +7,8 @@ const mockLogin = jest.fn();
 let mockActiveSession = null;
 
 jest.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate
+  useNavigate: () => mockNavigate,
+  useLocation: () => ({ state: null })
 }));
 
 jest.mock('../contexts/SessionContext', () => ({

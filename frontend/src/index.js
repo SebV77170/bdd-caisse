@@ -9,23 +9,26 @@ import { SessionCaisseSecondaireProvider } from './contexts/SessionCaisseContext
 import { ModeTactileProvider } from './contexts/ModeTactileContext';
 import { ModePaiementBoutonsProvider } from './contexts/ModePaiementBoutonsContext';
 import { ConfirmProvider } from "./contexts/ConfirmContext";
+import { PreTicketQueueVisibilityProvider } from './contexts/PreTicketQueueVisibilityContext';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <HashRouter>
     <ConfirmProvider>
       <ModePaiementBoutonsProvider>
-        <ModeTactileProvider>
-          <DevModeProvider>
-            <SessionProvider>
-              <SessionCaisseProvider>
-                <SessionCaisseSecondaireProvider>
-                  <App />
-                </SessionCaisseSecondaireProvider>
-              </SessionCaisseProvider>
-            </SessionProvider>
-          </DevModeProvider>
-        </ModeTactileProvider>
+        <PreTicketQueueVisibilityProvider>
+          <ModeTactileProvider>
+            <DevModeProvider>
+              <SessionProvider>
+                <SessionCaisseProvider>
+                  <SessionCaisseSecondaireProvider>
+                    <App />
+                  </SessionCaisseSecondaireProvider>
+                </SessionCaisseProvider>
+              </SessionProvider>
+            </DevModeProvider>
+          </ModeTactileProvider>
+        </PreTicketQueueVisibilityProvider>
       </ModePaiementBoutonsProvider>
     </ConfirmProvider>
   </HashRouter>

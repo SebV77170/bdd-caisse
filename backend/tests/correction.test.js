@@ -10,6 +10,7 @@ const { sqlite } = require('../db');
 const path = require('path');
 const fs = require('fs');
 const genererTicketPdf = require('../utils/genererTicketPdf');
+const { getBusinessDate } = require('../utils/dateTime');
 
 function initTables() {
   const schemaPath = path.join(__dirname, '../schema.sql');
@@ -18,6 +19,7 @@ function initTables() {
 }
 
 function createInitialTicket(uuid_ticket = 'uuid-original') {
+  const businessDate = getBusinessDate();
   const stmt = sqlite.prepare(`
     INSERT INTO ticketdecaisse (
       uuid_ticket, date_achat_dt, nom_vendeur, id_vendeur,
@@ -47,11 +49,12 @@ function createInitialTicket(uuid_ticket = 'uuid-original') {
       prix_total, prix_total_espece, prix_total_cheque,
       prix_total_carte, prix_total_virement
     )
-    VALUES (date('now'), strftime('%s','now'), 1, 0, 1000, 0, 0, 1000, 0)
-  `).run();
+    VALUES (?, strftime('%s','now'), 1, 0, 1000, 0, 0, 1000, 0)
+  `).run(businessDate);
 }
 
 function createInitialTicketWithReduction(reductionType = '') {
+  const businessDate = getBusinessDate();
   const uuid_ticket = 'uuidv4ticket';
   const uuid_objet = 'uuidv4objet';
   const uuid_reduc = 'uuidv4reduc';
@@ -134,8 +137,8 @@ function createInitialTicketWithReduction(reductionType = '') {
       prix_total, prix_total_espece, prix_total_cheque,
       prix_total_carte, prix_total_virement
     )
-    VALUES (date('now'), strftime('%s','now'), 1, 0, ?, 0, 0, ?, 0)
-  `).run(prixTotal, prixTotal);
+    VALUES (?, strftime('%s','now'), 1, 0, ?, 0, 0, ?, 0)
+  `).run(businessDate, prixTotal, prixTotal);
 
   return { uuid_ticket, id_ticket_original: id_ticket, uuid_objet, uuid_reduc };
 }
