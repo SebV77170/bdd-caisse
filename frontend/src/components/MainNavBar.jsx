@@ -10,6 +10,7 @@ import ModeTactileToggle from './ModeTactileToggle';
 import { toast } from 'react-toastify';
 import { apiUrl } from '../utils/apiBase';
 import socket from '../utils/socket';
+import './MainNavBar.css';
 
 function MainNavbar() {
   const activeSession = useActiveSession();
@@ -19,7 +20,12 @@ function MainNavbar() {
   const [syncStatus, setSyncStatus] = useState(null);
   const navigate = useNavigate();
   const { modePaiementBoutons, setModePaiementBoutons } = useContext(ModePaiementBoutonsContext);
-  const { preTicketQueueVisible, setPreTicketQueueVisible } = useContext(PreTicketQueueVisibilityContext);
+  const {
+    preTicketQueueVisible,
+    setPreTicketQueueVisible,
+    pendingPreTicketCount,
+  } = useContext(PreTicketQueueVisibilityContext);
+  const shouldAlertPreTickets = !preTicketQueueVisible && pendingPreTicketCount > 0;
 
   useEffect(() => {
     const startHandler = () => {
@@ -93,7 +99,10 @@ function MainNavbar() {
 
           <div className="d-flex align-items-center ms-auto">
             <ModeTactileToggle />
-            <div className="form-check form-switch text-white me-2" title="Afficher les pre-tickets en attente">
+            <div
+              className={`form-check form-switch text-white me-2 pre-ticket-switch ${shouldAlertPreTickets ? 'pre-ticket-switch-alert' : ''}`}
+              title="Afficher les pre-tickets en attente"
+            >
               <input
                 className="form-check-input"
                 type="checkbox"
@@ -104,6 +113,11 @@ function MainNavbar() {
               />
               <label className="form-check-label" htmlFor="preTicketQueueSwitch">
                 PT
+                {pendingPreTicketCount > 0 && (
+                  <span className="pre-ticket-switch-count" aria-label={`${pendingPreTicketCount} pre-ticket en attente`}>
+                    {pendingPreTicketCount}
+                  </span>
+                )}
               </label>
             </div>
             <div className="form-check form-switch text-white me-2">

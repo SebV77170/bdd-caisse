@@ -1,0 +1,59 @@
+.pre-ticket-switch {
+  align-items: center;
+  display: flex;
+  gap: 0.35rem;
+  min-height: 1.6rem;
+}
+
+.pre-ticket-switch .form-check-label {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.25rem;
+  line-height: 1;
+}
+
+.pre-ticket-switch-count {
+  align-items: center;
+  background: #ffc107;
+  border-radius: 999px;
+  color: #1f1f1f;
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 1.1rem;
+  min-width: 1.1rem;
+  padding: 0 0.32rem;
+}
+
+.pre-ticket-switch-alert .form-check-input {
+  animation: pre-ticket-switch-pulse 1s ease-in-out infinite;
+  border-color: #ffc107;
+  box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.65);
+}
+
+.pre-ticket-switch-alert .pre-ticket-switch-count {
+  animation: pre-ticket-count-pulse 1s ease-in-out infinite;
+}
+
+@keyframes pre-ticket-switch-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.65);
+  }
+
+  50% {
+    box-shadow: 0 0 0 0.28rem rgba(255, 193, 7, 0);
+  }
+}
+
+@keyframes pre-ticket-count-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
+}

@@ -27,6 +27,79 @@
   overflow-y: auto;
 }
 
+.pre-ticket-pending {
+  border-bottom: 1px solid #e5e9f0;
+  margin: 0 -2px 10px;
+  padding: 0 2px 10px;
+}
+
+.pre-ticket-pending-header {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.pre-ticket-pending-header strong {
+  font-size: 0.88rem;
+}
+
+.pre-ticket-pending-header .btn {
+  line-height: 1;
+  min-height: 28px;
+  min-width: 34px;
+  padding: 0.25rem 0.4rem;
+}
+
+.pre-ticket-pending-empty {
+  color: #697586;
+  font-size: 0.8rem;
+  padding: 4px 0;
+}
+
+.pre-ticket-pending-list {
+  display: grid;
+  gap: 6px;
+  max-height: 24dvh;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.pre-ticket-pending-card {
+  background: #f8fafc;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  color: #1f2933;
+  display: grid;
+  gap: 2px;
+  min-height: 50px;
+  padding: 7px;
+  text-align: left;
+  width: 100%;
+}
+
+.pre-ticket-pending-card.active {
+  background: #e8f1ff;
+  border-color: #2f80ed;
+}
+
+.pre-ticket-pending-card span {
+  font-size: 0.86rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pre-ticket-pending-card small {
+  color: #52606d;
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pre-ticket-products {
   display: flex;
   flex-direction: column;
@@ -142,6 +215,10 @@
     padding-bottom: 72px;
   }
 
+  .pre-ticket-pending-list {
+    max-height: 20dvh;
+  }
+
   .pre-ticket-floating-submit {
     position: fixed;
     left: 0;
@@ -205,6 +282,11 @@
     grid-template-columns: 124px minmax(0, 1fr);
     grid-template-rows: minmax(0, 58dvh) minmax(260px, 42dvh);
     padding-bottom: 72px;
+  }
+
+  .pre-ticket-pending-card {
+    min-height: 46px;
+    padding: 6px;
   }
 
   .pre-ticket-categories,

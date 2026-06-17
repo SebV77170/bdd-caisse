@@ -128,4 +128,57 @@ describe('preTickets.routes', () => {
     expect(sqlite.prepare('SELECT COUNT(*) AS count FROM vente').get().count).toBe(1);
     expect(sqlite.prepare('SELECT COUNT(*) AS count FROM ticketdecaissetemp').get().count).toBe(1);
   });
+
+  test('modifie un pre-ticket en attente avant sa conversion', async () => {
+    const cookie = await login();
+    const created = await request(app)
+      .post('/api/pre-tickets')
+      .set('Cookie', cookie)
+      .send({ client_label: 'Client bonnet' });
+    const uuid = created.body.uuid_pre_ticket;
+
+    const withItem = await request(app)
+      .post(`/api/pre-tickets/${uuid}/items`)
+      .set('Cookie', cookie)
+      .send({ id_produit: 10, quantite: 1 });
+    const itemId = withItem.body.items[0].id;
+
+    await request(app)
+      .post(`/api/pre-tickets/${uuid}/envoyer`)
+      .set('Cookie', cookie)
+      .send();
+
+    const updatedQuantity = await request(app)
+      .put(`/api/pre-tickets/${uuid}/items/${itemId}`)
+      .set('Cookie', cookie)
+      .send({ nbr: 3 });
+    expect(updatedQuantity.status).toBe(200);
+    expect(updatedQuantity.body.statut).toBe('en_attente');
+    expect(updatedQuantity.body.items[0]).toEqual(expect.objectContaining({
+      nbr: 3,
+      prixt: 3600
+    }));
+
+    const updatedMeta = await request(app)
+      .patch(`/api/pre-tickets/${uuid}`)
+      .set('Cookie', cookie)
+      .send({ client_label: 'Client bonnet + echarpe' });
+    expect(updatedMeta.status).toBe(200);
+    expect(updatedMeta.body.client_label).toBe('Client bonnet + echarpe');
+
+    const converted = await request(app)
+      .post(`/api/pre-tickets/${uuid}/convertir`)
+      .set('Cookie', cookie)
+      .send();
+    expect(converted.status).toBe(200);
+
+    const tempItems = sqlite.prepare(
+      'SELECT * FROM ticketdecaissetemp WHERE id_temp_vente = ?'
+    ).all(converted.body.id_temp_vente);
+    expect(tempItems).toHaveLength(1);
+    expect(tempItems[0]).toEqual(expect.objectContaining({
+      nbr: 3,
+      prixt: 3600
+    }));
+  });
 });

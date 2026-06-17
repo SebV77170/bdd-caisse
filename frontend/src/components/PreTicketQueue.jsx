@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import { apiUrl } from '../utils/apiBase';
+import { PreTicketQueueVisibilityContext } from '../contexts/PreTicketQueueVisibilityContext';
 import socket from '../utils/socket';
 
 function formatEuros(cents) {
@@ -16,15 +17,20 @@ function PreTicketQueue({ onRecovered }) {
   const [preTickets, setPreTickets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [convertingUuid, setConvertingUuid] = useState(null);
+  const { refreshPendingPreTicketCount } = useContext(PreTicketQueueVisibilityContext);
 
   const chargerPreTickets = useCallback(() => {
     setLoading(true);
     fetch(apiUrl('/api/pre-tickets?statut=en_attente'), { credentials: 'include' })
       .then(res => res.json())
-      .then(data => setPreTickets(Array.isArray(data) ? data : []))
+      .then(data => {
+        const tickets = Array.isArray(data) ? data : [];
+        setPreTickets(tickets);
+        refreshPendingPreTicketCount();
+      })
       .catch(() => toast.error('Impossible de charger les pre-tickets'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshPendingPreTicketCount]);
 
   useEffect(() => {
     chargerPreTickets();
@@ -53,6 +59,7 @@ function PreTicketQueue({ onRecovered }) {
       if (!res.ok) throw new Error(data.error || 'Recuperation impossible');
       toast.success('Pre-ticket recupere');
       setPreTickets(current => current.filter(ticket => ticket.uuid_pre_ticket !== uuid));
+      refreshPendingPreTicketCount();
       onRecovered(data.id_temp_vente);
     } catch (err) {
       toast.error(err.message);
@@ -71,6 +78,7 @@ function PreTicketQueue({ onRecovered }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Annulation impossible');
       setPreTickets(current => current.filter(ticket => ticket.uuid_pre_ticket !== uuid));
+      refreshPendingPreTicketCount();
       toast.info('Pre-ticket annule');
     } catch (err) {
       toast.error(err.message);

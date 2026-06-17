@@ -4,6 +4,7 @@ import CategorieSelector from '../components/CategorieSelector';
 import BoutonsCaisse from '../components/BoutonsCaisse';
 import TactileInput from '../components/TactileInput';
 import { apiUrl } from '../utils/apiBase';
+import socket from '../utils/socket';
 import './PreTicketTablette.css';
 
 function formatEuros(cents) {
@@ -18,6 +19,8 @@ function PreTicketTablette() {
   const [items, setItems] = useState([]);
   const [clientLabel, setClientLabel] = useState('');
   const [commentaire, setCommentaire] = useState('');
+  const [pendingPreTickets, setPendingPreTickets] = useState([]);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const total = useMemo(
@@ -43,6 +46,32 @@ function PreTicketTablette() {
       })
       .catch(() => toast.error('Impossible de charger les produits'));
   }, []);
+
+  const chargerPreTicketsEnAttente = useCallback(() => {
+    setLoadingPending(true);
+    fetch(apiUrl('/api/pre-tickets?statut=en_attente'), { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error('Chargement impossible');
+        return res.json();
+      })
+      .then(data => setPendingPreTickets(Array.isArray(data) ? data : []))
+      .catch(() => toast.error('Impossible de charger les pre-tickets en attente'))
+      .finally(() => setLoadingPending(false));
+  }, []);
+
+  useEffect(() => {
+    chargerPreTicketsEnAttente();
+
+    socket.on('preTicketCreated', chargerPreTicketsEnAttente);
+    socket.on('preTicketUpdated', chargerPreTicketsEnAttente);
+    socket.on('preTicketConverted', chargerPreTicketsEnAttente);
+
+    return () => {
+      socket.off('preTicketCreated', chargerPreTicketsEnAttente);
+      socket.off('preTicketUpdated', chargerPreTicketsEnAttente);
+      socket.off('preTicketConverted', chargerPreTicketsEnAttente);
+    };
+  }, [chargerPreTicketsEnAttente]);
 
   const syncDetails = useCallback((data) => {
     setPreTicket(data);
@@ -85,6 +114,7 @@ function PreTicketTablette() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ajout impossible');
       syncDetails(data);
+      chargerPreTicketsEnAttente();
     } catch (err) {
       toast.error(err.message);
     }
@@ -106,6 +136,7 @@ function PreTicketTablette() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Modification impossible');
       syncDetails(data);
+      chargerPreTicketsEnAttente();
     } catch (err) {
       toast.error(err.message);
     }
@@ -121,8 +152,34 @@ function PreTicketTablette() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Suppression impossible');
       syncDetails(data);
+      chargerPreTicketsEnAttente();
     } catch (err) {
       toast.error(err.message);
+    }
+  };
+
+  const reprendrePreTicket = async (uuid) => {
+    if (busy) return;
+    if (preTicket?.statut === 'brouillon' && items.length > 0) {
+      toast.info('Transmettez ou videz le brouillon en cours avant de reprendre un autre pre-ticket.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const res = await fetch(apiUrl(`/api/pre-tickets/${uuid}`), { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Chargement impossible');
+      if (data.statut !== 'en_attente') {
+        chargerPreTicketsEnAttente();
+        throw new Error('Ce pre-ticket n est plus en attente.');
+      }
+      syncDetails(data);
+      toast.info('Pre-ticket charge sur la tablette');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -145,11 +202,15 @@ function PreTicketTablette() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Envoi impossible');
-      toast.success('Pre-ticket envoye a la caisse');
+      toast.success(preTicket.statut === 'en_attente'
+        ? 'Pre-ticket mis a jour'
+        : 'Pre-ticket envoye a la caisse'
+      );
       setPreTicket(null);
       setItems([]);
       setClientLabel('');
       setCommentaire('');
+      chargerPreTicketsEnAttente();
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -182,7 +243,7 @@ function PreTicketTablette() {
           disabled={busy || items.length === 0}
           onClick={envoyerPreTicket}
         >
-          Transmettre a la caisse principale
+          {preTicket?.statut === 'en_attente' ? 'Mettre a jour le pre-ticket' : 'Transmettre a la caisse principale'}
         </button>
       </div>
 
@@ -190,6 +251,35 @@ function PreTicketTablette() {
         <button className="btn btn-success w-100 mb-3" onClick={nouveauPreTicket}>
           Nouveau
         </button>
+        <section className="pre-ticket-pending">
+          <div className="pre-ticket-pending-header">
+            <strong>En attente</strong>
+            <button
+              className="btn btn-sm btn-outline-secondary"
+              onClick={chargerPreTicketsEnAttente}
+              disabled={loadingPending}
+            >
+              Maj
+            </button>
+          </div>
+          {pendingPreTickets.length === 0 ? (
+            <div className="pre-ticket-pending-empty">Aucun PT</div>
+          ) : (
+            <div className="pre-ticket-pending-list">
+              {pendingPreTickets.map(ticket => (
+                <button
+                  key={ticket.uuid_pre_ticket}
+                  className={`pre-ticket-pending-card ${preTicket?.uuid_pre_ticket === ticket.uuid_pre_ticket ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => reprendrePreTicket(ticket.uuid_pre_ticket)}
+                >
+                  <span>{ticket.client_label || `PT #${ticket.id}`}</span>
+                  <small>{ticket.articles} art. - {formatEuros(ticket.total)} EUR</small>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
         <CategorieSelector
           categories={categories}
           active={categorieActive}
@@ -201,7 +291,10 @@ function PreTicketTablette() {
         <div className="pre-ticket-toolbar">
           <div>
             <h1>{categorieActive || 'Produits'}</h1>
-            <span>{items.length} ligne(s)</span>
+            <span>
+              {items.length} ligne(s)
+              {preTicket?.statut === 'en_attente' ? ' - modification d un PT en attente' : ''}
+            </span>
           </div>
           <div className="pre-ticket-meta">
             <TactileInput
@@ -267,7 +360,7 @@ function PreTicketTablette() {
           disabled={busy || items.length === 0}
           onClick={envoyerPreTicket}
         >
-          Transmettre a la caisse principale
+          {preTicket?.statut === 'en_attente' ? 'Mettre a jour le pre-ticket' : 'Transmettre a la caisse principale'}
         </button>
       </aside>
     </div>
