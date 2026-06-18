@@ -183,6 +183,35 @@ function PreTicketTablette() {
     }
   };
 
+  const resetPreTicketCourant = () => {
+    setPreTicket(null);
+    setItems([]);
+    setClientLabel('');
+    setCommentaire('');
+  };
+
+  const annulerPreTicket = async (uuid) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(apiUrl(`/api/pre-tickets/${uuid}/annuler`), {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Annulation impossible');
+      toast.info('Pre-ticket annule');
+      if (preTicket?.uuid_pre_ticket === uuid) {
+        resetPreTicketCourant();
+      }
+      chargerPreTicketsEnAttente();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const envoyerPreTicket = async () => {
     if (!preTicket || items.length === 0 || busy) return;
     setBusy(true);
@@ -206,10 +235,7 @@ function PreTicketTablette() {
         ? 'Pre-ticket mis a jour'
         : 'Pre-ticket envoye a la caisse'
       );
-      setPreTicket(null);
-      setItems([]);
-      setClientLabel('');
-      setCommentaire('');
+      resetPreTicketCourant();
       chargerPreTicketsEnAttente();
     } catch (err) {
       toast.error(err.message);
@@ -267,15 +293,27 @@ function PreTicketTablette() {
           ) : (
             <div className="pre-ticket-pending-list">
               {pendingPreTickets.map(ticket => (
-                <button
+                <div
                   key={ticket.uuid_pre_ticket}
                   className={`pre-ticket-pending-card ${preTicket?.uuid_pre_ticket === ticket.uuid_pre_ticket ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => reprendrePreTicket(ticket.uuid_pre_ticket)}
                 >
-                  <span>{ticket.client_label || `PT #${ticket.id}`}</span>
-                  <small>{ticket.articles} art. - {formatEuros(ticket.total)} EUR</small>
-                </button>
+                  <button
+                    className="pre-ticket-pending-select"
+                    type="button"
+                    onClick={() => reprendrePreTicket(ticket.uuid_pre_ticket)}
+                  >
+                    <span>{ticket.client_label || `PT #${ticket.id}`}</span>
+                    <small>{ticket.articles} art. - {formatEuros(ticket.total)} EUR</small>
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-danger pre-ticket-pending-cancel"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => annulerPreTicket(ticket.uuid_pre_ticket)}
+                  >
+                    Annuler
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -362,6 +400,15 @@ function PreTicketTablette() {
         >
           {preTicket?.statut === 'en_attente' ? 'Mettre a jour le pre-ticket' : 'Transmettre a la caisse principale'}
         </button>
+        {preTicket?.statut === 'en_attente' && (
+          <button
+            className="btn btn-outline-danger w-100 mt-2"
+            disabled={busy}
+            onClick={() => annulerPreTicket(preTicket.uuid_pre_ticket)}
+          >
+            Annuler ce pre-ticket
+          </button>
+        )}
       </aside>
     </div>
   );

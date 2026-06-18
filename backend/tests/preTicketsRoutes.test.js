@@ -181,4 +181,40 @@ describe('preTickets.routes', () => {
       prixt: 3600
     }));
   });
+
+  test('annule un pre-ticket en attente avant sa conversion', async () => {
+    const cookie = await login();
+    const created = await request(app)
+      .post('/api/pre-tickets')
+      .set('Cookie', cookie)
+      .send({ client_label: 'Client annulation' });
+    const uuid = created.body.uuid_pre_ticket;
+
+    await request(app)
+      .post(`/api/pre-tickets/${uuid}/items`)
+      .set('Cookie', cookie)
+      .send({ id_produit: 10, quantite: 1 });
+    await request(app)
+      .post(`/api/pre-tickets/${uuid}/envoyer`)
+      .set('Cookie', cookie)
+      .send();
+
+    const cancelled = await request(app)
+      .post(`/api/pre-tickets/${uuid}/annuler`)
+      .set('Cookie', cookie)
+      .send();
+    expect(cancelled.status).toBe(200);
+    expect(cancelled.body.statut).toBe('annule');
+
+    const pending = await request(app)
+      .get('/api/pre-tickets?statut=en_attente')
+      .set('Cookie', cookie);
+    expect(pending.body).toHaveLength(0);
+
+    const converted = await request(app)
+      .post(`/api/pre-tickets/${uuid}/convertir`)
+      .set('Cookie', cookie)
+      .send();
+    expect(converted.status).toBe(409);
+  });
 });
