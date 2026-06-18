@@ -205,7 +205,12 @@ async function prepareReleaseMetadata(shouldPublish) {
     console.log(`🔖 Version Electron conservée : ${currentVersion}`);
   }
 
-  if (!process.env.BDD_CAISSE_RELEASE_NOTES && !process.env.BDD_CAISSE_RELEASE_NOTES_FILE && !getArgValue('--notes')) {
+  if (
+    !process.env.BDD_CAISSE_RELEASE_NOTES
+    && !process.env.BDD_CAISSE_RELEASE_NOTES_FILE
+    && !getArgValue('--notes')
+    && !getArgValue('--notes-file')
+  ) {
     const defaultNotes = `Mise à jour ${packageJson.version}`;
     const notes = await ask('Évolutions de cette version (affichées après mise à jour) : ', defaultNotes);
     process.env.BDD_CAISSE_RELEASE_NOTES = notes || defaultNotes;
