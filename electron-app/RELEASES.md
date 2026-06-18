@@ -100,6 +100,12 @@ Tu peux aussi fournir un fichier de notes :
 npm run package:publish -- --notes-file=../CHANGELOG_RELEASE.md
 ```
 
+Depuis la racine du dépôt, un script utilise directement le fichier `CHANGELOG_RELEASE.md` :
+
+```bash
+npm run package:publish:notes
+```
+
 ## 6) Message des dernières modifications côté utilisateur
 
 Le script ajoute les notes de version dans `latest.yml` via le champ `releaseNotes`.

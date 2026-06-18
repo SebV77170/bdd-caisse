@@ -30,7 +30,9 @@
     "package": "npm run build && npm run copy-react && cd electron-app && npm run release",
     "release": "npm run build && npm run copy-react && cd electron-app && npm run release",
     "release:publish": "npm run build && npm run copy-react && cd electron-app && npm run release:publish",
+    "release:publish:notes": "npm run build && npm run copy-react && cd electron-app && npm run release:publish -- --notes-file=../CHANGELOG_RELEASE.md",
     "package:publish": "npm run build && npm run copy-react && cd electron-app && npm run release:publish",
+    "package:publish:notes": "npm run build && npm run copy-react && cd electron-app && npm run release:publish -- --notes-file=../CHANGELOG_RELEASE.md",
     "package:no-publish": "npm run build && npm run copy-react && cd electron-app && npm run release:no-publish"
   },
   "devDependencies": {
